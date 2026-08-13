@@ -1237,7 +1237,6 @@ export const enUS = {
     mongo: {
       samples: 'Sample Queries',
       selectDatabase: 'Select Database',
-      selectCollection: 'Select Collection',
       sampleFindAll: 'Find All Documents',
       sampleFindOne: 'Find One Document',
       sampleFindWithFilter: 'Find with Filter',
@@ -1263,14 +1262,8 @@ export const enUS = {
       deleteDocumentConfirm:
         'Are you sure you want to delete this document? This action cannot be undone.',
       invalidJson: 'Invalid JSON format',
-      resultTitle: 'Result',
       totalDocuments: '{count} document(s)',
-      pageInfo: 'Page {page} / {total}',
       noDocuments: 'No documents found',
-      viewTable: 'Table',
-      viewTree: 'Tree',
-      viewJson: 'JSON',
-      actions: 'Actions',
       insertDocument: 'Insert Document',
       editDocument: 'Edit',
       cloneDocument: 'Clone',
@@ -1282,7 +1275,6 @@ export const enUS = {
       updateError: 'Failed to update document',
       deleteDocumentSuccess: 'Document deleted successfully',
       deleteError: 'Failed to delete document',
-      closePanel: 'Close panel',
       invalidJsonObject: 'Value must be a JSON object, not an array or primitive',
       contextMenu: {
         execute: 'Execute',

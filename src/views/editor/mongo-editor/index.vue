@@ -1,5 +1,5 @@
 <template>
-  <SplitPane v-model:size="queryEditorSize" direction="horizontal" class="editor">
+  <SplitPane v-model:size="queryEditorSize" direction="vertical" class="editor">
     <template #1>
       <div class="query-editor-container">
         <div id="mongo-query-editor" ref="queryEditorRef" />
@@ -31,17 +31,108 @@
     <template #2>
       <ResultPanel
         v-if="resultPanelVisible"
-        :documents="resultDocuments"
+        :key="resultQueryId"
+        :columns="resultColumns"
+        :data="resultDocuments"
         :total="resultTotal"
-        :query-time="resultQueryTime"
-        :collection="resultCollection"
-        :error-message="resultError"
-        :has-data="resultHasData"
-        :executed="resultExecuted"
         :loading="resultLoading"
+        :error="resultError"
+        :pagination="resultPagination"
+        :view-modes="['table', 'tree', 'json']"
+        :empty-text="$t('editor.mongo.noDocuments')"
+        row-key="_id"
+        :closable="true"
+        :row-class-name="rowClassName"
         class="result-panel-area"
         @close="handleResultClose"
         @refresh="executeCurrentStatement"
+        @row-click="handleRowClick"
+        @update:page="selectedRowIndex = null"
+        @update:page-size="selectedRowIndex = null"
+      >
+        <template #toolbar>
+          <Button
+            v-if="resultCollection"
+            size="sm"
+            variant="ghost"
+            class="h-6 px-2 text-xs"
+            @click="handleInsertClick"
+          >
+            <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
+            {{ $t('editor.mongo.insertDocument') }}
+          </Button>
+          <span v-if="resultTotal !== undefined && resultTotal >= 0" class="status-text">
+            {{ $t('editor.mongo.totalDocuments', { count: resultTotal }) }}
+          </span>
+          <span v-if="resultQueryTime !== undefined" class="status-text dimmed">
+            ({{ resultQueryTime }}ms)
+          </span>
+        </template>
+
+        <template #empty>
+          <template v-if="resultExecuted && !resultHasData">
+            <Empty>
+              <template #icon>
+                <div class="text-green-500 mb-4">✓</div>
+              </template>
+              <p class="font-medium">{{ $t('editor.mongo.executionSuccess') }}</p>
+            </Empty>
+          </template>
+          <Empty v-else :description="$t('editor.mongo.noDocuments')" />
+        </template>
+
+        <template #cell="{ column, row }">
+          <template v-if="column.key === 'actions' && resultCollection">
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop>
+                  <span class="i-carbon-overflow-menu-horizontal h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-36">
+                <DropdownMenuItem :disabled="!getDocumentId(row)" @click="handleEditClick(row)">
+                  <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.mongo.editDocument') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleCloneClick(row)">
+                  <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.mongo.cloneDocument') }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  :disabled="!getDocumentId(row)"
+                  class="text-destructive focus:text-destructive"
+                  @click="handleDeleteClick(row)"
+                >
+                  <span class="i-carbon-trash-can h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.mongo.deleteDocument') }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </template>
+          <span v-else class="cell-value">{{ formatCellValue(row[column.key]) }}</span>
+        </template>
+      </ResultPanel>
+
+      <InsertDocument
+        ref="insertDocumentRef"
+        v-model:show="showInsertModal"
+        :initial-value="cloneDocumentValue"
+        :mode="insertMode"
+        @insert="handleInsertSubmit"
+      />
+      <EditDocument
+        ref="editDocumentRef"
+        v-model:show="showEditModal"
+        :initial-value="editDocumentValue"
+        :document-id="editDocumentId"
+        @save="handleEditSubmit"
+      />
+      <DeleteConfirmModal
+        ref="deleteConfirmRef"
+        v-model:show="showDeleteModal"
+        :document-id="deletingId"
+        @confirm="handleDeleteConfirm"
       />
     </template>
   </SplitPane>
@@ -64,7 +155,21 @@ import {
   useTabStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
-import ResultPanel from './components/result-panel.vue';
+import { ResultPanel } from '@/components/result';
+import type { ColumnDef } from '@/components/result';
+import { Button } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import InsertDocument from './components/insert-document.vue';
+import EditDocument from './components/edit-document.vue';
+import DeleteConfirmModal from './components/delete-confirm-modal.vue';
+import { normalizeMongoResult } from './utils/mongo-result';
 import {
   Editor,
   monaco,
@@ -147,6 +252,40 @@ const resultError = ref<string | null>(null);
 const resultHasData = ref(false);
 const resultExecuted = ref(false);
 const resultLoading = ref(false);
+const resultColumns = ref<ColumnDef[]>([]);
+const resultQueryId = ref(0);
+const resultPagination = computed(() => ({
+  mode: 'client' as const,
+  pageSize: 25,
+  pageSizeOptions: [25, 50, 100, 200],
+}));
+
+// Row interaction state
+const selectedRowIndex = ref<number | null>(null);
+const rowClassName = (_row: Record<string, unknown>, rowIndex: number) =>
+  selectedRowIndex.value === rowIndex ? 'row-selected' : undefined;
+const handleRowClick = (_row: Record<string, unknown>, rowIndex: number) => {
+  selectedRowIndex.value = rowIndex;
+};
+
+// Document edit/insert/delete modal state
+type InsertDocumentExposed = { setLoading: (v: boolean) => void; setError: (msg: string) => void };
+type EditDocumentExposed = { setLoading: (v: boolean) => void; setError: (msg: string) => void };
+type DeleteConfirmExposed = {
+  setLoading: (v: boolean) => void;
+  setResult: (type: 'success' | 'error', message: string) => void;
+};
+const insertDocumentRef = ref<InsertDocumentExposed>();
+const editDocumentRef = ref<EditDocumentExposed>();
+const deleteConfirmRef = ref<DeleteConfirmExposed>();
+const showInsertModal = ref(false);
+const showEditModal = ref(false);
+const showDeleteModal = ref(false);
+const editDocumentValue = ref('');
+const editDocumentId = ref('');
+const cloneDocumentValue = ref<string | undefined>(undefined);
+const insertMode = ref<'insert' | 'clone'>('insert');
+const deletingId = ref('');
 
 const handleMenuKeydown = (e: KeyboardEvent) => {
   if (e.key === 'ArrowDown') {
@@ -222,38 +361,17 @@ const showResultPanel = (
 ) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
   resultPanelVisible.value = true;
-  resultExecuted.value = true;
-  resultError.value = error ?? null;
-  resultQueryTime.value = queryTime;
-  resultCollection.value = collection;
+  resultQueryId.value += 1;
 
-  if (error) {
-    resultDocuments.value = [];
-    resultTotal.value = undefined;
-    resultHasData.value = false;
-    return;
-  }
-
-  if (Array.isArray(content)) {
-    resultDocuments.value = content as Record<string, unknown>[];
-    resultTotal.value = (content as Record<string, unknown>[]).length;
-    resultHasData.value = true;
-  } else if (content !== null && content !== undefined && content !== '') {
-    // For plain objects (e.g., write acknowledgments like insertOne result),
-    // spread the keys as columns so they display properly in table view.
-    // For scalar values, wrap under a "result" column.
-    if (typeof content === 'object' && !Array.isArray(content)) {
-      resultDocuments.value = [content as Record<string, unknown>];
-    } else {
-      resultDocuments.value = [{ result: content }];
-    }
-    resultTotal.value = 1;
-    resultHasData.value = true;
-  } else {
-    resultDocuments.value = [];
-    resultTotal.value = 0;
-    resultHasData.value = false;
-  }
+  const state = normalizeMongoResult(content, error, queryTime, collection);
+  resultDocuments.value = state.documents;
+  resultTotal.value = state.total;
+  resultHasData.value = state.hasData;
+  resultError.value = state.error;
+  resultQueryTime.value = state.queryTime;
+  resultCollection.value = state.collection;
+  resultColumns.value = state.columns;
+  resultExecuted.value = state.executed;
 };
 
 /**
@@ -417,6 +535,110 @@ const handleDocumentClick = (event: MouseEvent) => {
 const handleResultClose = () => {
   resultPanelVisible.value = false;
   queryEditorSize.value = 1;
+};
+
+// ---- Document actions (lifted from legacy result-panel.vue) ----
+
+const formatCellValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const getDocumentId = (doc: Record<string, unknown>): string => {
+  const id = doc._id;
+  if (!id) return '';
+  if (typeof id === 'object') {
+    // Extended JSON: {$oid: "66e5..."} — extract the hex string
+    const oid = (id as Record<string, unknown>).$oid;
+    if (typeof oid === 'string') return oid;
+    return JSON.stringify(id);
+  }
+  return String(id);
+};
+
+const handleInsertClick = () => {
+  cloneDocumentValue.value = undefined;
+  insertMode.value = 'insert';
+  showInsertModal.value = true;
+};
+
+const handleCloneClick = (row: Record<string, unknown>) => {
+  const clone = { ...row };
+  delete clone._id;
+  cloneDocumentValue.value = JSON.stringify(clone, null, 2);
+  insertMode.value = 'clone';
+  showInsertModal.value = true;
+};
+
+const handleEditClick = (row: Record<string, unknown>) => {
+  // Pre-stringify to avoid Vue reactive proxy issues with Monaco init
+  editDocumentValue.value = JSON.stringify(row, null, 2);
+  editDocumentId.value = getDocumentId(row);
+  showEditModal.value = true;
+};
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  deletingId.value = getDocumentId(row);
+  showDeleteModal.value = true;
+};
+
+const handleInsertSubmit = async (document: string) => {
+  if (!activeConnection.value || !resultCollection.value) return;
+  insertDocumentRef.value?.setLoading(true);
+  const result = await mongoApi.insertDocument(
+    activeConnection.value,
+    resultCollection.value,
+    document,
+  );
+  insertDocumentRef.value?.setLoading(false);
+  if (!result.error) {
+    showInsertModal.value = false;
+    message.success(lang.t('editor.mongo.insertSuccess'));
+    void executeCurrentStatement();
+  } else {
+    insertDocumentRef.value?.setError(result.error ?? lang.t('editor.mongo.insertError'));
+  }
+};
+
+const handleEditSubmit = async (id: string, document: string) => {
+  if (!activeConnection.value || !resultCollection.value) return;
+  editDocumentRef.value?.setLoading(true);
+  const result = await mongoApi.updateDocument(
+    activeConnection.value,
+    resultCollection.value,
+    id,
+    document,
+  );
+  editDocumentRef.value?.setLoading(false);
+  if (!result.error) {
+    showEditModal.value = false;
+    if (result.modified_count != null && result.modified_count === 0) {
+      message.info(lang.t('editor.mongo.updateNoChanges'));
+    } else {
+      message.success(lang.t('editor.mongo.updateSuccess'));
+    }
+    void executeCurrentStatement();
+  } else {
+    editDocumentRef.value?.setError(result.error ?? lang.t('editor.mongo.updateError'));
+  }
+};
+
+const handleDeleteConfirm = async () => {
+  if (!activeConnection.value || !resultCollection.value || !deletingId.value) return;
+  deleteConfirmRef.value?.setLoading(true);
+  const result = await mongoApi.deleteDocument(
+    activeConnection.value,
+    resultCollection.value,
+    deletingId.value,
+  );
+  if (!result.error) {
+    showDeleteModal.value = false;
+    message.success(lang.t('editor.mongo.deleteDocumentSuccess'));
+    void executeCurrentStatement();
+  } else {
+    deleteConfirmRef.value?.setResult('error', result.error ?? lang.t('editor.mongo.deleteError'));
+  }
 };
 
 const executeCurrentStatement = async () => {
@@ -723,7 +945,36 @@ defineExpose({
 .result-panel-area {
   width: 100%;
   height: 100%;
-  border-left: 1px solid hsl(var(--border));
+  border-top: 1px solid hsl(var(--border));
+}
+
+.status-text {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.status-text.dimmed {
+  opacity: 0.65;
+}
+
+.cell-value {
+  display: block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+}
+
+:deep(.row-selected) {
+  background: hsl(var(--primary) / 0.08);
+  outline: 2px solid hsl(var(--primary) / 0.3);
+  outline-offset: -2px;
+}
+
+:deep(.row-selected:hover) {
+  background: hsl(var(--primary) / 0.12);
 }
 
 :deep(.mongo-execute-decoration) {

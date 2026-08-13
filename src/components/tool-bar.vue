@@ -210,14 +210,23 @@
       v-if="props.type === 'DYNAMO_EDITOR' && activePanel.editorType === 'DYNAMO_EDITOR_SQL'"
       class="run-button-container"
     >
-      <Button
-        size="sm"
-        :disabled="!activePanel.connection || isExecuting"
-        @click="handleExecuteQuery"
-      >
-        <span class="i-carbon-play-filled-alt mr-1 h-4 w-4" />
-        {{ isExecuting ? $t('dialogOps.executing') : $t('dialogOps.execute') }}
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon"
+              :disabled="!activePanel.connection || isExecuting"
+              @click="handleExecuteQuery"
+            >
+              <span class="i-carbon-play-filled-alt h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {{ isExecuting ? $t('dialogOps.executing') : $t('dialogOps.execute') }}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
     <DropdownMenu v-if="props.type === 'MONGO_EDITOR'">
@@ -238,10 +247,21 @@
     </DropdownMenu>
 
     <div v-if="props.type === 'MONGO_EDITOR'" class="run-button-container">
-      <Button size="sm" :disabled="!activePanel.connection" @click="handleExecuteMongoQuery">
-        <span class="i-carbon-play-filled-alt mr-1 h-4 w-4" />
-        {{ $t('dialogOps.execute') }}
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              variant="ghost"
+              size="icon"
+              :disabled="!activePanel.connection"
+              @click="handleExecuteMongoQuery"
+            >
+              <span class="i-carbon-play-filled-alt h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ $t('dialogOps.execute') }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
 
     <Button

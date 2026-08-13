@@ -136,6 +136,8 @@
                   v-for="(row, rowIndex) in displayData"
                   v-else
                   :key="getRowKey(row, rowIndex)"
+                  :class="rowClassName?.(row, rowIndex)"
+                  @click="$emit('row-click', row, rowIndex)"
                 >
                   <TableCell
                     v-for="col in displayColumns"
@@ -284,6 +286,7 @@ const props = withDefaults(
     rowKey?: string | ((row: Record<string, unknown>) => string);
     closable?: boolean;
     loadingOverlay?: boolean;
+    rowClassName?: (row: Record<string, unknown>, rowIndex: number) => string | undefined;
   }>(),
   {
     columns: () => [],
@@ -298,6 +301,7 @@ const props = withDefaults(
     rowKey: undefined,
     closable: false,
     loadingOverlay: false,
+    rowClassName: undefined,
   },
 );
 
@@ -310,6 +314,7 @@ const emit = defineEmits<{
   'first-page': [];
   refresh: [];
   close: [];
+  'row-click': [row: Record<string, unknown>, rowIndex: number];
 }>();
 
 const internalView = ref<ViewMode>(props.activeView);
