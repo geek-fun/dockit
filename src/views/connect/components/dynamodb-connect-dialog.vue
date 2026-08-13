@@ -1395,9 +1395,7 @@ let fetchAbortFlag = 0;
 const silentFetchTables = async () => {
   const tick = ++fetchAbortFlag;
   try {
-    const tables = await (sshConfig.value.enabled
-      ? dynamoApi.listTablesViaSsh(formData.value)
-      : dynamoApi.listTables(formData.value));
+    const tables = await dynamoApi.listTables(formData.value);
     if (tick === fetchAbortFlag) availableTables.value = tables;
   } catch {
     // silently ignore — no credentials yet or invalid

@@ -26,11 +26,11 @@ pub async fn list_tables(client: &Client) -> Result<ApiResponse, String> {
                 }
             }
             Err(e) => {
+                // Use Debug format to surface the underlying transport error —
+                // `message()` collapses SdkError::DispatchFailure to a generic
+                // "dispatch failure" and hides the real connection cause.
                 let error_code = e.code().unwrap_or("UnknownError").to_string();
-                let error_message = e
-                    .message()
-                    .map(|m| m.to_string())
-                    .unwrap_or_else(|| format!("{:#}", e));
+                let error_message = format!("{:?}", e);
                 return Ok(ApiResponse {
                     status: 500,
                     message: format!("Failed to list tables: [{}] {}", error_code, error_message,),
