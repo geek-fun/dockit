@@ -114,6 +114,24 @@ fn normalize_dynamo(conn: Value) -> Result<Value, String> {
         }
     }
 
+    // DynamoDB Local / self-hosted connections may store host:port without an
+    // endpointUrl. Without this fallback the AWS SDK targets the region's AWS
+    // endpoint (https://dynamodb.{region}.amazonaws.com), which fails for local
+    // deployments with a dispatch failure. Mirrors dynamo_test_connection.
+    if !config.contains_key("endpointUrl") {
+        if let (Some(host), Some(port)) = (
+            conn.get("host").and_then(|v| v.as_str()),
+            conn.get("port").and_then(|v| v.as_u64()),
+        ) {
+            if !host.is_empty() {
+                config.insert(
+                    "endpointUrl".to_string(),
+                    Value::String(format!("http://{}:{}", host, port)),
+                );
+            }
+        }
+    }
+
     // DynamoDB auth is nested: { kind, accessKeyId, secretAccessKey, sessionToken, profileName }
     if let Some(auth) = conn.get("auth").and_then(|v| v.as_object()) {
         if let Some(kind) = auth.get("kind").and_then(|v| v.as_str()) {
@@ -330,6 +348,27 @@ mod tests {
         });
         let cfg = normalize_dynamo(conn).unwrap();
         assert!(cfg.get("endpointUrl").is_none());
+    }
+
+    #[test]
+    fn test_normalize_dynamo_host_port_fallback_endpoint() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1", "host": "127.0.0.1", "port": 8000,
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("endpointUrl").unwrap(), "http://127.0.0.1:8000");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_host_port_fallback_skipped_when_endpoint_present() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1", "host": "127.0.0.1", "port": 8000,
+            "endpointUrl": "http://dynamo.local:9000",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("endpointUrl").unwrap(), "http://dynamo.local:9000");
     }
 
     #[test]

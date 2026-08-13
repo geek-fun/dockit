@@ -141,7 +141,24 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         .filter(|s| s == "http" || s == "https")
         .unwrap_or_else(|| "http".to_string());
 
-    let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
+    // Plain-HTTP targets must use a port-forward tunnel, not SOCKS5: the
+    // AWS SDK sends origin-form HTTP requests (not CONNECT) through an HTTP
+    // proxy, which our SOCKS5/CONNECT tunnel cannot forward. Forcing
+    // expose_lan switches the tunnel to port-forward mode, so the client
+    // talks plain HTTP to 127.0.0.1:{local_port} and SSH forwards it.
+    let ssh_effective = if scheme == "http" {
+        ssh.as_ref().map(|s| {
+            let mut copy = s.clone();
+            if let Some(obj) = copy.as_object_mut() {
+                obj.insert("exposeLan".to_string(), serde_json::json!(true));
+            }
+            copy
+        })
+    } else {
+        ssh.clone()
+    };
+
+    let endpoint = resolve_ssh_tunnel(app, ssh_effective.as_ref(), &remote_host, remote_port).await?;
     let socks5_mode = endpoint.socks5_port.is_some();
     if let Some(obj) = config.as_object_mut() {
         if !socks5_mode {
