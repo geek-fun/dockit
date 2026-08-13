@@ -1122,7 +1122,6 @@ export const zhCN = {
       },
     },
     dynamo: {
-      noData: '暂无数据',
       uiQuery: '查询 UI',
       sqlEditor: 'PartiQL 查询',
       tableOrIndex: '表/索引',
@@ -1184,8 +1183,6 @@ export const zhCN = {
         noResults: '执行 PartiQL 查询以查看结果',
         emptyStatement: '请输入 PartiQL 语句',
         noStatementFound: '没有可执行的 PartiQL 语句。请选择一个查询或将光标定位在语句中。',
-        itemsReturned: '返回 {count} 条记录',
-        loadMore: '加载更多',
         executionSuccess: '语句执行成功',
         noItemsReturned: '未返回任何数据',
         contextMenu: {

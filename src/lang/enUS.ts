@@ -1160,7 +1160,6 @@ export const enUS = {
       },
     },
     dynamo: {
-      noData: 'No data available',
       uiQuery: 'Query UI',
       sqlEditor: 'PartiQL Editor',
       tableOrIndex: 'Table/Index',
@@ -1223,8 +1222,6 @@ export const enUS = {
         emptyStatement: 'Please enter a PartiQL statement',
         noStatementFound:
           'No PartiQL statement to execute. Please select a query or position your cursor within a statement.',
-        itemsReturned: '{count} items returned',
-        loadMore: 'Load More',
         executionSuccess: 'Statement executed successfully',
         noItemsReturned: 'No items returned',
         contextMenu: {
