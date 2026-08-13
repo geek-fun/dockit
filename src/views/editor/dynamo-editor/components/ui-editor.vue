@@ -157,23 +157,54 @@
       </Card>
     </template>
     <template #2>
-      <result-panel
-        v-show="dynamoData.queryData.showResultPanel"
-        :has-data="!!dynamoData.queryData.data"
-        :columns="dynamoData.queryData.columns"
+      <ResultPanel
+        v-if="dynamoData.queryData.showResultPanel"
+        :columns="displayColumns"
         :data="dynamoData.queryData.data ?? []"
+        :total="queryPagination.pageCount * queryPagination.pageSize"
         :loading="loadingRef.queryResult"
-        :pagination="dynamoData.queryData.pagination"
-        :remote="true"
+        :pagination="{
+          mode: 'offset',
+          page: queryPagination.page,
+          pageSize: queryPagination.pageSize,
+          total: queryPagination.pageCount * queryPagination.pageSize,
+          pageSizeOptions: queryPagination.pageSizes,
+        }"
         :closable="true"
-        :show-actions="true"
-        :partition-key-name="partitionKeyName"
-        :sort-key-name="sortKeyName"
         @update:page="changePage"
         @update:page-size="changePageSize"
         @close="handleCloseResultPanel"
-        @edit="handleEdit"
-      />
+      >
+        <template #toolbar>
+          <span class="text-base font-semibold">{{ $t('editor.dynamo.resultTitle') }}</span>
+        </template>
+        <template #cell="{ column, row }">
+          <template v-if="column.key === 'actions'">
+            <div class="flex gap-2">
+              <Button size="icon" variant="ghost" @click.stop="handleEdit(row)">
+                <span class="i-carbon-edit h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" @click.stop="handleDeleteClick(row)">
+                <span class="i-carbon-trash-can h-4 w-4" />
+              </Button>
+            </div>
+          </template>
+          <span v-else>{{ formatCellValue(row[column.key]) }}</span>
+        </template>
+        <template #empty>
+          <Empty>
+            <template #icon>
+              <div class="text-green-500 mb-4">✓</div>
+            </template>
+            <p class="font-medium">{{ $t('editor.dynamo.partiql.executionSuccess') }}</p>
+            <p class="text-muted-foreground text-sm">
+              {{ $t('editor.dynamo.partiql.noItemsReturned') }}
+            </p>
+          </Empty>
+        </template>
+      </ResultPanel>
+
+      <delete-confirm-modal v-model:show="showDeleteModal" :keys="deletingKeys" />
     </template>
   </SplitPane>
 
@@ -223,7 +254,16 @@ import {
 import { CustomError } from '../../../../common';
 import { useLang } from '../../../../lang';
 import EditItem from './edit-item.vue';
-import ResultPanel from './result-panel.vue';
+import DeleteConfirmModal from './delete-confirm-modal.vue';
+import { ResultPanel } from '@/components/result';
+import type { ColumnDef } from '@/components/result';
+import { Empty } from '@/components/ui/empty';
+import {
+  buildDynamoKeys,
+  flattenDynamoColumns,
+  formatDynamoCell,
+  type DynamoKey,
+} from '../utils/dynamo-result';
 
 const lang = useLang();
 
@@ -482,6 +522,34 @@ const handleEdit = (row: Record<string, unknown>) => {
   editingItem.value = row;
   showEditModal.value = true;
 };
+
+// Delete state
+const showDeleteModal = ref(false);
+const deletingKeys = ref<DynamoKey[]>([]);
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  deletingKeys.value = buildDynamoKeys(
+    row,
+    partitionKeyName.value,
+    partitionKeyType.value,
+    sortKeyName.value,
+    sortKeyType.value,
+  );
+  showDeleteModal.value = true;
+};
+
+// Flattened columns + actions column for the shared ResultPanel
+const queryPagination = computed(() => dynamoData.value.queryData.pagination);
+
+const displayColumns = computed<ColumnDef[]>(() => {
+  const flattened = flattenDynamoColumns(dynamoData.value.queryData.columns);
+  if (flattened.length > 0) {
+    flattened.push({ key: 'actions', title: lang.t('editor.dynamo.actions'), width: 100 });
+  }
+  return flattened;
+});
+
+const formatCellValue = formatDynamoCell;
 
 type AttributeItem = {
   key: string;
