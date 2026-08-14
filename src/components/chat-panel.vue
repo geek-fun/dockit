@@ -91,7 +91,7 @@
           autocapitalize="off"
           spellcheck="false"
           data-form-type="other"
-          @keydown.enter.exact.prevent="handleSend"
+          @keydown.enter.exact="onEnterKeydown"
         />
 
         <div class="chat-toolbar">
@@ -376,6 +376,14 @@ const featureRoute = computed(() =>
 
 const selectedModelId = computed(() => featureRoute.value.selectedModelId ?? undefined);
 const recentModelIds = computed(() => (selectedModelId.value ? [selectedModelId.value] : []));
+
+const onEnterKeydown = (e: KeyboardEvent) => {
+  // Ignore Enter used to confirm an IME candidate (e.g. Chinese/Japanese
+  // input methods) — keyCode 229 covers older Safari/WebKit during composition.
+  if (e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  handleSend();
+};
 
 const handleSend = async () => {
   if (modelVerified.value === false) {

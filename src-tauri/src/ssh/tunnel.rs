@@ -1317,23 +1317,38 @@ mod effective_mode_tests {
 
     #[test]
     fn last_hop_not_exposed_uses_socks5() {
-        assert_eq!(effective_tunnel_mode(true, false, false), TunnelMode::Socks5);
+        assert_eq!(
+            effective_tunnel_mode(true, false, false),
+            TunnelMode::Socks5
+        );
     }
 
     #[test]
     fn last_hop_exposed_forces_port_forward() {
-        assert_eq!(effective_tunnel_mode(true, true, false), TunnelMode::PortForward);
+        assert_eq!(
+            effective_tunnel_mode(true, true, false),
+            TunnelMode::PortForward
+        );
     }
 
     #[test]
     fn non_last_hop_always_port_forward() {
-        assert_eq!(effective_tunnel_mode(false, false, false), TunnelMode::PortForward);
-        assert_eq!(effective_tunnel_mode(false, true, false), TunnelMode::PortForward);
+        assert_eq!(
+            effective_tunnel_mode(false, false, false),
+            TunnelMode::PortForward
+        );
+        assert_eq!(
+            effective_tunnel_mode(false, true, false),
+            TunnelMode::PortForward
+        );
     }
 
     #[test]
     fn force_port_forward_overrides_socks5() {
-        assert_eq!(effective_tunnel_mode(true, false, true), TunnelMode::PortForward);
+        assert_eq!(
+            effective_tunnel_mode(true, false, true),
+            TunnelMode::PortForward
+        );
     }
 }
 
