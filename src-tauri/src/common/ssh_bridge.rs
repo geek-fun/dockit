@@ -312,14 +312,9 @@ pub async fn resolve_ssh_tunnel(
         "port": port,
         "sshTunnel": ssh,
     });
-    let (h, p, socks5_mode) = resolve_connection_target(
-        app,
-        &conn_val,
-        &cid,
-        tunnels.inner(),
-        force_port_forward,
-    )
-    .await?;
+    let (h, p, socks5_mode) =
+        resolve_connection_target(app, &conn_val, &cid, tunnels.inner(), force_port_forward)
+            .await?;
     let socks5_port = if socks5_mode { Some(p) } else { None };
     Ok(TunnelEndpoint {
         // In Socks5 mode h is the real host and p is the LOCAL proxy port;

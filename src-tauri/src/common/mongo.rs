@@ -234,7 +234,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_apply_socks5_proxy_sets_fields() {
-        let mut options = ClientOptions::parse("mongodb://localhost:27017").await.unwrap();
+        let mut options = ClientOptions::parse("mongodb://localhost:27017")
+            .await
+            .unwrap();
         apply_socks5_proxy_from_config(&mut options, Some("127.0.0.1:51234")).unwrap();
         let proxy = options.socks5_proxy.expect("socks5_proxy must be set");
         assert_eq!(proxy.host, "127.0.0.1");
@@ -244,7 +246,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_apply_socks5_proxy_none_no_changes() {
-        let mut options = ClientOptions::parse("mongodb://localhost:27017").await.unwrap();
+        let mut options = ClientOptions::parse("mongodb://localhost:27017")
+            .await
+            .unwrap();
         apply_socks5_proxy_from_config(&mut options, None).unwrap();
         assert!(options.socks5_proxy.is_none());
         assert!(options.direct_connection.is_none());
@@ -252,7 +256,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_apply_socks5_proxy_malformed_returns_err() {
-        let mut options = ClientOptions::parse("mongodb://localhost:27017").await.unwrap();
+        let mut options = ClientOptions::parse("mongodb://localhost:27017")
+            .await
+            .unwrap();
         let err = apply_socks5_proxy_from_config(&mut options, Some("invalid")).unwrap_err();
         assert!(err.contains("no port separator"), "got: {}", err);
     }
