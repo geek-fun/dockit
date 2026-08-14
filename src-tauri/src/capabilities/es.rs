@@ -161,6 +161,11 @@ pub(crate) struct EsUpdateAliases;
 pub(crate) struct EsBulk;
 pub(crate) struct EsCount;
 pub(crate) struct EsReindex;
+pub(crate) struct EsClusterHealth;
+pub(crate) struct EsCatNodes;
+pub(crate) struct EsCatShards;
+pub(crate) struct EsListSnapshots;
+pub(crate) struct EsRestoreSnapshot;
 
 macro_rules! impl_es_handler {
     ($struct:ty, $method:expr, $path_fn:expr, $has_body:expr) => {
@@ -579,6 +584,55 @@ impl_es_handler!(
     true
 );
 
+impl_es_handler!(
+    EsClusterHealth,
+    "GET",
+    |_args: &Value| -> Result<String, String> { Ok("/_cluster/health".to_string()) },
+    false
+);
+
+impl_es_handler!(
+    EsCatNodes,
+    "GET",
+    |_args: &Value| -> Result<String, String> { Ok("/_cat/nodes?format=json&bytes=b".to_string()) },
+    false
+);
+
+impl_es_handler!(
+    EsCatShards,
+    "GET",
+    |_args: &Value| -> Result<String, String> { Ok("/_cat/shards?format=json".to_string()) },
+    false
+);
+
+impl_es_handler!(
+    EsListSnapshots,
+    "GET",
+    |_args: &Value| -> Result<String, String> { Ok("/_snapshot/_all".to_string()) },
+    false
+);
+
+impl_es_handler!(
+    EsRestoreSnapshot,
+    "POST",
+    |args: &Value| -> Result<String, String> {
+        let repo = args
+            .get("repo")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Missing repo".to_string())?;
+        let snap = args
+            .get("snap")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Missing snap".to_string())?;
+        Ok(format!(
+            "/_snapshot/{}/{}/_restore",
+            crate::common::validation::url_encode_segment(repo),
+            crate::common::validation::url_encode_segment(snap)
+        ))
+    },
+    true
+);
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -824,6 +878,26 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     reg!("es__reindex", "Copy documents from one index to another using the _reindex API, with optional query filtering and script transformations.\n\nUse when migrating data between indices, changing mappings, reindexing a subset of documents, or copying data to a new index.\n\nExample: {\"body\": {\"source\": {\"index\": \"old-orders\"}, \"dest\": {\"index\": \"new-orders\"}}}.", EsReindex,
          es_schema(&[("body", "Reindex request body with source.index and dest.index", "object", true)]),
          RiskLevel::Elevated, "create", &["agent"]);
+
+    reg!("es__cluster_health", "Get the current health status of the Elasticsearch cluster (green/yellow/red) with active shards, pending tasks, and node counts.\n\nUse when checking cluster-wide health or diagnosing why queries/operations are failing.\n\nReport results in the user's language (中文/English).", EsClusterHealth,
+         es_schema(&[]),
+         RiskLevel::Safe, "read", &["agent", "ui"], true);
+
+    reg!("es__cat_nodes", "List all nodes in the Elasticsearch cluster with their name, role, heap usage, and load metrics (JSON format, sizes in bytes).\n\nUse when inspecting cluster topology, node resource usage, or which nodes participate in the cluster.\n\nReport results in the user's language (中文/English).", EsCatNodes,
+         es_schema(&[]),
+         RiskLevel::Safe, "read", &["agent", "ui"], true);
+
+    reg!("es__cat_shards", "List all shards across indices with their state (started/unassigned), node assignment, and sizes (JSON format).\n\nUse when inspecting shard distribution, finding unassigned shards, or debugging storage layout.\n\nReport results in the user's language (中文/English).", EsCatShards,
+         es_schema(&[]),
+         RiskLevel::Safe, "read", &["agent", "ui"], true);
+
+    reg!("es__list_snapshots", "List all snapshots across all registered snapshot repositories.\n\nUse when inspecting available backups before a restore operation.\n\nReport results in the user's language (中文/English).", EsListSnapshots,
+         es_schema(&[]),
+         RiskLevel::Safe, "read", &["agent", "ui"], true);
+
+    reg!("es__restore_snapshot", "Restore a snapshot into the cluster from a repository. DESTRUCTIVE WARNING: restoring a snapshot can overwrite existing indices and their data — verify the target indices before proceeding.\n\nUse when recovering data from a snapshot backup.\n\nExample: {\"repo\": \"my-backups\", \"snap\": \"snap-2026-01\", \"body\": {\"indices\": \"orders*\", \"rename_pattern\": \"(.+)\", \"rename_replacement\": \"restored_$1\"}}.", EsRestoreSnapshot,
+         es_schema(&[("repo", "Repository containing the snapshot", "string", true), ("snap", "Snapshot name to restore", "string", true), ("body", "Restore request body (indices, rename_pattern, rename_replacement, etc.)", "object", false)]),
+         RiskLevel::Elevated, "create", &["agent", "ui"]);
 }
 
 #[cfg(test)]
@@ -1535,6 +1609,11 @@ mod tests {
         assert!(reg.get("es__bulk").is_some());
         assert!(reg.get("es__count").is_some());
         assert!(reg.get("es__reindex").is_some());
+        assert!(reg.get("es__cluster_health").is_some());
+        assert!(reg.get("es__cat_nodes").is_some());
+        assert!(reg.get("es__cat_shards").is_some());
+        assert!(reg.get("es__list_snapshots").is_some());
+        assert!(reg.get("es__restore_snapshot").is_some());
 
         let all_agent = reg.agent_tools();
         let es_agent: Vec<_> = all_agent
@@ -1543,8 +1622,8 @@ mod tests {
             .collect();
         assert_eq!(
             es_agent.len(),
-            19,
-            "expected 19 ES capabilities tagged for agent"
+            24,
+            "expected 24 ES capabilities tagged for agent"
         );
     }
 

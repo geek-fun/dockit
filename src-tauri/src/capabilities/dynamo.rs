@@ -11,12 +11,19 @@ use crate::dynamo::batch_get_item::{batch_get_item, BatchGetInput};
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
 use crate::dynamo::continuous_backups::describe_continuous_backups;
+use crate::dynamo::create_backup::create_backup;
 use crate::dynamo::create_item::{create_item, CreateItemInput};
 use crate::dynamo::create_table::{create_table, CreateTableInput};
 use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
 use crate::dynamo::delete_table::delete_table;
+use crate::dynamo::describe_backup::describe_backup;
+use crate::dynamo::describe_limits::describe_limits;
+use crate::dynamo::list_backups::list_backups;
+use crate::dynamo::list_tags::list_tags;
 use crate::dynamo::query_table::{query_table, QueryTableInput};
+use crate::dynamo::restore_table::{restore_table, RestoreTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
+use crate::dynamo::tag_resource::tag_resource;
 use crate::dynamo::time_to_live::describe_time_to_live;
 use crate::dynamo::transact_write_items::{transact_write_items, TransactWriteInput};
 use crate::dynamo::truncate_table::truncate_table;
@@ -1211,6 +1218,318 @@ impl CapabilityHandler for DynamoUpdateStreams {
     }
 }
 
+// ── Backup / restore / limits / tags (Wave 2A) ────────────────────────────
+
+pub(crate) struct DynamoRestoreTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoRestoreTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoRestoreTable {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let source_table_name = args
+            .get("source_table_name")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing source_table_name")?;
+        let target_table_name = args
+            .get("target_table_name")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing target_table_name")?;
+        let client = self.factory.create_client(config).await?;
+        let input = RestoreTableInput {
+            source_table_name: source_table_name.to_string(),
+            target_table_name: target_table_name.to_string(),
+            payload: args.clone(),
+        };
+        let response = restore_table(&client, input).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoCreateBackup {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoCreateBackup {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoCreateBackup {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let table_name = args
+            .get("table_name")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing table_name")?;
+        let backup_name = args
+            .get("backup_name")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing backup_name")?;
+        let client = self.factory.create_client(config).await?;
+        let response = create_backup(&client, table_name, backup_name).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoListBackups {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoListBackups {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoListBackups {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let table_name = args
+            .get("table_name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let backup_type = args
+            .get("backup_type")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let client = self.factory.create_client(config).await?;
+        let response = list_backups(&client, table_name, backup_type).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoDescribeBackup {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDescribeBackup {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoDescribeBackup {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let backup_arn = args
+            .get("backup_arn")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing backup_arn")?;
+        let client = self.factory.create_client(config).await?;
+        let response = describe_backup(&client, backup_arn).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoDescribeLimits {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDescribeLimits {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoDescribeLimits {
+    async fn handle(
+        &self,
+        _args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let client = self.factory.create_client(config).await?;
+        let response = describe_limits(&client).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoListTags {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoListTags {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoListTags {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let resource_arn = args
+            .get("resource_arn")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing resource_arn")?;
+        let client = self.factory.create_client(config).await?;
+        let response = list_tags(&client, resource_arn).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoTagResource {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoTagResource {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoTagResource {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let resource_arn = args
+            .get("resource_arn")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing resource_arn")?;
+        let tags_value = args.get("tags").ok_or("Missing tags")?;
+        let tags_arr: Vec<Value> = match tags_value {
+            Value::Array(items) => items.clone(),
+            Value::String(s) => serde_json::from_str::<Vec<Value>>(s)
+                .map_err(|e| format!("tags must be a valid JSON array: {}", e))?,
+            _ => return Err("tags must be a JSON array of objects with key and value".to_string()),
+        };
+        let mut tags: Vec<aws_sdk_dynamodb::types::Tag> = Vec::new();
+        for tag_value in tags_arr {
+            let obj = tag_value
+                .as_object()
+                .ok_or("each tag must be a JSON object with key and value")?;
+            let key = obj
+                .get("key")
+                .and_then(|v| v.as_str())
+                .ok_or("each tag must have a 'key'")?;
+            let value = obj
+                .get("value")
+                .and_then(|v| v.as_str())
+                .ok_or("each tag must have a 'value'")?;
+            tags.push(
+                aws_sdk_dynamodb::types::Tag::builder()
+                    .key(key)
+                    .value(value)
+                    .build()
+                    .map_err(|e| format!("Failed to build tag: {}", e))?,
+            );
+        }
+        if tags.is_empty() {
+            return Err("tags must contain at least one tag".to_string());
+        }
+        let client = self.factory.create_client(config).await?;
+        let response = tag_resource(&client, resource_arn, tags).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -1508,7 +1827,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 
     reg!(
         "dynamo__update_gsi",
-        "Update provisioned throughput for a global secondary index.",
+        "Update provisioned throughput for a global secondary index. Use when a DBA needs to resize an index's capacity to match changing access patterns: specify index_name plus new read_capacity_units and write_capacity_units (both required). Report results in the user's language (中文/English).",
         DynamoUpdateGsi::new(),
         dynamo_schema(&[
             ("table_name", "DynamoDB table name", true),
@@ -1526,45 +1845,45 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "update",
-        &["ui"]
+        &["agent", "ui"]
     );
 
-    reg!("dynamo__delete_gsi", "Delete a global secondary index from a DynamoDB table. DESTRUCTIVE: permanently removes the index.",
+    reg!("dynamo__delete_gsi", "Delete a global secondary index from a DynamoDB table. DESTRUCTIVE: permanently removes the index. Use when a DBA needs to remove an index that is no longer queried or was created by mistake — queries referencing it will fail afterwards. Confirm index_name before calling. Report results in the user's language (中文/English).",
          DynamoDeleteGsi::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("index_name", "Name of the GSI to delete", true),
          ]),
-         RiskLevel::Destructive, "delete", &["ui"]);
+         RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
-    reg!("dynamo__describe_continuous_backups", "Describe the continuous backups and point-in-time recovery (PITR) settings for a DynamoDB table.",
+    reg!("dynamo__describe_continuous_backups", "Describe the continuous backups and point-in-time recovery (PITR) settings for a DynamoDB table. Use when a DBA needs to audit backup protection status, confirm PITR is enabled, or check the earliest restorable time before planning a restore. Takes table_name. Report results in the user's language (中文/English).",
          DynamoDescribeContinuousBackups::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
          ]),
-         RiskLevel::Safe, "read", &["ui"]);
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!(
         "dynamo__describe_ttl",
-        "Describe the Time-To-Live (TTL) configuration for a DynamoDB table.",
+        "Describe the Time-To-Live (TTL) configuration for a DynamoDB table. Use when a DBA needs to check whether TTL is enabled and which attribute holds the expiry timestamp — before enabling, changing, or troubleshooting expiration. Takes table_name. Report results in the user's language (中文/English).",
         DynamoDescribeTtl::new(),
         dynamo_schema(&[("table_name", "DynamoDB table name", true),]),
         RiskLevel::Safe,
         "read",
-        &["ui"]
+        &["agent", "ui"]
     );
 
-    reg!("dynamo__get_table_metrics", "Get CloudWatch metrics for a DynamoDB table: consumed/provisioned capacity, throttling, and utilization.",
+    reg!("dynamo__get_table_metrics", "Get CloudWatch metrics for a DynamoDB table: consumed/provisioned capacity, throttling, and utilization. Use when a DBA needs to diagnose throttling, compare consumed vs provisioned capacity, or decide whether to switch billing modes. Optionally set period_hours (default 24). Report results in the user's language (中文/English).",
          DynamoGetTableMetrics::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("period_hours", "Time period in hours to fetch metrics for (integer, default 24)", false),
          ]),
-         RiskLevel::Safe, "read", &["ui"]);
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!(
         "dynamo__create_table",
-        "Create a new DynamoDB table with key schema, indexes, billing, and stream configuration.",
+        "Create a new DynamoDB table with key schema, indexes, billing, and stream configuration. Use when a DBA needs to provision a new table: specify partition_key (required), optional sort_key, billing_mode (PAY_PER_REQUEST default or PROVISIONED with capacity units), and optional global_secondary_indexes / local_secondary_indexes / stream_specification / sse_specification / tags. Report results in the user's language (中文/English).",
         DynamoCreateTable::new(),
         dynamo_schema(&[
             ("table_name", "DynamoDB table name", true),
@@ -1623,29 +1942,29 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "create",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
         "dynamo__delete_table",
-        "Delete a DynamoDB table and all of its items. DESTRUCTIVE: cannot be undone.",
+        "Delete a DynamoDB table and all of its items. DESTRUCTIVE: cannot be undone. Use when a DBA needs to drop an obsolete or unused table. Confirm the table name before calling. Report results in the user's language (中文/English).",
         DynamoDeleteTable::new(),
         dynamo_schema(&[("table_name", "DynamoDB table name", true),]),
         RiskLevel::Destructive,
         "delete",
-        &["ui"]
+        &["agent", "ui"]
     );
 
-    reg!("dynamo__truncate_table", "Delete all items from a DynamoDB table using batch writes. DESTRUCTIVE: removes all data but preserves the table.",
+    reg!("dynamo__truncate_table", "Delete all items from a DynamoDB table using batch writes. DESTRUCTIVE: removes all data but preserves the table. Use when a DBA needs to clear test or stale data while keeping the schema, keys, indexes, and settings intact — cheaper than drop-and-recreate. Confirm table_name before calling. Report results in the user's language (中文/English).",
          DynamoTruncateTable::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
          ]),
-         RiskLevel::Destructive, "delete", &["ui"]);
+         RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!(
         "dynamo__update_table_config",
-        "Update a DynamoDB table's billing mode, provisioned throughput, or table class.",
+        "Update a DynamoDB table's billing mode, provisioned throughput, or table class. Use when a DBA needs to right-size capacity or optimize cost: set billing_mode (PAY_PER_REQUEST or PROVISIONED with read_capacity_units / write_capacity_units) and/or table_class (STANDARD or STANDARD_INFREQUENT_ACCESS). Report results in the user's language (中文/English).",
         DynamoUpdateTableConfig::new(),
         dynamo_schema(&[
             ("table_name", "DynamoDB table name", true),
@@ -1672,21 +1991,21 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "update",
-        &["ui"]
+        &["agent", "ui"]
     );
 
-    reg!("dynamo__update_ttl", "Enable or disable Time-To-Live (TTL) on a DynamoDB table, optionally changing the TTL attribute.",
+    reg!("dynamo__update_ttl", "Enable or disable Time-To-Live (TTL) on a DynamoDB table, optionally changing the TTL attribute. Use when a DBA needs to set up automatic expiration for stale records (e.g. session or log data): set enabled (required) and optionally attribute_name for the TTL timestamp field. Report results in the user's language (中文/English).",
          DynamoUpdateTtl::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("enabled", "Whether TTL is enabled (boolean)", true),
              ("attribute_name", "Attribute name to use as TTL timestamp", false),
          ]),
-         RiskLevel::Elevated, "update", &["ui"]);
+         RiskLevel::Elevated, "update", &["agent", "ui"]);
 
     reg!(
         "dynamo__update_pitr",
-        "Enable or disable Point-In-Time Recovery (PITR) on a DynamoDB table.",
+        "Enable or disable Point-In-Time Recovery (PITR) on a DynamoDB table. Use when a DBA needs to protect against accidental deletes or writes and meet backup compliance: set enabled (required). PITR covers the last 35 days; restoring is a separate step (dynamo__restore_table). Report results in the user's language (中文/English).",
         DynamoUpdatePitr::new(),
         dynamo_schema(&[
             ("table_name", "DynamoDB table name", true),
@@ -1694,12 +2013,12 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "update",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
         "dynamo__update_streams",
-        "Enable or disable DynamoDB Streams on a table, with optional stream view type.",
+        "Enable or disable DynamoDB Streams on a table, with optional stream view type. Use when a DBA needs to feed change events to downstream consumers (Lambda, Kinesis, analytics): set enabled (required) and optionally stream_view_type (KEYS_ONLY, NEW_IMAGE, OLD_IMAGE, or NEW_AND_OLD_IMAGES). Report results in the user's language (中文/English).",
         DynamoUpdateStreams::new(),
         dynamo_schema(&[
             ("table_name", "DynamoDB table name", true),
@@ -1712,7 +2031,131 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "update",
-        &["ui"]
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "dynamo__restore_table",
+        "Restore a DynamoDB table from a backup or to a point in time. Provide source_backup_arn to restore from a specific backup, or source_table_name with use_latest_restorable_time/restore_date_time to restore to a point in time.",
+        DynamoRestoreTable::new(),
+        dynamo_schema(&[
+            ("source_table_name", "Name of the source table to restore from (for point-in-time restore)", true),
+            ("target_table_name", "Name of the new restored table", true),
+            (
+                "source_backup_arn",
+                "ARN of the backup to restore from (alternative to point-in-time restore)",
+                false
+            ),
+            (
+                "use_latest_restorable_time",
+                "Whether to restore to the latest restorable time (boolean, default true)",
+                false
+            ),
+            (
+                "restore_date_time",
+                "ISO-8601 timestamp to restore to, e.g. 2026-01-01T00:00:00Z",
+                false
+            ),
+            (
+                "billing_mode_override",
+                "Billing mode for the restored table: PAY_PER_REQUEST or PROVISIONED",
+                false
+            ),
+            (
+                "global_secondary_index_override",
+                "JSON array of GSI overrides with index_name, key_schema, projection_type, and optional read/write_capacity_units",
+                false
+            ),
+        ]),
+        RiskLevel::Elevated,
+        "create",
+        &["agent", "ui"],
+        true
+    );
+
+    reg!(
+        "dynamo__create_backup",
+        "Create a backup of a DynamoDB table. Backups are stored in the on-demand backup system and can be used to restore the table later.",
+        DynamoCreateBackup::new(),
+        dynamo_schema(&[
+            ("table_name", "DynamoDB table name to back up", true),
+            ("backup_name", "Name for the new backup", true),
+        ]),
+        RiskLevel::Elevated,
+        "create",
+        &["agent", "ui"],
+        true
+    );
+
+    reg!(
+        "dynamo__list_backups",
+        "List the backups in the connected account and region, optionally filtered by table name or backup type (USER, SYSTEM, AWS_BACKUP, or ALL).",
+        DynamoListBackups::new(),
+        dynamo_schema(&[
+            ("table_name", "DynamoDB table name to filter backups by", false),
+            (
+                "backup_type",
+                "Backup type filter: USER, SYSTEM, AWS_BACKUP, or ALL",
+                false
+            ),
+        ]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "dynamo__describe_backup",
+        "Describe the details of a specific DynamoDB backup, including its status, type, size, creation time, and the source table it was taken from.",
+        DynamoDescribeBackup::new(),
+        dynamo_schema(&[
+            ("backup_arn", "ARN of the backup to describe", true),
+        ]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "dynamo__describe_limits",
+        "Describe the maximum provisioned capacity limits for the connected account and region, both at the account level and per-table level.",
+        DynamoDescribeLimits::new(),
+        dynamo_schema(&[]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "dynamo__list_tags",
+        "List the tags attached to a DynamoDB resource (table, index, or backup).",
+        DynamoListTags::new(),
+        dynamo_schema(&[(
+            "resource_arn",
+            "ARN of the DynamoDB resource to list tags for",
+            true
+        ),]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "dynamo__tag_resource",
+        "Add or overwrite tags on a DynamoDB resource (table, index, or backup). Tags is a JSON array of objects each with a key and value.",
+        DynamoTagResource::new(),
+        dynamo_schema(&[
+            ("resource_arn", "ARN of the DynamoDB resource to tag", true),
+            (
+                "tags",
+                "JSON array of tag objects with key and value, e.g. [{\"key\": \"env\", \"value\": \"prod\"}]",
+                true
+            ),
+        ]),
+        RiskLevel::Elevated,
+        "create",
+        &["agent", "ui"],
+        true
     );
 }
 
@@ -2692,5 +3135,232 @@ mod tests {
             .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    // ── Wave 2A: restore / backup / limits / tags handlers ─────────────────
+
+    #[tokio::test]
+    async fn test_restore_table_missing_config() {
+        let handler = DynamoRestoreTable::new();
+        let result = handler
+            .handle(
+                &json!({"source_table_name": "src", "target_table_name": "dst"}),
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_missing_source_table_name() {
+        let handler = DynamoRestoreTable::new();
+        let result = handler
+            .handle(&json!({"target_table_name": "dst"}), Some(&json!({})))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing source_table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_missing_target_table_name() {
+        let handler = DynamoRestoreTable::new();
+        let result = handler
+            .handle(&json!({"source_table_name": "src"}), Some(&json!({})))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing target_table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_rejects_invalid_restore_date_time() {
+        let handler = DynamoRestoreTable::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({
+                    "source_table_name": "src",
+                    "target_table_name": "dst",
+                    "restore_date_time": "not-a-date"
+                }),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("not a valid ISO-8601 timestamp"));
+    }
+
+    #[tokio::test]
+    async fn test_create_backup_missing_config() {
+        let handler = DynamoCreateBackup::new();
+        let result = handler
+            .handle(&json!({"table_name": "t", "backup_name": "b"}), None)
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_create_backup_missing_backup_name() {
+        let handler = DynamoCreateBackup::new();
+        let result = handler
+            .handle(&json!({"table_name": "t"}), Some(&json!({})))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing backup_name"));
+    }
+
+    #[tokio::test]
+    async fn test_list_backups_missing_config() {
+        let handler = DynamoListBackups::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_backup_missing_config() {
+        let handler = DynamoDescribeBackup::new();
+        let result = handler
+            .handle(
+                &json!({"backup_arn": "arn:aws:dynamodb:us-east-1:123:table/t/backup/xyz"}),
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_backup_missing_backup_arn() {
+        let handler = DynamoDescribeBackup::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing backup_arn"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_limits_missing_config() {
+        let handler = DynamoDescribeLimits::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_missing_config() {
+        let handler = DynamoListTags::new();
+        let result = handler
+            .handle(
+                &json!({"resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t"}),
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_missing_resource_arn() {
+        let handler = DynamoListTags::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing resource_arn"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_missing_config() {
+        let handler = DynamoTagResource::new();
+        let result = handler
+            .handle(
+                &json!({
+                    "resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t",
+                    "tags": [{"key": "a", "value": "b"}]
+                }),
+                None,
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_missing_resource_arn() {
+        let handler = DynamoTagResource::new();
+        let result = handler
+            .handle(
+                &json!({"tags": [{"key": "a", "value": "b"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing resource_arn"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_missing_tags() {
+        let handler = DynamoTagResource::new();
+        let result = handler
+            .handle(
+                &json!({"resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t"}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing tags"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_rejects_empty_tags() {
+        let handler = DynamoTagResource::new();
+        let result = handler
+            .handle(
+                &json!({
+                    "resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t",
+                    "tags": []
+                }),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("at least one tag"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_rejects_invalid_tags_json() {
+        let handler = DynamoTagResource::new();
+        let result = handler
+            .handle(
+                &json!({
+                    "resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t",
+                    "tags": "not-json"
+                }),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("valid JSON array"));
+    }
+
+    // ── register_all / agent exposure ───────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_all_dynamo_capabilities_are_agent_tagged() {
+        use data_studio_agent::capabilities::registry::CapabilityRegistry;
+
+        let mut reg = CapabilityRegistry::new();
+        super::register_all(&mut reg);
+
+        let all_agent = reg.agent_tools();
+        let dynamo_agent: Vec<_> = all_agent
+            .iter()
+            .filter(|c| c.name.starts_with("dynamo__"))
+            .collect();
+        assert_eq!(
+            dynamo_agent.len(),
+            33,
+            "expected all 33 DynamoDB capabilities tagged for agent"
+        );
     }
 }
