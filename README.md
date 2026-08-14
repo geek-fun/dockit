@@ -194,11 +194,11 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=geek-fun%2Fdockit&type=date">
+<a href="https://star-history.dera.page/#geek-fun/dockit&type=date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=geek-fun/dockit&type=date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=geek-fun/dockit&type=date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=geek-fun/dockit&type=date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=geek-fun/dockit&type=date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=geek-fun/dockit&type=date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=geek-fun/dockit&type=date" />
   </picture>
 </a>
 
