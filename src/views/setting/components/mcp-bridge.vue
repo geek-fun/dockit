@@ -282,7 +282,10 @@ const savePolicy = async (): Promise<void> => {
       },
     });
   } catch (e) {
-    console.error('Failed to save MCP policy:', e);
+    message.error(`${t('setting.mcp.saveFailed')}: ${(e as Error).message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   }
 };
 
@@ -302,7 +305,10 @@ onMounted(async () => {
       };
     }
   } catch (e) {
-    console.error('Failed to get MCP status:', e);
+    message.warning(`${t('setting.mcp.statusLoadFailed')}: ${(e as Error).message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   }
 
   try {
@@ -313,8 +319,11 @@ onMounted(async () => {
       type: c.type,
     }));
   } catch (e) {
-    console.error('Failed to fetch connections:', e);
     connections.value = [];
+    message.warning(`${t('setting.mcp.connectionsLoadFailed')}: ${(e as Error).message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   }
 });
 
@@ -327,7 +336,10 @@ const onAutoStartChange = async (val: boolean): Promise<void> => {
   try {
     await invoke('save_mcp_config', { port: portValue.value ?? null, autoStart: val });
   } catch (e) {
-    console.error('Failed to save MCP config:', e);
+    message.error(`${t('setting.mcp.saveFailed')}: ${(e as Error).message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   }
 };
 
@@ -391,9 +403,8 @@ const restartBridge = async (): Promise<void> => {
       policy: policy.value,
     });
     restartPhase.value = 'starting';
-  } catch (e) {
+  } catch {
     restartPhase.value = 'failed';
-    console.error('Failed to restart MCP bridge:', e);
     message.error(t('setting.mcp.restartFailedDetail'));
     return;
   }
@@ -411,9 +422,8 @@ const restartBridge = async (): Promise<void> => {
         message.success(t('setting.mcp.restartSuccess'));
         return;
       }
-    } catch (e) {
+    } catch {
       // bridge not up yet — keep polling
-      console.error('Bridge status check failed during restart:', e);
     }
   }
 

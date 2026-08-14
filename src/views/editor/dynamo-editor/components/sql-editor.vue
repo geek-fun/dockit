@@ -36,7 +36,11 @@
         :data="partiqlData.data"
         :total="partiqlData.count"
         :loading="loadingRef"
-        :pagination="{ mode: 'cursor', hasNext: !!partiqlData.nextToken, pageSizeOptions: [25, 50, 100] }"
+        :pagination="{
+          mode: 'cursor',
+          hasNext: !!partiqlData.nextToken,
+          pageSizeOptions: [25, 50, 100],
+        }"
         :closable="true"
         @next-page="handleNextPage"
         @close="handleCloseResultPanel"

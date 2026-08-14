@@ -259,6 +259,8 @@ export const zhCN = {
       overrideReadOnly: '只读',
       overrideReadOnlyDesc: '强制此连接仅执行只读操作',
       saveFailed: 'MCP 设置保存失败',
+      statusLoadFailed: 'MCP 桥接状态加载失败',
+      connectionsLoadFailed: '连接列表加载失败',
       connectionAccess: '连接访问控制',
       connectionAccessDesc: '启用后仅允许列表中的连接。可为每个连接设置操作权限（读/写/删除）。',
       connectionName: '连接',
