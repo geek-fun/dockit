@@ -855,6 +855,7 @@ impl TunnelManager {
                 target_port,
                 is_last,
                 hop.expose_lan,
+                hop.force_port_forward,
             )
             .await
             {
@@ -943,7 +944,15 @@ async fn spawn_tunnel(
     remote_host: &str,
     remote_port: u16,
 ) -> Result<(JoinHandle<()>, u16), String> {
-    spawn_tunnel_config(config, remote_host, remote_port, true, config.expose_lan).await
+    spawn_tunnel_config(
+        config,
+        remote_host,
+        remote_port,
+        true,
+        config.expose_lan,
+        config.force_port_forward,
+    )
+    .await
 }
 
 /// Outbound forwarder that opens an SSH direct-tcpip channel through the
@@ -1017,8 +1026,8 @@ async fn spawn_socks5_tunnel(
 /// exposed to the LAN — SOCKS5 binds 127.0.0.1 only, so 0.0.0.0 exposure
 /// would require an open LAN proxy (security risk). PortForward can bind
 /// 0.0.0.0 safely.
-fn effective_tunnel_mode(is_last: bool, expose_lan: bool) -> TunnelMode {
-    if !is_last || expose_lan {
+fn effective_tunnel_mode(is_last: bool, expose_lan: bool, force_port_forward: bool) -> TunnelMode {
+    if !is_last || expose_lan || force_port_forward {
         TunnelMode::PortForward
     } else {
         TunnelMode::Socks5
@@ -1031,8 +1040,9 @@ async fn spawn_tunnel_config(
     remote_port: u16,
     is_last: bool,
     expose_lan: bool,
+    force_port_forward: bool,
 ) -> Result<(JoinHandle<()>, u16), String> {
-    if effective_tunnel_mode(is_last, expose_lan) == TunnelMode::Socks5 {
+    if effective_tunnel_mode(is_last, expose_lan, force_port_forward) == TunnelMode::Socks5 {
         return spawn_socks5_tunnel(config, remote_host, remote_port).await;
     }
 
@@ -1307,18 +1317,23 @@ mod effective_mode_tests {
 
     #[test]
     fn last_hop_not_exposed_uses_socks5() {
-        assert_eq!(effective_tunnel_mode(true, false), TunnelMode::Socks5);
+        assert_eq!(effective_tunnel_mode(true, false, false), TunnelMode::Socks5);
     }
 
     #[test]
     fn last_hop_exposed_forces_port_forward() {
-        assert_eq!(effective_tunnel_mode(true, true), TunnelMode::PortForward);
+        assert_eq!(effective_tunnel_mode(true, true, false), TunnelMode::PortForward);
     }
 
     #[test]
     fn non_last_hop_always_port_forward() {
-        assert_eq!(effective_tunnel_mode(false, false), TunnelMode::PortForward);
-        assert_eq!(effective_tunnel_mode(false, true), TunnelMode::PortForward);
+        assert_eq!(effective_tunnel_mode(false, false, false), TunnelMode::PortForward);
+        assert_eq!(effective_tunnel_mode(false, true, false), TunnelMode::PortForward);
+    }
+
+    #[test]
+    fn force_port_forward_overrides_socks5() {
+        assert_eq!(effective_tunnel_mode(true, false, true), TunnelMode::PortForward);
     }
 }
 
@@ -1332,7 +1347,7 @@ mod effective_mode_integration {
         let cfg: SshTunnelConfig =
             serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
         assert_eq!(
-            effective_tunnel_mode(true, cfg.expose_lan),
+            effective_tunnel_mode(true, cfg.expose_lan, cfg.force_port_forward),
             TunnelMode::Socks5
         );
     }
@@ -1343,7 +1358,18 @@ mod effective_mode_integration {
             serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
         cfg.expose_lan = true;
         assert_eq!(
-            effective_tunnel_mode(true, cfg.expose_lan),
+            effective_tunnel_mode(true, cfg.expose_lan, cfg.force_port_forward),
+            TunnelMode::PortForward
+        );
+    }
+
+    #[test]
+    fn single_hop_force_port_forward_uses_port_forward() {
+        let mut cfg: SshTunnelConfig =
+            serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
+        cfg.force_port_forward = true;
+        assert_eq!(
+            effective_tunnel_mode(true, cfg.expose_lan, cfg.force_port_forward),
             TunnelMode::PortForward
         );
     }
@@ -1359,12 +1385,12 @@ mod effective_mode_integration {
             serde_json::from_str(r#"{"enabled":true,"host":"b","port":22,"exposeLan":true}"#)
                 .unwrap();
         assert_eq!(
-            effective_tunnel_mode(false, h0.expose_lan),
+            effective_tunnel_mode(false, h0.expose_lan, h0.force_port_forward),
             TunnelMode::PortForward,
             "non-last hop forces PortForward even with exposeLan"
         );
         assert_eq!(
-            effective_tunnel_mode(true, h1.expose_lan),
+            effective_tunnel_mode(true, h1.expose_lan, h1.force_port_forward),
             TunnelMode::PortForward,
             "last hop with exposeLan forces PortForward"
         );
@@ -1375,7 +1401,7 @@ mod effective_mode_integration {
         let h: SshTunnelConfig =
             serde_json::from_str(r#"{"enabled":true,"host":"b","port":22}"#).unwrap();
         assert_eq!(
-            effective_tunnel_mode(true, h.expose_lan),
+            effective_tunnel_mode(true, h.expose_lan, h.force_port_forward),
             TunnelMode::Socks5
         );
     }
