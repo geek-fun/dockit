@@ -54,11 +54,21 @@ fn tunnel_key(ssh: Option<&Value>, host: &str, port: u16) -> String {
 /// Resolve connection target through SSH tunnel if enabled.
 /// Returns `(host, port, socks5_mode)` — `(127.0.0.1, local_port)` for
 /// port-forward, or `(real_host, local_proxy_port, true)` for SOCKS5.
+///
+/// `force_port_forward` forces port-forward mode for plain-HTTP targets
+/// (DynamoDB Local): the AWS SDK sends origin-form HTTP requests (not
+/// CONNECT) through an HTTP proxy, which our SOCKS5/CONNECT tunnel cannot
+/// forward. force_port_forward (distinct from expose_lan — it does NOT
+/// widen the bind address) switches the tunnel to port-forward mode, so
+/// the client talks plain HTTP to 127.0.0.1:{local_port} and SSH forwards
+/// it. https (ES, AWS DynamoDB) and mongodb:// (Mongo) targets keep
+/// SOCKS5/CONNECT.
 pub async fn resolve_connection_target(
     app: &AppHandle,
     config: &Value,
     connection_id: &str,
     tunnels: &TunnelManager,
+    force_port_forward: bool,
 ) -> Result<(String, u16, bool), String> {
     let ssh_config: Option<SshConnectionConfig> = config
         .get("sshTunnel")
@@ -77,13 +87,21 @@ pub async fn resolve_connection_target(
     let remote_host = config["host"].as_str().unwrap_or("localhost").to_string();
     let remote_port = config["port"].as_u64().unwrap_or(0) as u16;
 
+    // Force the last hop to port-forward mode when the target is plain HTTP.
+    let mut layers = layers;
+    if force_port_forward {
+        if let Some(TransportLayerConfig::Ssh(last)) = layers.last_mut() {
+            last.force_port_forward = true;
+        }
+    }
+
     // Socks5 only when the last hop is NOT exposed to the LAN: exposeLan
     // forces PortForward (effective_tunnel_mode), so the mode is fully
     // derived from the config — no persisted tunnelMode field.
     let socks5_mode = layers
         .last()
         .map(|layer| match layer {
-            TransportLayerConfig::Ssh(c) => !c.expose_lan,
+            TransportLayerConfig::Ssh(c) => !c.expose_lan && !c.force_port_forward,
         })
         .unwrap_or(false);
 
@@ -141,24 +159,14 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         .filter(|s| s == "http" || s == "https")
         .unwrap_or_else(|| "http".to_string());
 
-    // Plain-HTTP targets must use a port-forward tunnel, not SOCKS5: the
-    // AWS SDK sends origin-form HTTP requests (not CONNECT) through an HTTP
-    // proxy, which our SOCKS5/CONNECT tunnel cannot forward. Forcing
-    // expose_lan switches the tunnel to port-forward mode, so the client
-    // talks plain HTTP to 127.0.0.1:{local_port} and SSH forwards it.
-    let ssh_effective = if scheme == "http" {
-        ssh.as_ref().map(|s| {
-            let mut copy = s.clone();
-            if let Some(obj) = copy.as_object_mut() {
-                obj.insert("exposeLan".to_string(), serde_json::json!(true));
-            }
-            copy
-        })
-    } else {
-        ssh.clone()
-    };
-
-    let endpoint = resolve_ssh_tunnel(app, ssh_effective.as_ref(), &remote_host, remote_port).await?;
+    let endpoint = resolve_ssh_tunnel(
+        app,
+        ssh.as_ref(),
+        &remote_host,
+        remote_port,
+        scheme == "http",
+    )
+    .await?;
     let socks5_mode = endpoint.socks5_port.is_some();
     if let Some(obj) = config.as_object_mut() {
         if !socks5_mode {
@@ -274,11 +282,15 @@ fn derive_region_endpoint(config: &Value) -> Option<String> {
 /// Resolve SSH tunnel to a local endpoint. The tunnel stays alive in
 /// TunnelManager and is reused for subsequent calls with the same config.
 /// Callers use `endpoint.host` / `endpoint.port` and do NOT clean up.
+///
+/// `force_port_forward` forces port-forward mode (plain-HTTP targets like
+/// DynamoDB Local; see `resolve_connection_target`).
 pub async fn resolve_ssh_tunnel(
     app: &AppHandle,
     ssh: Option<&Value>,
     host: &str,
     port: u16,
+    force_port_forward: bool,
 ) -> Result<TunnelEndpoint, String> {
     let ssh_enabled = ssh
         .and_then(|s| s.get("enabled"))
@@ -300,8 +312,14 @@ pub async fn resolve_ssh_tunnel(
         "port": port,
         "sshTunnel": ssh,
     });
-    let (h, p, socks5_mode) =
-        resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
+    let (h, p, socks5_mode) = resolve_connection_target(
+        app,
+        &conn_val,
+        &cid,
+        tunnels.inner(),
+        force_port_forward,
+    )
+    .await?;
     let socks5_port = if socks5_mode { Some(p) } else { None };
     Ok(TunnelEndpoint {
         // In Socks5 mode h is the real host and p is the LOCAL proxy port;

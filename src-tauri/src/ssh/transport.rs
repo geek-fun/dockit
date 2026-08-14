@@ -82,6 +82,7 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
+            force_port_forward: false,
             use_system_proxy: false,
         }
     }

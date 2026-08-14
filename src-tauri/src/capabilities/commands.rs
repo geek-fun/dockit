@@ -25,7 +25,7 @@ pub async fn invoke_capability(
     app: AppHandle,
 ) -> Result<String, String> {
     let mut resolved = match (config, connection_id) {
-        (Some(cfg), _) => Some(cfg),
+        (Some(cfg), _) => Some(ConnectionResolver::normalize(&cfg)?),
         (None, Some(id)) => Some(ConnectionResolver::resolve(&app, &id)?),
         (None, None) => None,
     };

@@ -79,6 +79,12 @@ pub struct SshTunnelConfig {
     pub verify_host_key: bool,
     #[serde(default)]
     pub expose_lan: bool,
+    /// Runtime-only: force port-forward mode regardless of expose_lan.
+    /// Used for plain-HTTP targets (DynamoDB Local) whose SDK sends
+    /// origin-form HTTP to a proxy instead of CONNECT. Not persisted —
+    /// set per-tunnel-start by ssh_bridge, never part of stored config.
+    #[serde(default, skip)]
+    pub force_port_forward: bool,
     /// Route the first hop through the detected system proxy (HTTP CONNECT).
     /// Resolved at connect time from the OS, so no URL is persisted.
     #[serde(default)]
@@ -173,6 +179,7 @@ impl SshProfile {
             keepalive_interval_secs: self.keepalive_interval_secs,
             verify_host_key: self.verify_host_key,
             expose_lan: self.expose_lan,
+            force_port_forward: false,
             use_system_proxy: false,
         }
     }
@@ -231,6 +238,7 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
+            force_port_forward: false,
             use_system_proxy: false,
         };
         let json = serde_json::to_string(&config).unwrap();
@@ -255,6 +263,7 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
+            force_port_forward: false,
             use_system_proxy: false,
         };
         let layer = TransportLayerConfig::Ssh(config);

@@ -279,7 +279,7 @@ async fn resolve_url_via_ssh(
     let host = parsed.host_str().unwrap_or("localhost").to_string();
     let port = parsed.port_or_known_default().unwrap_or(9200);
 
-    let endpoint = resolve_ssh_tunnel(app, Some(ssh_config), &host, port).await?;
+    let endpoint = resolve_ssh_tunnel(app, Some(ssh_config), &host, port, false).await?;
     let ssh_enabled = ssh_config
         .get("enabled")
         .and_then(|v| v.as_bool())

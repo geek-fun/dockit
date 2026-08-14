@@ -8,6 +8,15 @@ use tauri_plugin_store::StoreExt;
 pub struct ConnectionResolver;
 
 impl ConnectionResolver {
+    /// Normalize a raw connection config (TypeScript shape, nested `auth`)
+    /// into the flat format that capability handlers expect. Used for
+    /// unsaved connect-dialog configs passed via invoke_capability's `config`
+    /// argument — without this, nested `auth.kind/accessKeyId` would not be
+    /// readable by clients that expect flat `authKind/accessKeyId`.
+    pub fn normalize(connection: &Value) -> Result<Value, String> {
+        normalize_config(connection.clone())
+    }
+
     /// Look up a connection by its numeric ID from the `.store.dat` file
     /// and normalize it to the flat config format that capability handlers
     /// expect.

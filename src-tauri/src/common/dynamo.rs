@@ -82,6 +82,12 @@ pub(crate) async fn create_dynamo_client(
     // This is the officially supported way to reach VPC DynamoDB through a
     // bastion — rewriting endpointUrl to 127.0.0.1 would break both TLS
     // (DynamoDB requires TLS 1.2+) and signature verification.
+    //
+    // ProxyConfig::https matches https:// targets and tunnels them via
+    // CONNECT (ProxyConfig::http only matches http:// targets, which would
+    // silently bypass the tunnel for AWS DynamoDB). Plain-HTTP DynamoDB
+    // Local never reaches this branch: ssh_bridge forces port-forward mode
+    // for http:// endpoints, so socks5Proxy is absent here.
     let http_proxy = config
         .get("socks5Proxy")
         .and_then(|v| v.as_str())
@@ -94,7 +100,7 @@ pub(crate) async fn create_dynamo_client(
                     aws_smithy_http_client::tls::rustls_provider::CryptoMode::AwsLc,
                 ))
                 .proxy_config(
-                    aws_smithy_http_client::proxy::ProxyConfig::http(&proxy_url)
+                    aws_smithy_http_client::proxy::ProxyConfig::https(&proxy_url)
                         .expect("valid DynamoDB tunnel proxy URL"),
                 )
                 .build()
