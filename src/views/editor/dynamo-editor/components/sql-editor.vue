@@ -29,23 +29,62 @@
       </div>
     </template>
     <template #2>
-      <result-panel
-        v-show="partiqlData.showResultPanel"
-        :error-message="partiqlData.errorMessage"
-        :has-data="!partiqlData.errorMessage"
-        :columns="partiqlData.columns"
+      <ResultPanel
+        v-if="partiqlData.showResultPanel"
+        :error="partiqlData.errorMessage"
+        :columns="displayColumns"
         :data="partiqlData.data"
-        :item-count="partiqlData.count"
+        :total="partiqlData.count"
         :loading="loadingRef"
-        :has-next-token="!!partiqlData.nextToken"
+        :pagination="{
+          mode: 'cursor',
+          hasNext: !!partiqlData.nextToken,
+          pageSizeOptions: [25, 50, 100],
+        }"
         :closable="true"
-        :show-actions="true"
-        :partition-key-name="partitionKeyName"
-        :sort-key-name="sortKeyName"
-        @load-more="loadMore"
+        @next-page="handleNextPage"
         @close="handleCloseResultPanel"
-        @edit="handleEdit"
-      />
+      >
+        <template #toolbar>
+          <span class="text-base font-semibold">{{ $t('editor.dynamo.resultTitle') }}</span>
+        </template>
+        <template #error>
+          <Card class="w-full">
+            <CardHeader class="p-3 flex flex-row items-center justify-between">
+              <CardTitle class="text-base">{{ $t('editor.dynamo.partiql.error') }}</CardTitle>
+            </CardHeader>
+            <CardContent class="p-3">
+              <p class="text-destructive">{{ partiqlData.errorMessage }}</p>
+            </CardContent>
+          </Card>
+        </template>
+        <template #cell="{ column, row }">
+          <template v-if="column.key === 'actions'">
+            <div class="flex gap-2">
+              <Button size="icon" variant="ghost" @click.stop="handleEdit(row)">
+                <span class="i-carbon-edit h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" @click.stop="handleDeleteClick(row)">
+                <span class="i-carbon-trash-can h-4 w-4" />
+              </Button>
+            </div>
+          </template>
+          <span v-else>{{ formatCellValue(row[column.key]) }}</span>
+        </template>
+        <template #empty>
+          <Empty>
+            <template #icon>
+              <div class="text-green-500 mb-4">✓</div>
+            </template>
+            <p class="font-medium">{{ $t('editor.dynamo.partiql.executionSuccess') }}</p>
+            <p class="text-muted-foreground text-sm">
+              {{ $t('editor.dynamo.partiql.noItemsReturned') }}
+            </p>
+          </Empty>
+        </template>
+      </ResultPanel>
+
+      <delete-confirm-modal v-model:show="showDeleteModal" :keys="deletingKeys" />
     </template>
   </SplitPane>
 
@@ -94,8 +133,19 @@ import {
   useHistoryStore,
   findTable,
 } from '../../../../store';
-import ResultPanel from './result-panel.vue';
+import { ResultPanel } from '@/components/result';
+import type { ColumnDef } from '@/components/result';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Empty } from '@/components/ui/empty';
 import EditItem from './edit-item.vue';
+import DeleteConfirmModal from './delete-confirm-modal.vue';
+import {
+  buildDynamoKeys,
+  flattenDynamoColumns,
+  formatDynamoCell,
+  type DynamoKey,
+} from '../utils/dynamo-result';
 
 const lang = useLang();
 const message = useMessageService();
@@ -245,7 +295,11 @@ const insertRawQueryText = (queryText: string) => {
  * Execute PartiQL statement with state management
  * Encapsulates the common logic for executing statements and managing state
  */
-const executePartiqlStatement = async (statement: string, nextToken?: string | null) => {
+const executePartiqlStatement = async (
+  statement: string,
+  nextToken?: string | null,
+  mode: 'append' | 'replace' = 'append',
+) => {
   if (!activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
       closable: true,
@@ -282,7 +336,7 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
       activeConnection.value as DynamoDBConnection,
       tableName,
       statement,
-      { nextToken },
+      { nextToken, mode },
     );
 
     if (!nextToken) {
@@ -504,7 +558,7 @@ const executeQuery = async () => {
   await executePartiqlStatement(statement);
 };
 
-const loadMore = async () => {
+const handleNextPage = async () => {
   if (
     !editor ||
     !activeConnection.value ||
@@ -516,6 +570,7 @@ const loadMore = async () => {
   await executePartiqlStatement(
     partiqlData.value.lastExecutedStatement,
     partiqlData.value.nextToken,
+    'replace',
   );
 };
 
@@ -544,6 +599,32 @@ const handleEdit = async (row: Record<string, unknown>) => {
   editingItem.value = row;
   showEditModal.value = true;
 };
+
+// Delete state
+const showDeleteModal = ref(false);
+const deletingKeys = ref<DynamoKey[]>([]);
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  deletingKeys.value = buildDynamoKeys(
+    row,
+    partitionKeyName.value,
+    partitionKeyType.value,
+    sortKeyName.value,
+    sortKeyType.value,
+  );
+  showDeleteModal.value = true;
+};
+
+// Flattened columns + actions column for the shared ResultPanel
+const displayColumns = computed<ColumnDef[]>(() => {
+  const flattened = flattenDynamoColumns(partiqlData.value.columns);
+  if (flattened.length > 0) {
+    flattened.push({ key: 'actions', title: lang.t('editor.dynamo.actions'), width: 100 });
+  }
+  return flattened;
+});
+
+const formatCellValue = formatDynamoCell;
 
 type AttributeItem = {
   key: string;

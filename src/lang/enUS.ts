@@ -275,6 +275,8 @@ export const enUS = {
       overrideReadOnly: 'Read-only',
       overrideReadOnlyDesc: 'Force read-only operations for this connection',
       saveFailed: 'Failed to save MCP settings',
+      statusLoadFailed: 'Failed to load MCP bridge status',
+      connectionsLoadFailed: 'Failed to load connections',
       connectionAccess: 'Connection Access',
       connectionAccessDesc:
         'When enabled, only listed connections are allowed. Set per-connection actions (read/write/delete).',
@@ -1160,7 +1162,6 @@ export const enUS = {
       },
     },
     dynamo: {
-      noData: 'No data available',
       uiQuery: 'Query UI',
       sqlEditor: 'PartiQL Editor',
       tableOrIndex: 'Table/Index',
@@ -1223,8 +1224,6 @@ export const enUS = {
         emptyStatement: 'Please enter a PartiQL statement',
         noStatementFound:
           'No PartiQL statement to execute. Please select a query or position your cursor within a statement.',
-        itemsReturned: '{count} items returned',
-        loadMore: 'Load More',
         executionSuccess: 'Statement executed successfully',
         noItemsReturned: 'No items returned',
         contextMenu: {

@@ -96,7 +96,13 @@ export const useDbDataStore = defineStore('dbDataStore', {
       },
     },
   }),
-  persist: true,
+  persist: {
+    // Persist only the query form (user's last selection) — NOT result data.
+    // Result panels must start empty on each visit; persisting queryData /
+    // partiqlData would resurrect stale rows the user never queried this
+    // session (e.g. after a failed connection or a table switch).
+    pick: ['dynamoData.uiQueryForm'],
+  },
 
   actions: {
     async getDynamoData(connection: DynamoDBConnection, queryInput: DynamoInput): Promise<void> {
@@ -279,9 +285,11 @@ export const useDbDataStore = defineStore('dbDataStore', {
       connection: DynamoDBConnection,
       tableName: string,
       statement: string,
-      options?: { nextToken?: string | null },
+      options?: { nextToken?: string | null; mode?: 'append' | 'replace' },
     ): Promise<void> {
-      const isLoadingMore = !!options?.nextToken;
+      // Append is the default (Load More). 'replace' discards the current
+      // page and shows only the next page (cursor next-page navigation).
+      const isLoadingMore = !!options?.nextToken && options?.mode !== 'replace';
 
       // Reset state for new execution (not for pagination)
       if (!isLoadingMore) {
