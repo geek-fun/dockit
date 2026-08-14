@@ -259,6 +259,8 @@ export const zhCN = {
       overrideReadOnly: '只读',
       overrideReadOnlyDesc: '强制此连接仅执行只读操作',
       saveFailed: 'MCP 设置保存失败',
+      statusLoadFailed: 'MCP 桥接状态加载失败',
+      connectionsLoadFailed: '连接列表加载失败',
       connectionAccess: '连接访问控制',
       connectionAccessDesc: '启用后仅允许列表中的连接。可为每个连接设置操作权限（读/写/删除）。',
       connectionName: '连接',
@@ -1122,7 +1124,6 @@ export const zhCN = {
       },
     },
     dynamo: {
-      noData: '暂无数据',
       uiQuery: '查询 UI',
       sqlEditor: 'PartiQL 查询',
       tableOrIndex: '表/索引',
@@ -1184,8 +1185,6 @@ export const zhCN = {
         noResults: '执行 PartiQL 查询以查看结果',
         emptyStatement: '请输入 PartiQL 语句',
         noStatementFound: '没有可执行的 PartiQL 语句。请选择一个查询或将光标定位在语句中。',
-        itemsReturned: '返回 {count} 条记录',
-        loadMore: '加载更多',
         executionSuccess: '语句执行成功',
         noItemsReturned: '未返回任何数据',
         contextMenu: {
