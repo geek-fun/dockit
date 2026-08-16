@@ -87,25 +87,27 @@ pub async fn resolve_connection_target(
     let remote_host = config["host"].as_str().unwrap_or("localhost").to_string();
     let remote_port = config["port"].as_u64().unwrap_or(0) as u16;
 
-    // Force the last hop to port-forward mode when the target is plain HTTP.
-    let mut layers = layers;
-    if force_port_forward {
-        if let Some(TransportLayerConfig::Ssh(last)) = layers.last_mut() {
-            last.force_port_forward = true;
-        }
-    }
-
-    // Socks5 only when the last hop is NOT exposed to the LAN: exposeLan
-    // forces PortForward (effective_tunnel_mode), so the mode is fully
-    // derived from the config — no persisted tunnelMode field.
+    // Socks5 only when the last hop is NOT exposed to the LAN and the caller
+    // did not force port-forward (plain-HTTP targets). Both exposeLan and
+    // force_port_forward select PortForward in effective_tunnel_mode, so the
+    // mode is fully derived — no persisted tunnelMode field, no config mutation.
     let socks5_mode = layers
         .last()
         .map(|layer| match layer {
-            TransportLayerConfig::Ssh(c) => !c.expose_lan && !c.force_port_forward,
+            TransportLayerConfig::Ssh(c) => !c.expose_lan && !force_port_forward,
         })
         .unwrap_or(false);
 
-    match start_transport_layers(connection_id, &layers, &remote_host, remote_port, tunnels).await {
+    match start_transport_layers(
+        connection_id,
+        &layers,
+        &remote_host,
+        remote_port,
+        tunnels,
+        force_port_forward,
+    )
+    .await
+    {
         Ok(Some(local_port)) => {
             if socks5_mode {
                 // Socks5 mode: the host stays real (TLS sees it); the port

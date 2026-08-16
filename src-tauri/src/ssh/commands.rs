@@ -116,7 +116,7 @@ pub async fn test_ssh_connection(
     let connection_key = format!("test-{}", Uuid::new_v4());
 
     match tunnels
-        .start_tunnel(&connection_key, &config, &remote_host, remote_port)
+        .start_tunnel(&connection_key, &config, &remote_host, remote_port, false)
         .await
     {
         Ok(_port) => {
