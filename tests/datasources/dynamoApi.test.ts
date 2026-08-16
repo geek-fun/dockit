@@ -693,6 +693,11 @@ describe('dynamoApi - Auth Types', () => {
       'dynamo__list_tables',
       {},
       expect.any(String),
+      expect.objectContaining({
+        id: '2',
+        name: 'test-profile-connection',
+        auth: expect.objectContaining({ kind: 'profile', profileName: 'default' }),
+      }),
     );
   });
 
@@ -705,6 +710,11 @@ describe('dynamoApi - Auth Types', () => {
       'dynamo__list_tables',
       {},
       expect.any(String),
+      expect.objectContaining({
+        id: '3',
+        name: 'test-sso-connection',
+        auth: expect.objectContaining({ kind: 'sso' }),
+      }),
     );
   });
 
@@ -717,6 +727,11 @@ describe('dynamoApi - Auth Types', () => {
       'dynamo__list_tables',
       {},
       expect.any(String),
+      expect.objectContaining({
+        id: '4',
+        name: 'test-assume-role-connection',
+        auth: expect.objectContaining({ kind: 'assumeRole' }),
+      }),
     );
   });
 });
@@ -738,6 +753,11 @@ describe('dynamoApi - Basic Operations', () => {
         'dynamo__list_tables',
         {},
         expect.any(String),
+        expect.objectContaining({
+          id: '1',
+          name: 'test-connection',
+          auth: expect.objectContaining({ kind: 'accessKey' }),
+        }),
       );
       expect(result).toEqual(['table1', 'table2', 'table3']);
     });
@@ -1336,27 +1356,30 @@ describe('dynamoApi - testConnection', () => {
   });
 });
 
-describe('dynamoApi - listTablesViaSsh', () => {
+describe('dynamoApi - listTables with SSH tunnel', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('calls invoke with sshTunnel and returns table names', async () => {
-    mockedInvoke.mockResolvedValue({
-      status: 200,
-      data: { tableNames: ['t1', 't2'] },
-    });
+  it('passes sshTunnel config to invokeCapability and returns table names', async () => {
+    mockedInvokeCapability.mockResolvedValue(JSON.stringify({ tableNames: ['t1', 't2'] }));
     const conn = { ...mockConnection, sshTunnel: { enabled: true, inline: { host: 'bastion' } } };
-    const result = await dynamoApi.listTablesViaSsh(conn as any);
-    expect(mockedInvoke).toHaveBeenCalledWith('dynamo_test_connection', {
-      config: conn,
-      sshTunnel: { enabled: true, inline: { host: 'bastion' } },
-    });
+    const result = await dynamoApi.listTables(conn as any);
+    expect(mockedInvokeCapability).toHaveBeenCalledWith(
+      'dynamo__list_tables',
+      {},
+      expect.any(String),
+      expect.objectContaining({
+        id: '1',
+        sshTunnel: { enabled: true, inline: { host: 'bastion' } },
+      }),
+    );
     expect(result).toEqual(['t1', 't2']);
   });
 
   it('throws on invoke failure', async () => {
-    mockedInvoke.mockRejectedValue(new Error('SSH tunnel failed'));
-    await expect(dynamoApi.listTablesViaSsh(mockConnection as any)).rejects.toThrow();
+    mockedInvokeCapability.mockRejectedValue(new Error('SSH tunnel failed'));
+    const conn = { ...mockConnection, sshTunnel: { enabled: true, inline: { host: 'bastion' } } };
+    await expect(dynamoApi.listTables(conn as any)).rejects.toThrow();
   });
 });

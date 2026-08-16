@@ -3343,6 +3343,83 @@ mod tests {
         assert!(result.unwrap_err().contains("valid JSON array"));
     }
 
+    // ── Wave 2A: factory error propagation ─────────────────────────────────
+
+    #[tokio::test]
+    async fn test_create_backup_factory_error() {
+        let handler = DynamoCreateBackup::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(
+                &json!({"table_name": "t", "backup_name": "b"}),
+                Some(&json!({"region": "us-east-1"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_list_backups_factory_error() {
+        let handler = DynamoListBackups::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(&json!({}), Some(&json!({"region": "us-east-1"})))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_backup_factory_error() {
+        let handler = DynamoDescribeBackup::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(
+                &json!({"backup_arn": "arn:aws:dynamodb:us-east-1:123:table/t/backup/xyz"}),
+                Some(&json!({"region": "us-east-1"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_limits_factory_error() {
+        let handler = DynamoDescribeLimits::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(&json!({}), Some(&json!({"region": "us-east-1"})))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_list_tags_factory_error() {
+        let handler = DynamoListTags::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(
+                &json!({"resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t"}),
+                Some(&json!({"region": "us-east-1"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_tag_resource_factory_error() {
+        let handler = DynamoTagResource::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(
+                &json!({
+                    "resource_arn": "arn:aws:dynamodb:us-east-1:123:table/t",
+                    "tags": [{"key": "a", "value": "b"}]
+                }),
+                Some(&json!({"region": "us-east-1"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
     // ── register_all / agent exposure ───────────────────────────────────────
 
     #[tokio::test]
