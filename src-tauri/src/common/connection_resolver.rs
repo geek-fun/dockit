@@ -61,14 +61,23 @@ fn normalize_config(connection: Value) -> Result<Value, String> {
     let db_type = connection
         .get("type")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "Connection missing 'type' field".to_string())?;
+        .ok_or_else(|| "Connection missing 'type' field".to_string())?
+        .to_string();
 
-    match db_type {
-        "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => Ok(normalize_es(connection)),
-        "DYNAMODB" => normalize_dynamo(connection),
-        "MONGODB" => Ok(normalize_mongo(connection)),
-        other => Err(format!("Unknown connection type: {}", other)),
+    let mut config = match db_type.as_str() {
+        "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => normalize_es(connection),
+        "DYNAMODB" => normalize_dynamo(connection)?,
+        "MONGODB" => normalize_mongo(connection),
+        other => return Err(format!("Unknown connection type: {}", other)),
+    };
+
+    // Carry the database type so transport-layer helpers (e.g.
+    // force_port_forward_for) can scope DynamoDB-only behavior explicitly
+    // instead of inferring it from the config shape.
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("type".to_string(), Value::String(db_type));
     }
+    Ok(config)
 }
 
 fn normalize_es(conn: Value) -> Value {

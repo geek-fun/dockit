@@ -159,12 +159,21 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         .filter(|s| s == "http" || s == "https")
         .unwrap_or_else(|| "http".to_string());
 
+    // Force port-forward ONLY for DynamoDB plain-HTTP (local) targets.
+    // The AWS SDK emits origin-form HTTP (not CONNECT) to a proxy, which our
+    // SOCKS5/CONNECT tunnel cannot forward — so route it through a local
+    // port-forward. ES and MongoDB never trigger this (gated by `type`),
+    // so they keep SOCKS5/CONNECT. https DynamoDB (AWS) also keeps
+    // SOCKS5/CONNECT (SigV4 + TLS need the real host). See
+    // `force_port_forward_for` and `resolve_connection_target`.
+    let force_port_forward = force_port_forward_for(config);
+
     let endpoint = resolve_ssh_tunnel(
         app,
         ssh.as_ref(),
         &remote_host,
         remote_port,
-        scheme == "http",
+        force_port_forward,
     )
     .await?;
     let socks5_mode = endpoint.socks5_port.is_some();
@@ -204,6 +213,31 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         obj.remove("sshTunnel");
     }
     Ok(())
+}
+
+/// Decide whether to force port-forward tunnel mode for a connection.
+///
+/// Only DynamoDB plain-HTTP (local) targets need it: the AWS SDK emits
+/// origin-form HTTP (not CONNECT) to a proxy, which a SOCKS5 proxy cannot
+/// forward, so the client must talk plain HTTP to a local port-forward.
+/// `type == "DYNAMODB"` is the primary gate (ES and MongoDB never force),
+/// and within DynamoDB only `http://` (Local) forces — `https://` (AWS)
+/// keeps SOCKS5/CONNECT so SigV4 signing and TLS see the real host.
+/// Mirrors the `endpoint_is_http` check in `dynamo_client::dynamo_test_connection`.
+fn force_port_forward_for(config: &Value) -> bool {
+    let is_dynamodb = config
+        .get("type")
+        .and_then(|v| v.as_str())
+        .map(|t| t.eq_ignore_ascii_case("DYNAMODB"))
+        .unwrap_or(false);
+    if !is_dynamodb {
+        return false;
+    }
+    config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .map(|u| u.starts_with("http://"))
+        .unwrap_or(false)
 }
 
 /// Inverse of the `socks5Proxy` injection in `resolve_ssh_in_place` —
@@ -555,5 +589,65 @@ mod tests {
     #[test]
     fn test_parse_socks5_proxy_empty_port() {
         assert!(parse_socks5_proxy(Some("127.0.0.1:")).is_err());
+    }
+
+    #[test]
+    fn test_force_port_forward_for_dynamodb_local_http() {
+        assert!(force_port_forward_for(
+            &json!({"type": "DYNAMODB", "endpointUrl": "http://localhost:8000"})
+        ));
+    }
+
+    #[test]
+    fn test_force_port_forward_for_dynamodb_aws_https_false() {
+        assert!(!force_port_forward_for(
+            &json!({"type": "DYNAMODB", "endpointUrl": "https://dynamodb.us-east-1.amazonaws.com"})
+        ));
+    }
+
+    #[test]
+    fn test_force_port_forward_for_dynamodb_case_insensitive_type() {
+        assert!(force_port_forward_for(
+            &json!({"type": "dynamodb", "endpointUrl": "http://localhost:8000"})
+        ));
+    }
+
+    #[test]
+    fn test_force_port_forward_for_mongo_false() {
+        // MongoDB config shape — never force, regardless of endpointUrl.
+        assert!(!force_port_forward_for(
+            &json!({"type": "MONGODB", "host": "mongo.example.com", "port": 27017, "database": "app"})
+        ));
+        // Even a Mongo config that happens to carry an http endpointUrl must
+        // not force — the MongoDB driver issues CONNECT through a proxy.
+        assert!(!force_port_forward_for(
+            &json!({"type": "MONGODB", "endpointUrl": "http://mongo.example.com:27017"})
+        ));
+    }
+
+    #[test]
+    fn test_force_port_forward_for_es_false() {
+        assert!(!force_port_forward_for(
+            &json!({"type": "ELASTICSEARCH", "host": "es.example.com", "port": 9200, "protocol": "https"})
+        ));
+        assert!(!force_port_forward_for(
+            &json!({"type": "OPENSEARCH", "host": "es.example.com", "port": 9200, "protocol": "http"})
+        ));
+    }
+
+    #[test]
+    fn test_force_port_forward_for_dynamodb_without_endpoint_url_false() {
+        // DynamoDB with no endpointUrl (e.g. raw host:port not yet derived):
+        // do not force — consistent with dynamo_client::dynamo_test_connection,
+        // which also returns false when endpointUrl is absent.
+        assert!(!force_port_forward_for(
+            &json!({"type": "DYNAMODB", "host": "localhost", "port": 8000})
+        ));
+    }
+
+    #[test]
+    fn test_force_port_forward_for_missing_type_false() {
+        assert!(!force_port_forward_for(&json!({"endpointUrl": "http://localhost:8000"})));
+        assert!(!force_port_forward_for(&json!({})));
     }
 }
