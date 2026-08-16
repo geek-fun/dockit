@@ -766,6 +766,7 @@ impl TunnelManager {
         config: &SshTunnelConfig,
         remote_host: &str,
         remote_port: u16,
+        force_port_forward: bool,
     ) -> Result<u16, String> {
         // Fast check under lock — avoid duplicate tunnels.
         {
@@ -776,7 +777,8 @@ impl TunnelManager {
         }
 
         // Slow path: connect and verify.
-        let (handle, local_port) = spawn_tunnel(config, remote_host, remote_port).await?;
+        let (handle, local_port) =
+            spawn_tunnel(config, remote_host, remote_port, force_port_forward).await?;
 
         // Re-check under lock — another caller may have raced ahead.
         let mut tunnels = self.tunnels.lock().await;
@@ -803,6 +805,7 @@ impl TunnelManager {
         hops: &[SshTunnelConfig],
         remote_host: &str,
         remote_port: u16,
+        force_port_forward: bool,
     ) -> Result<u16, String> {
         if hops.is_empty() {
             return Err("No SSH tunnel hops configured".to_string());
@@ -855,7 +858,7 @@ impl TunnelManager {
                 target_port,
                 is_last,
                 hop.expose_lan,
-                hop.force_port_forward,
+                is_last && force_port_forward,
             )
             .await
             {
@@ -943,6 +946,7 @@ async fn spawn_tunnel(
     config: &SshTunnelConfig,
     remote_host: &str,
     remote_port: u16,
+    force_port_forward: bool,
 ) -> Result<(JoinHandle<()>, u16), String> {
     spawn_tunnel_config(
         config,
@@ -950,7 +954,7 @@ async fn spawn_tunnel(
         remote_port,
         true,
         config.expose_lan,
-        config.force_port_forward,
+        force_port_forward,
     )
     .await
 }
@@ -1362,7 +1366,7 @@ mod effective_mode_integration {
         let cfg: SshTunnelConfig =
             serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
         assert_eq!(
-            effective_tunnel_mode(true, cfg.expose_lan, cfg.force_port_forward),
+            effective_tunnel_mode(true, cfg.expose_lan, false),
             TunnelMode::Socks5
         );
     }
@@ -1373,18 +1377,17 @@ mod effective_mode_integration {
             serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
         cfg.expose_lan = true;
         assert_eq!(
-            effective_tunnel_mode(true, cfg.expose_lan, cfg.force_port_forward),
+            effective_tunnel_mode(true, cfg.expose_lan, false),
             TunnelMode::PortForward
         );
     }
 
     #[test]
     fn single_hop_force_port_forward_uses_port_forward() {
-        let mut cfg: SshTunnelConfig =
+        let cfg: SshTunnelConfig =
             serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
-        cfg.force_port_forward = true;
         assert_eq!(
-            effective_tunnel_mode(true, cfg.expose_lan, cfg.force_port_forward),
+            effective_tunnel_mode(true, cfg.expose_lan, true),
             TunnelMode::PortForward
         );
     }
@@ -1400,12 +1403,12 @@ mod effective_mode_integration {
             serde_json::from_str(r#"{"enabled":true,"host":"b","port":22,"exposeLan":true}"#)
                 .unwrap();
         assert_eq!(
-            effective_tunnel_mode(false, h0.expose_lan, h0.force_port_forward),
+            effective_tunnel_mode(false, h0.expose_lan, false),
             TunnelMode::PortForward,
             "non-last hop forces PortForward even with exposeLan"
         );
         assert_eq!(
-            effective_tunnel_mode(true, h1.expose_lan, h1.force_port_forward),
+            effective_tunnel_mode(true, h1.expose_lan, false),
             TunnelMode::PortForward,
             "last hop with exposeLan forces PortForward"
         );
@@ -1416,7 +1419,7 @@ mod effective_mode_integration {
         let h: SshTunnelConfig =
             serde_json::from_str(r#"{"enabled":true,"host":"b","port":22}"#).unwrap();
         assert_eq!(
-            effective_tunnel_mode(true, h.expose_lan, h.force_port_forward),
+            effective_tunnel_mode(true, h.expose_lan, false),
             TunnelMode::Socks5
         );
     }

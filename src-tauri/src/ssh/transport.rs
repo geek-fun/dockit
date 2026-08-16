@@ -7,12 +7,16 @@ use crate::ssh::TunnelManager;
 
 /// Start transport layers for a connection.
 /// Returns `Ok(Some(local_port))` if tunnel was started, `Ok(None)` if no layers.
+///
+/// `force_port_forward` forces the last hop into PortForward mode — used for
+/// plain-HTTP targets (DynamoDB Local). See `force_port_forward_for`.
 pub async fn start_transport_layers(
     connection_key: &str,
     layers: &[TransportLayerConfig],
     remote_host: &str,
     remote_port: u16,
     tunnels: &TunnelManager,
+    force_port_forward: bool,
 ) -> Result<Option<u16>, String> {
     let enabled: Vec<&TransportLayerConfig> = layers.iter().filter(|l| l.enabled()).collect();
 
@@ -36,7 +40,7 @@ pub async fn start_transport_layers(
         1 => {
             let TransportLayerConfig::Ssh(config) = &resolved[0];
             let local_port = tunnels
-                .start_tunnel(connection_key, config, remote_host, remote_port)
+                .start_tunnel(connection_key, config, remote_host, remote_port, force_port_forward)
                 .await?;
             Ok(Some(local_port))
         }
@@ -49,7 +53,7 @@ pub async fn start_transport_layers(
                 })
                 .collect();
             let local_port = tunnels
-                .start_chain(connection_key, &hops, remote_host, remote_port)
+                .start_chain(connection_key, &hops, remote_host, remote_port, force_port_forward)
                 .await?;
             Ok(Some(local_port))
         }
@@ -82,7 +86,6 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
-            force_port_forward: false,
             use_system_proxy: false,
         }
     }
@@ -90,7 +93,8 @@ mod tests {
     #[tokio::test]
     async fn test_empty_layers_returns_none() {
         let tunnels = TunnelManager::new();
-        let result = start_transport_layers("test", &[], "db.example.com", 5432, &tunnels).await;
+        let result =
+            start_transport_layers("test", &[], "db.example.com", 5432, &tunnels, false).await;
         assert_eq!(result.unwrap(), None);
     }
 
@@ -101,7 +105,7 @@ mod tests {
         let layers = vec![TransportLayerConfig::Ssh(config)];
         let tunnels = TunnelManager::new();
         let result =
-            start_transport_layers("test", &layers, "db.example.com", 5432, &tunnels).await;
+            start_transport_layers("test", &layers, "db.example.com", 5432, &tunnels, false).await;
         assert_eq!(result.unwrap(), None);
     }
 
