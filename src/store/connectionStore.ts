@@ -772,9 +772,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     async freshConnection(con: Connection, tableName?: string) {
       if (con.type === DatabaseType.DYNAMODB) {
         const ddbCon = con as DynamoDBConnection;
-        const allTables = await (ddbCon.sshTunnel?.enabled
-          ? dynamoApi.listTablesViaSsh(ddbCon)
-          : dynamoApi.listTables(ddbCon));
+        const allTables = await dynamoApi.listTables(ddbCon);
 
         const visible = applyTableFilter(allTables, con.tableFilter);
 

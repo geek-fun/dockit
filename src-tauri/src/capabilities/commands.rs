@@ -6,8 +6,13 @@ use tauri::AppHandle;
 use crate::common::connection_resolver::ConnectionResolver;
 use crate::common::ssh_bridge::resolve_ssh_in_place;
 
-/// Invoke a capability by name with JSON arguments, using a connection_id
-/// to resolve credentials on the Rust side.
+/// Invoke a capability by name with JSON arguments.
+///
+/// Credentials come from one of two sources:
+/// - `connection_id` — a saved connection resolved from the store (capability path)
+/// - `config` — a raw connection config for unsaved connections (e.g. the
+///   connect dialog's Table Filter preview), where no connection_id exists yet.
+/// `config` takes precedence when both are provided.
 ///
 /// This is the UI-facing entry point into the capability system.
 /// The agent loop uses `invoke_capability_inner` directly.
@@ -16,18 +21,20 @@ pub async fn invoke_capability(
     name: String,
     args: Value,
     connection_id: Option<String>,
+    config: Option<Value>,
     app: AppHandle,
 ) -> Result<String, String> {
-    let mut config = match connection_id {
-        Some(ref id) => Some(ConnectionResolver::resolve(&app, id)?),
-        None => None,
+    let mut resolved = match (config, connection_id) {
+        (Some(cfg), _) => Some(ConnectionResolver::normalize(&cfg)?),
+        (None, Some(id)) => Some(ConnectionResolver::resolve(&app, &id)?),
+        (None, None) => None,
     };
 
-    if let Some(ref mut cfg) = config {
+    if let Some(ref mut cfg) = resolved {
         resolve_ssh_in_place(&app, cfg).await?;
     }
 
-    registry::invoke_capability_inner(&name, args, config).await
+    registry::invoke_capability_inner(&name, args, resolved).await
 }
 
 /// Return all agent-available capabilities, optionally filtered by database type.

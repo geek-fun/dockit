@@ -174,7 +174,8 @@ pub async fn mongo_test_connection(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
-    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint =
+        resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let tp = tunnel_port(ssh_enabled, &endpoint.host, endpoint.port);
     let uri = match build_uri_tunneled(&config, tp) {
         Ok(uri) => uri,
@@ -975,7 +976,8 @@ pub async fn mongo_execute_query(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
-    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint =
+        resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let client = match build_client_tunneled(
         &config,
         tunnel_port(ssh_enabled, &endpoint.host, endpoint.port),
@@ -1052,7 +1054,8 @@ pub async fn mongo_export_documents(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
-    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint =
+        resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let result = {
         let client = build_client_tunneled(
             &config,
@@ -1139,7 +1142,8 @@ pub async fn mongo_import_documents(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
-    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint =
+        resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let client = match build_client_tunneled(
         &config,
         tunnel_port(ssh_enabled, &endpoint.host, endpoint.port),

@@ -528,7 +528,19 @@ pub async fn dynamo_test_connection(
     }
 
     let (remote_host, remote_port) = crate::common::ssh_bridge::extract_remote_target(&config);
-    let tunnel = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &remote_host, remote_port).await?;
+    let endpoint_is_http = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .map(|u| u.starts_with("http://"))
+        .unwrap_or(false);
+    let tunnel = resolve_ssh_tunnel(
+        &app,
+        ssh_tunnel.as_ref(),
+        &remote_host,
+        remote_port,
+        endpoint_is_http,
+    )
+    .await?;
     if let Some(socks5_port) = tunnel.socks5_port {
         // Socks5/CONNECT mode (dual-protocol tunnel): the AWS SDK supports
         // HTTP CONNECT proxies, so route through the tunnel with the real

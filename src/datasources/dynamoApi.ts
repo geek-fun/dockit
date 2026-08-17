@@ -1,4 +1,3 @@
-import { CustomError } from '../common';
 import { DynamoDBConnection } from '../store';
 import { invoke } from '@tauri-apps/api/core';
 import {
@@ -183,22 +182,15 @@ const dynamoApi = {
     }
   },
 
-  /** List tables via direct SSH-aware command (no saved connection ID needed). */
-  listTablesViaSsh: async (con: DynamoDBConnection): Promise<string[]> => {
-    try {
-      const raw = await invoke<ApiResponse<{ tableNames?: string[] }>>('dynamo_test_connection', {
-        config: con as unknown as Record<string, unknown>,
-        sshTunnel: con.sshTunnel ?? null,
-      });
-      if (raw.status >= 400) throw new CustomError(500, raw.message ?? 'Connection failed');
-      return raw.data?.tableNames ?? [];
-    } catch (e) {
-      throw new CustomError(500, e instanceof Error ? e.message : String(e));
-    }
-  },
-
+  /** List tables. Works for both saved connections (id) and unsaved configs
+   *  (connect dialog preview) — Rust routes on whichever is provided. */
   listTables: async (con: DynamoDBConnection): Promise<string[]> => {
-    const raw = await invokeCapability('dynamo__list_tables', {}, String(con.id));
+    const raw = await invokeCapability(
+      'dynamo__list_tables',
+      {},
+      con.id ? String(con.id) : null,
+      con as unknown as Record<string, unknown>,
+    );
     const data = parseCapabilityResponse<{ tableNames?: string[] }>(raw);
     return data.tableNames ?? [];
   },

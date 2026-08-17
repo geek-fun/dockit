@@ -9,11 +9,13 @@ export const invokeCapability = async (
   name: string,
   args: Record<string, unknown>,
   connectionId?: string | null,
+  config?: Record<string, unknown> | null,
 ): Promise<string> => {
   return await invoke<string>('invoke_capability', {
     name,
     args,
     connectionId: connectionId ?? null,
+    config: config ?? null,
   });
 };
 

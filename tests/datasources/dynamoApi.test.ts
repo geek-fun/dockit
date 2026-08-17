@@ -693,6 +693,7 @@ describe('dynamoApi - Auth Types', () => {
       'dynamo__list_tables',
       {},
       expect.any(String),
+      expect.any(Object),
     );
   });
 
@@ -705,6 +706,7 @@ describe('dynamoApi - Auth Types', () => {
       'dynamo__list_tables',
       {},
       expect.any(String),
+      expect.any(Object),
     );
   });
 
@@ -717,6 +719,7 @@ describe('dynamoApi - Auth Types', () => {
       'dynamo__list_tables',
       {},
       expect.any(String),
+      expect.any(Object),
     );
   });
 });
@@ -738,6 +741,7 @@ describe('dynamoApi - Basic Operations', () => {
         'dynamo__list_tables',
         {},
         expect.any(String),
+        expect.any(Object),
       );
       expect(result).toEqual(['table1', 'table2', 'table3']);
     });
@@ -1333,30 +1337,5 @@ describe('dynamoApi - testConnection', () => {
     mockedInvoke.mockResolvedValue({ status: 401, message: 'Unauthorized' });
     const result = await dynamoApi.testConnection(mockConnection as any);
     expect(result.success).toBe(false);
-  });
-});
-
-describe('dynamoApi - listTablesViaSsh', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('calls invoke with sshTunnel and returns table names', async () => {
-    mockedInvoke.mockResolvedValue({
-      status: 200,
-      data: { tableNames: ['t1', 't2'] },
-    });
-    const conn = { ...mockConnection, sshTunnel: { enabled: true, inline: { host: 'bastion' } } };
-    const result = await dynamoApi.listTablesViaSsh(conn as any);
-    expect(mockedInvoke).toHaveBeenCalledWith('dynamo_test_connection', {
-      config: conn,
-      sshTunnel: { enabled: true, inline: { host: 'bastion' } },
-    });
-    expect(result).toEqual(['t1', 't2']);
-  });
-
-  it('throws on invoke failure', async () => {
-    mockedInvoke.mockRejectedValue(new Error('SSH tunnel failed'));
-    await expect(dynamoApi.listTablesViaSsh(mockConnection as any)).rejects.toThrow();
   });
 });

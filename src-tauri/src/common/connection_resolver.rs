@@ -8,6 +8,15 @@ use tauri_plugin_store::StoreExt;
 pub struct ConnectionResolver;
 
 impl ConnectionResolver {
+    /// Normalize a raw connection config (TypeScript shape, nested `auth`)
+    /// into the flat format that capability handlers expect. Used for
+    /// unsaved connect-dialog configs passed via invoke_capability's `config`
+    /// argument — without this, nested `auth.kind/accessKeyId` would not be
+    /// readable by clients that expect flat `authKind/accessKeyId`.
+    pub fn normalize(connection: &Value) -> Result<Value, String> {
+        normalize_config(connection.clone())
+    }
+
     /// Look up a connection by its numeric ID from the `.store.dat` file
     /// and normalize it to the flat config format that capability handlers
     /// expect.
@@ -52,14 +61,23 @@ fn normalize_config(connection: Value) -> Result<Value, String> {
     let db_type = connection
         .get("type")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| "Connection missing 'type' field".to_string())?;
+        .ok_or_else(|| "Connection missing 'type' field".to_string())?
+        .to_string();
 
-    match db_type {
-        "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => Ok(normalize_es(connection)),
-        "DYNAMODB" => normalize_dynamo(connection),
-        "MONGODB" => Ok(normalize_mongo(connection)),
-        other => Err(format!("Unknown connection type: {}", other)),
+    let mut config = match db_type.as_str() {
+        "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => normalize_es(connection),
+        "DYNAMODB" => normalize_dynamo(connection)?,
+        "MONGODB" => normalize_mongo(connection),
+        other => return Err(format!("Unknown connection type: {}", other)),
+    };
+
+    // Carry the database type so transport-layer helpers (e.g.
+    // force_port_forward_for) can scope DynamoDB-only behavior explicitly
+    // instead of inferring it from the config shape.
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("type".to_string(), Value::String(db_type));
     }
+    Ok(config)
 }
 
 fn normalize_es(conn: Value) -> Value {
@@ -111,6 +129,24 @@ fn normalize_dynamo(conn: Value) -> Result<Value, String> {
     if let Some(v) = conn.get("endpointUrl").and_then(|v| v.as_str()) {
         if !v.is_empty() {
             config.insert("endpointUrl".to_string(), Value::String(v.to_string()));
+        }
+    }
+
+    // DynamoDB Local / self-hosted connections may store host:port without an
+    // endpointUrl. Without this fallback the AWS SDK targets the region's AWS
+    // endpoint (https://dynamodb.{region}.amazonaws.com), which fails for local
+    // deployments with a dispatch failure. Mirrors dynamo_test_connection.
+    if !config.contains_key("endpointUrl") {
+        if let (Some(host), Some(port)) = (
+            conn.get("host").and_then(|v| v.as_str()),
+            conn.get("port").and_then(|v| v.as_u64()),
+        ) {
+            if !host.is_empty() {
+                config.insert(
+                    "endpointUrl".to_string(),
+                    Value::String(format!("http://{}:{}", host, port)),
+                );
+            }
         }
     }
 
@@ -330,6 +366,27 @@ mod tests {
         });
         let cfg = normalize_dynamo(conn).unwrap();
         assert!(cfg.get("endpointUrl").is_none());
+    }
+
+    #[test]
+    fn test_normalize_dynamo_host_port_fallback_endpoint() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1", "host": "127.0.0.1", "port": 8000,
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("endpointUrl").unwrap(), "http://127.0.0.1:8000");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_host_port_fallback_skipped_when_endpoint_present() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1", "host": "127.0.0.1", "port": 8000,
+            "endpointUrl": "http://dynamo.local:9000",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("endpointUrl").unwrap(), "http://dynamo.local:9000");
     }
 
     #[test]
