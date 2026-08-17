@@ -251,3 +251,606 @@ pub async fn restore_table(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    fn restore_input(payload: serde_json::Value) -> RestoreTableInput {
+        RestoreTableInput {
+            source_table_name: "src".into(),
+            target_table_name: "dst".into(),
+            payload,
+        }
+    }
+
+    fn table_description_body() -> serde_json::Value {
+        serde_json::json!({
+            "TableDescription": {"TableName": "restored-users", "TableStatus": "CREATING"}
+        })
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_success() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("from backup"));
+        let data = response.data.expect("data should be present");
+        assert_eq!(data["tableName"], "restored-users");
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_falls_back_to_target_name() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+        let data = response.data.expect("data should be present");
+        assert_eq!(data["tableName"], "dst");
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_error() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+                "message": "not found"
+            })))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("error path returns Ok(ApiResponse)");
+
+        assert_eq!(response.status, 500);
+        assert!(response
+            .message
+            .contains("Failed to restore table from backup"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_gsi_override_as_string() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001",
+            "global_secondary_index_override": "[{\"index_name\": \"gsi1\", \"key_schema\": [{\"attribute_name\": \"sk\", \"key_type\": \"RANGE\"}], \"projection_type\": \"INCLUDE\", \"non_key_attributes\": [\"a\"]}]"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("from backup"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_gsi_override_as_array() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001",
+            "global_secondary_index_override": [
+                {"index_name": "gsi1", "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}], "projection_type": "ALL", "read_capacity_units": 5, "write_capacity_units": 5}
+            ]
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("from backup"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_billing_mode_provisioned() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001",
+            "billing_mode_override": "PROVISIONED"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_from_backup_without_billing_override() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableFromBackup",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "source_backup_arn": "arn:aws:dynamodb:us-east-1:123456789012:table/src/backup/001"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_to_point_in_time_success() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableToPointInTime",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "restore_date_time": "2024-01-15T12:30:00Z"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("to point-in-time"));
+        let data = response.data.expect("data should be present");
+        assert_eq!(data["tableName"], "restored-users");
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_pitr_invalid_restore_date_time() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let input = restore_input(serde_json::json!({
+            "restore_date_time": "not-a-date"
+        }));
+        let result = restore_table(&client, input).await;
+
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("not a valid ISO-8601 timestamp"));
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_pitr_use_latest_true() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableToPointInTime",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "use_latest_restorable_time": true
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_pitr_use_latest_false() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableToPointInTime",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "use_latest_restorable_time": false
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_pitr_use_latest_string_false() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableToPointInTime",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({
+            "use_latest_restorable_time": "false"
+        }));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[tokio::test]
+    async fn test_restore_table_pitr_use_latest_default() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.RestoreTableToPointInTime",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(table_description_body()))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = restore_input(serde_json::json!({}));
+        let response = restore_table(&client, input)
+            .await
+            .expect("restore should succeed");
+
+        assert_eq!(response.status, 200);
+    }
+
+    #[test]
+    fn test_parse_gsi_none() {
+        let result = parse_global_secondary_indexes(None).expect("None should parse");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_parse_gsi_valid_array() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        assert_eq!(result.len(), 1);
+        let gsi = &result[0];
+        assert_eq!(gsi.index_name(), "gsi1");
+        let key_schema = gsi.key_schema();
+        assert_eq!(key_schema.len(), 1);
+        assert_eq!(key_schema[0].attribute_name(), "pk");
+        assert_eq!(key_schema[0].key_type(), &KeyType::Hash);
+        assert_eq!(
+            gsi.projection().unwrap().projection_type().unwrap(),
+            &ProjectionType::All
+        );
+    }
+
+    #[test]
+    fn test_parse_gsi_json_string_array() {
+        let value = serde_json::json!(
+            "[{\"index_name\": \"gsi1\", \"key_schema\": [{\"attribute_name\": \"pk\", \"key_type\": \"HASH\"}], \"projection_type\": \"ALL\"}]"
+        );
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].index_name(), "gsi1");
+    }
+
+    #[test]
+    fn test_parse_gsi_invalid_json_string() {
+        let value = serde_json::json!("not json");
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("is not valid JSON"));
+    }
+
+    #[test]
+    fn test_parse_gsi_string_not_array() {
+        let value = serde_json::json!("{}");
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must be a JSON array"));
+    }
+
+    #[test]
+    fn test_parse_gsi_not_array_not_string() {
+        let value = serde_json::json!({"a": 1});
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must be a JSON array"));
+    }
+
+    #[test]
+    fn test_parse_gsi_missing_index_name() {
+        let value = serde_json::json!([{
+            "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("index_name is required"));
+    }
+
+    #[test]
+    fn test_parse_gsi_missing_key_schema() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("key_schema is required"));
+    }
+
+    #[test]
+    fn test_parse_gsi_item_not_object() {
+        let value = serde_json::json!(["not-an-object"]);
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must be a JSON object"));
+    }
+
+    #[test]
+    fn test_parse_gsi_key_schema_entry_not_object() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": ["not-an-object"],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must be a JSON object"));
+    }
+
+    #[test]
+    fn test_parse_gsi_key_schema_missing_attribute_name() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"key_type": "HASH"}],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("attribute_name is required"));
+    }
+
+    #[test]
+    fn test_parse_gsi_key_schema_missing_key_type() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk"}],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("key_type is required"));
+    }
+
+    #[test]
+    fn test_parse_gsi_key_type_range() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "sk", "key_type": "RANGE"}],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        assert_eq!(result[0].key_schema()[0].key_type(), &KeyType::Range);
+    }
+
+    #[test]
+    fn test_parse_gsi_key_type_unknown_falls_back_to_hash() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk", "key_type": "SORTED"}],
+            "projection_type": "ALL"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        assert_eq!(result[0].key_schema()[0].key_type(), &KeyType::Hash);
+    }
+
+    #[test]
+    fn test_parse_gsi_projection_keys_only() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}],
+            "projection_type": "KEYS_ONLY"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        assert_eq!(
+            result[0].projection().unwrap().projection_type().unwrap(),
+            &ProjectionType::KeysOnly
+        );
+    }
+
+    #[test]
+    fn test_parse_gsi_projection_unknown_falls_back_to_all() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}],
+            "projection_type": "BOGUS"
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        assert_eq!(
+            result[0].projection().unwrap().projection_type().unwrap(),
+            &ProjectionType::All
+        );
+    }
+
+    #[test]
+    fn test_parse_gsi_projection_include_non_key_attributes() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}],
+            "projection_type": "INCLUDE",
+            "non_key_attributes": ["a", "b"]
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        let projection = result[0].projection().unwrap();
+        assert_eq!(
+            projection.projection_type().unwrap(),
+            &ProjectionType::Include
+        );
+        assert_eq!(
+            projection.non_key_attributes(),
+            &["a".to_string(), "b".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_parse_gsi_provisioned_throughput() {
+        let value = serde_json::json!([{
+            "index_name": "gsi1",
+            "key_schema": [{"attribute_name": "pk", "key_type": "HASH"}],
+            "projection_type": "ALL",
+            "read_capacity_units": 5,
+            "write_capacity_units": 7
+        }]);
+        let result = parse_global_secondary_indexes(Some(&value)).expect("should parse");
+        let throughput = result[0]
+            .provisioned_throughput()
+            .expect("should have provisioned throughput");
+        assert_eq!(throughput.read_capacity_units(), 5);
+        assert_eq!(throughput.write_capacity_units(), 7);
+    }
+}

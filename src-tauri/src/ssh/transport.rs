@@ -40,7 +40,13 @@ pub async fn start_transport_layers(
         1 => {
             let TransportLayerConfig::Ssh(config) = &resolved[0];
             let local_port = tunnels
-                .start_tunnel(connection_key, config, remote_host, remote_port, force_port_forward)
+                .start_tunnel(
+                    connection_key,
+                    config,
+                    remote_host,
+                    remote_port,
+                    force_port_forward,
+                )
                 .await?;
             Ok(Some(local_port))
         }
@@ -53,7 +59,13 @@ pub async fn start_transport_layers(
                 })
                 .collect();
             let local_port = tunnels
-                .start_chain(connection_key, &hops, remote_host, remote_port, force_port_forward)
+                .start_chain(
+                    connection_key,
+                    &hops,
+                    remote_host,
+                    remote_port,
+                    force_port_forward,
+                )
                 .await?;
             Ok(Some(local_port))
         }

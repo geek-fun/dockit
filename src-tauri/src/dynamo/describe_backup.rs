@@ -51,3 +51,94 @@ pub async fn describe_backup(client: &Client, backup_arn: &str) -> Result<ApiRes
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn test_describe_backup_success() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.DescribeBackup"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "BackupDescription": {
+                    "BackupDetails": {
+                        "BackupArn": "arn:aws:dynamodb:us-east-1:123456789012:table/users/backup/0001",
+                        "BackupName": "users-backup",
+                        "BackupSizeBytes": 1024,
+                        "BackupStatus": "AVAILABLE",
+                        "BackupType": "USER",
+                        "BackupCreationDateTime": 1700000000.0,
+                    },
+                    "SourceTableDetails": {
+                        "TableName": "users",
+                        "TableId": "tid-123",
+                        "TableArn": "arn:aws:dynamodb:us-east-1:123456789012:table/users",
+                        "TableSizeBytes": 2048,
+                        "BillingMode": "PAY_PER_REQUEST",
+                    },
+                }
+            })))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let response = describe_backup(
+            &client,
+            "arn:aws:dynamodb:us-east-1:123456789012:table/users/backup/0001",
+        )
+        .await
+        .expect("describe_backup should succeed");
+
+        assert_eq!(response.status, 200);
+        let data = response.data.expect("data should be present");
+        assert_eq!(data["backup"]["sourceTableName"], "users");
+    }
+
+    #[tokio::test]
+    async fn test_describe_backup_error() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.DescribeBackup"))
+            .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+                "message": "not found"
+            })))
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let response = describe_backup(
+            &client,
+            "arn:aws:dynamodb:us-east-1:123456789012:table/users/backup/0001",
+        )
+        .await
+        .expect("error response is still Ok(ApiResponse)");
+
+        assert_eq!(response.status, 500);
+        assert!(response.message.contains("Failed to describe backup"));
+        assert!(response.data.is_none());
+    }
+}
