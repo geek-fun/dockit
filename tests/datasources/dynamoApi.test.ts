@@ -1383,3 +1383,4 @@ describe('dynamoApi - listTables with SSH tunnel', () => {
     await expect(dynamoApi.listTables(conn as any)).rejects.toThrow();
   });
 });
+
