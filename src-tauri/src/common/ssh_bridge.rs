@@ -649,7 +649,9 @@ mod tests {
 
     #[test]
     fn test_force_port_forward_for_missing_type_false() {
-        assert!(!force_port_forward_for(&json!({"endpointUrl": "http://localhost:8000"})));
+        assert!(!force_port_forward_for(
+            &json!({"endpointUrl": "http://localhost:8000"})
+        ));
         assert!(!force_port_forward_for(&json!({})));
     }
 }

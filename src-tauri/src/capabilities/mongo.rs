@@ -1293,6 +1293,156 @@ impl CapabilityHandler for MongoShardStatus {
 }
 
 // ---------------------------------------------------------------------------
+// Admin / diagnostic handlers
+// ---------------------------------------------------------------------------
+
+pub(crate) struct MongoGetSlowQueries {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoGetSlowQueries {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealMongoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for MongoGetSlowQueries {
+    async fn handle(
+        &self,
+        _args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
+        let (client, _) = self.factory.create_client(config).await?;
+        let admin_db = client.database("admin");
+
+        // currentOp requires inprog privileges; fall back to the capped
+        // system.profile collection when the server denies it (read-only
+        // users commonly hit this).
+        let running: Vec<Value> = match admin_db
+            .run_command(doc! { "currentOp": 1, "active": true })
+            .await
+        {
+            Ok(result) => match result.get("inprog") {
+                Some(Bson::Array(arr)) => arr
+                    .iter()
+                    .filter_map(|bson| match bson {
+                        Bson::Document(d) => Some(serde_json::json!({
+                            "ns": d.get_str("ns").unwrap_or("unknown"),
+                            "op": d.get_str("op").unwrap_or("unknown"),
+                            "secs_running": d.get_i64("secs_running").unwrap_or(0),
+                            "msgs": d.get_str("msg").ok(),
+                        })),
+                        _ => None,
+                    })
+                    .collect(),
+                _ => vec![],
+            },
+            Err(_) => {
+                let mut opts = mongodb::options::FindOptions::default();
+                opts.sort = Some(doc! { "ts": -1 });
+                opts.limit = Some(20);
+                let mut cursor = admin_db
+                    .collection::<Document>("system.profile")
+                    .find(doc! {})
+                    .with_options(opts)
+                    .await
+                    .map_err(|e| format!("currentOp and system.profile both failed: {}", e))?;
+                let mut list = vec![];
+                while let Ok(Some(d)) = futures::TryStreamExt::try_next(&mut cursor).await {
+                    list.push(serde_json::json!({
+                        "ns": d.get_str("ns").unwrap_or("unknown"),
+                        "op": d.get_str("op").unwrap_or("unknown"),
+                        "millis": d.get_i64("millis").unwrap_or(0),
+                        "ts": d
+                            .get("ts")
+                            .map(|v| crate::common::bson::bson_to_value(v))
+                            .unwrap_or(Value::Null),
+                    }));
+                }
+                list
+            }
+        };
+
+        let data = serde_json::json!({ "running_operations": running });
+        Ok(ApiResponse::json(data).into_string())
+    }
+}
+
+pub(crate) struct MongoListUsers {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoListUsers {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealMongoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for MongoListUsers {
+    async fn handle(
+        &self,
+        _args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
+        let (client, _) = self.factory.create_client(config).await?;
+        let admin_db = client.database("admin");
+
+        let result = admin_db
+            .run_command(doc! { "usersInfo": 1 })
+            .await
+            .map_err(|e| format!("usersInfo failed: {}", e))?;
+
+        let users: Vec<Value> = match result.get("users") {
+            Some(Bson::Array(arr)) => arr
+                .iter()
+                .filter_map(|bson| match bson {
+                    Bson::Document(d) => Some(serde_json::json!({
+                        "_id": d.get("_id").map(|v| crate::common::bson::bson_to_value(v)).unwrap_or(Value::Null),
+                        "user": d.get_str("user").unwrap_or("unknown"),
+                        "db": d.get_str("db").unwrap_or("unknown"),
+                        "roles": d.get_array("roles").map(|roles| {
+                            roles.iter().filter_map(|r| {
+                                if let Bson::Document(rd) = r {
+                                    rd.get_str("role").ok().map(|s| s.to_string())
+                                } else {
+                                    None
+                                }
+                            }).collect::<Vec<String>>()
+                        }).unwrap_or_default(),
+                        "customData": d.get("customData").map(|v| crate::common::bson::bson_to_value(v)).unwrap_or(Value::Null),
+                    })),
+                    _ => None,
+                })
+                .collect(),
+            _ => vec![],
+        };
+
+        let data = serde_json::json!({ "users": users });
+        Ok(ApiResponse::json(data).into_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Document operation handlers
 // ---------------------------------------------------------------------------
 
@@ -2669,6 +2819,26 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         &["agent", "ui"],
         true
     );
+
+    reg!(
+        "mongo__get_slow_queries",
+        "Get MongoDB slow query data. Lists currently running operations (currentOp) with namespace, operation, seconds running, and message; if the server denies currentOp, falls back to the 20 most recent system.profile entries. Report results in the user's language (中文/English).",
+        MongoGetSlowQueries::new(),
+        mongo_schema(&[]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "mongo__list_users",
+        "List users defined on a MongoDB server across all databases, including user id, database, roles, and customData. Report results in the user's language (中文/English).",
+        MongoListUsers::new(),
+        mongo_schema(&[]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
 }
 
 #[cfg(test)]
@@ -3490,5 +3660,63 @@ mod tests {
         assert!(result
             .unwrap_err()
             .contains("Unknown operation type: replace_one"));
+    }
+
+    // ---- MongoGetSlowQueries ----
+
+    #[tokio::test]
+    async fn test_mongo_get_slow_queries_missing_config() {
+        let handler = MongoGetSlowQueries::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_get_slow_queries_factory_error() {
+        let handler = MongoGetSlowQueries::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    // ---- MongoListUsers ----
+
+    #[tokio::test]
+    async fn test_mongo_list_users_missing_config() {
+        let handler = MongoListUsers::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_list_users_factory_error() {
+        let handler = MongoListUsers::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    // ---- register_all ----
+
+    #[test]
+    fn test_mongo_register_all_registers_capabilities() {
+        let mut reg = CapabilityRegistry::new();
+        super::register_all(&mut reg);
+
+        assert!(reg.get("mongo__get_slow_queries").is_some());
+        assert!(reg.get("mongo__list_users").is_some());
+
+        let all_agent = reg.agent_tools();
+        let mongo_agent: Vec<_> = all_agent
+            .iter()
+            .filter(|c| c.name.starts_with("mongo__"))
+            .collect();
+        assert_eq!(
+            mongo_agent.len(),
+            32,
+            "expected 32 MongoDB capabilities tagged for agent"
+        );
     }
 }
