@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-08-18
+
+### Added
+
+- **Agent DBA capabilities for DynamoDB/ES/Mongo** — expose DynamoDB, Elasticsearch and MongoDB database administration capabilities to the agent (#496)
+
+### Changed
+
+- **DynamoDB editor migrated to shared ResultPanel** — unified table/tree/JSON result view replaces the DynamoDB-specific implementation (#497)
+- **MongoDB editor migrated to shared ResultPanel** — unified table/tree/JSON result view replaces the MongoDB-specific implementation (#495)
+
+### Fixed
+
+- **SSH tunnel port-forward scoped to DynamoDB Local** — tunnel port-forwarding no longer interferes with MongoDB and Elasticsearch connections (#499)
+- **MongoDB honors SOCKS5 proxy** — capability client factory now respects the `socks5Proxy` setting (#494)
+- **AI system prompt input persisted** — the system prompt textarea no longer loses its input (#493)
+
+### Documentation
+
+- **Fix broken star history chart** — correct the broken star history chart in the README (#498).
+
 ## [1.4.1] - 2026-08-11
 
 ### Added
