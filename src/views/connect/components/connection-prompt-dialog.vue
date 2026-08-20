@@ -17,6 +17,7 @@
         <textarea
           v-model="draft"
           class="prompt-textarea"
+          autocomplete="off"
           :placeholder="$t('connection.prompt.placeholder')"
         />
       </div>
