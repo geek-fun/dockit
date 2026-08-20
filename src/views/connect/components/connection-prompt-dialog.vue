@@ -18,6 +18,9 @@
           v-model="draft"
           class="prompt-textarea"
           autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
           :placeholder="$t('connection.prompt.placeholder')"
         />
       </div>
