@@ -998,6 +998,48 @@ describe('connectionStore actions', () => {
       expect((store.connections[0] as ElasticsearchConnection).host).toBe('http://updated');
     });
 
+    it('persists a prompt when updating an existing connection', async () => {
+      await store.saveConnection(esConnection);
+
+      const result = await store.saveConnection({
+        ...esConnection,
+        id: 1,
+        prompt: 'Orders cluster context',
+      });
+
+      expect(result.success).toBe(true);
+      expect(store.connections[0].prompt).toBe('Orders cluster context');
+    });
+
+    it('matches numeric and string connection ids when updating', async () => {
+      await store.saveConnection({ ...esConnection, id: 9, name: 'aws-es-cluster' });
+
+      const result = await store.saveConnection({
+        ...esConnection,
+        id: '9',
+        name: 'aws-es-cluster',
+        prompt: 'AWS cluster context',
+      });
+
+      expect(result.success).toBe(true);
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].id).toBe('9');
+      expect(store.connections[0].prompt).toBe('AWS cluster context');
+    });
+
+    it('upserts a record when an existing id cannot be found', async () => {
+      const result = await store.saveConnection({
+        ...esConnection,
+        id: 9,
+        name: 'aws-es-cluster',
+        prompt: 'AWS cluster context',
+      });
+
+      expect(result.success).toBe(true);
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].prompt).toBe('AWS cluster context');
+    });
+
     it('returns success false when storeApi.set throws', async () => {
       jest.spyOn(storeApi, 'set').mockRejectedValueOnce(new Error('Storage full'));
       const result = await store.saveConnection(esConnection);

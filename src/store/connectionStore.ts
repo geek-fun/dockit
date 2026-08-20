@@ -845,12 +845,16 @@ export const useConnectionStore = defineStore('connectionStore', {
       try {
         const newConnection = {
           ...connection,
-          id: connection.id || this.connections.length + 1,
+          id: connection.id ?? this.connections.length + 1,
         } as Connection;
 
         if (connection.id) {
-          const index = this.connections.findIndex(c => c.id === connection.id);
-          if (index !== -1) {
+          const index = this.connections.findIndex(
+            current => String(current.id) === String(newConnection.id),
+          );
+          if (index === -1) {
+            this.connections.push(newConnection);
+          } else {
             this.connections[index] = newConnection;
           }
         } else {
