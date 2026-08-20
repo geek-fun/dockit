@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-08-20
+
+### Fixed
+
+- **Connection Agent Prompt persistence** — connection prompts now survive edits across numeric/string connection IDs, missing-record upserts, and all supported connection dialogs (#500)
+- **Agent Prompt text assistance** — the prompt textarea now reuses the shared input attributes to disable browser autocomplete, autocapitalization, autocorrection, and spellcheck (#500)
+
 ## [1.4.2] - 2026-08-18
 
 ### Added
