@@ -489,10 +489,17 @@ const showMedal = (
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
     const resolvedAuthType = (con.authType as 'basic' | 'apiKey' | undefined) || 'basic';
-    formData.value = { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType };
+    formData.value = {
+      ...cloneDeep(con),
+      prompt: con.prompt ?? undefined,
+      selectedIndex,
+      authType: resolvedAuthType,
+    };
     authType.value = resolvedAuthType;
     sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
-    veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
+    veeResetForm({
+      values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType },
+    });
     modalTitle.value = lang.t('connection.edit');
   } else {
     const type = initialType ?? DatabaseType.ELASTICSEARCH;
@@ -587,14 +594,18 @@ const saveConnect = async (event: MouseEvent) => {
 const saveConnectConfirm = async () => {
   saveLoading.value = true;
   try {
-    await saveConnection({
+    const result = await saveConnection({
       ...formData.value,
       activeIndex: formData.value.selectedIndex
         ? { index: formData.value.selectedIndex }
         : undefined,
       sshTunnel: { ...sshConfig.value },
     } as Connection);
-    closeModal();
+    if (result.success) {
+      closeModal();
+    } else {
+      fail(result.message);
+    }
   } catch (e) {
     const error = e as CustomError;
     fail(error.details || `Connection failed (status: ${error.status})`);

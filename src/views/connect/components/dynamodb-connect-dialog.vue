@@ -1121,7 +1121,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
   showModal.value = true;
   resetResult();
   if (con) {
-    formData.value = { ...con };
+    formData.value = { ...con, prompt: con.prompt ?? undefined };
     sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
     veeResetForm({ values: { ...con } });
     connectionMode.value = con.endpointUrl

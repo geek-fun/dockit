@@ -17,6 +17,7 @@
         <textarea
           v-model="draft"
           class="prompt-textarea"
+          v-bind="inputProps"
           :placeholder="$t('connection.prompt.placeholder')"
         />
       </div>
@@ -41,6 +42,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { X } from 'lucide-vue-next';
+import { inputProps } from '@/common';
 import {
   Dialog,
   DialogContent,
