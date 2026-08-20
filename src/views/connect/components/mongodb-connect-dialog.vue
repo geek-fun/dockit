@@ -627,7 +627,7 @@ const showMedal = (con: MongoDBConnection | null) => {
   resetResult();
 
   if (con) {
-    formData.value = cloneDeep(con);
+    formData.value = { ...cloneDeep(con), prompt: con.prompt ?? undefined };
     tlsChecked.value = con.tls ?? false;
     sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
 
