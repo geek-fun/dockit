@@ -498,12 +498,7 @@ const showMedal = (
     authType.value = resolvedAuthType;
     sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
     veeResetForm({
-      values: {
-        ...cloneDeep(con),
-        prompt: con.prompt ?? undefined,
-        selectedIndex,
-        authType: resolvedAuthType,
-      },
+      values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType },
     });
     modalTitle.value = lang.t('connection.edit');
   } else {
