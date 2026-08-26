@@ -29,7 +29,7 @@
       </div>
     </template>
     <template #2>
-      <DisplayEditor id="display-editor" ref="displayRef" />
+      <EsResultPanel id="es-result-panel" ref="displayRef" @refresh="handleRefresh" />
     </template>
   </SplitPane>
 </template>
@@ -52,7 +52,7 @@ import {
   useTabStore,
 } from '../../../../store';
 import { useLang } from '../../../../lang';
-import DisplayEditor from '../display-editor.vue';
+import EsResultPanel from './result-panel.vue';
 import {
   buildSearchToken,
   Decoration,
@@ -95,6 +95,8 @@ let queryEditor: Editor | null = null;
 // DOM
 const queryEditorRef = ref();
 const displayRef = ref();
+// Last successfully executed action position, used by the result panel refresh button
+const lastExecutedPosition = ref<{ column: number; lineNumber: number } | null>(null);
 
 useEditorInsertCode(() => queryEditor);
 
@@ -244,6 +246,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     });
 
     const format = new URLSearchParams(action.queryParams ?? '').get('format') ?? undefined;
+    lastExecutedPosition.value = position;
     showDisplayEditor(data, format);
     loadingBar.finish();
   } catch (err) {
@@ -254,6 +257,11 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       keepAliveOnHover: true,
     });
   }
+};
+
+const handleRefresh = () => {
+  if (!lastExecutedPosition.value) return;
+  void executeQueryAction(lastExecutedPosition.value);
 };
 
 const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position: monaco.Range) => {
@@ -761,7 +769,7 @@ onUnmounted(async () => {
   height: 100%;
 }
 
-.editor #display-editor {
+.editor #es-result-panel {
   width: 100%;
   height: 100%;
   border-left: 1px solid hsl(var(--border));
