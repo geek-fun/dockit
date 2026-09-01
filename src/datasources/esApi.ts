@@ -1248,9 +1248,9 @@ const esApi: ESApi = {
     { index, id, body }: { index: string; id?: string; body: string },
   ): Promise<{ id?: string }> => {
     const client = loadHttpClient(connection);
-    const parsedBody = jsonify.parse(body);
     try {
-      const path = id ? `/${index}/_doc/${id}` : `/${index}/_doc`;
+      const parsedBody = jsonify.parse(body);
+      const path = id ? `/${index}/_doc/${encodeURIComponent(id)}` : `/${index}/_doc`;
       const response = await client.put<{ _id?: string }>(
         path,
         undefined,
@@ -1272,7 +1272,7 @@ const esApi: ESApi = {
     const client = loadHttpClient(connection);
     try {
       const response = await client.post<{ _id?: string }>(
-        `/${index}/_update/${id}`,
+        `/${index}/_update/${encodeURIComponent(id)}`,
         undefined,
         body,
       );
@@ -1291,7 +1291,9 @@ const esApi: ESApi = {
   ): Promise<{ id?: string }> => {
     const client = loadHttpClient(connection);
     try {
-      const response = await client.delete<{ _id?: string }>(`/${index}/_doc/${id}`);
+      const response = await client.delete<{ _id?: string }>(
+        `/${index}/_doc/${encodeURIComponent(id)}`,
+      );
       return { id: response._id };
     } catch (err) {
       throw new CustomError(
