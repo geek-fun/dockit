@@ -197,7 +197,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
 import type { SearchConnection } from '@/store';
-import type { ColumnDef } from '@/components/result';
 import { buildDocColumns, buildDocRows, resolveEsResultShape } from '../utils/es-result';
 
 const props = withDefaults(
@@ -252,13 +251,9 @@ const searchHits = computed<unknown[]>(() => {
 });
 
 const docRows = computed(() => buildDocRows(searchHits.value));
-const docColumns = computed(() => buildDocColumns(searchHits.value));
-const displayColumns = computed<ColumnDef[]>(() => [
-  ...docColumns.value,
-  ...(props.index && props.connection
-    ? [{ key: 'actions', title: '', width: 60, align: 'center' as const }]
-    : []),
-]);
+const displayColumns = computed(() =>
+  buildDocColumns(searchHits.value, Boolean(props.index && props.connection)),
+);
 
 const textContent = computed(() =>
   typeof resultState.value?.value === 'string' ? resultState.value.value : '',

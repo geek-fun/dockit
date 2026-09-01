@@ -113,4 +113,15 @@ describe('buildDocColumns', () => {
     const columns = buildDocColumns([{ _id: '1', fields: { title: ['DocKit'] } }]);
     expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
   });
+
+  it('does not append an actions column by default', () => {
+    const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }]);
+    expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
+  });
+
+  it('appends a trailing actions column when withActions is true', () => {
+    const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }], true);
+    expect(columns.map(column => column.key)).toEqual(['_id', 'title', 'actions']);
+    expect(columns[2].align).toBe('center');
+  });
 });
