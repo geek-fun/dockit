@@ -1165,4 +1165,34 @@ describe('esApi document CRUD', () => {
       esApi.deleteDocument(baseConn, { index: 'idx', id: 'doc1' }),
     ).rejects.toMatchObject({ status: 500, details: 'nope' });
   });
+
+  it('indexDocument URL-encodes ids containing path-special characters', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ _id: 'a/b' });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await esApi.indexDocument(baseConn, { index: 'idx', id: 'a/b?x=1', body: '{"a":1}' });
+    expect(mockPut).toHaveBeenCalledWith('/idx/_doc/a%2Fb%3Fx%3D1', undefined, '{"a":1}');
+  });
+
+  it('updateDocument and deleteDocument URL-encode ids containing special characters', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ _id: 'a#b' });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+    await esApi.updateDocument(baseConn, { index: 'idx', id: 'a#b', body: '{"doc":{}}' });
+    expect(mockPost).toHaveBeenCalledWith('/idx/_update/a%23b', undefined, '{"doc":{}}');
+
+    const mockDelete = jest.fn().mockResolvedValue({ _id: 'a/b' });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+    await esApi.deleteDocument(baseConn, { index: 'idx', id: 'a/b' });
+    expect(mockDelete).toHaveBeenCalledWith('/idx/_doc/a%2Fb');
+  });
+
+  it('indexDocument wraps malformed JSON body as CustomError', async () => {
+    const mockPut = jest.fn();
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await expect(
+      esApi.indexDocument(baseConn, { index: 'idx', body: '{invalid' }),
+    ).rejects.toMatchObject({ status: 500 });
+    expect(mockPut).not.toHaveBeenCalled();
+  });
 });
