@@ -72,8 +72,30 @@
       @first-page="goToFirstPage"
       @update:page-size="handleResultPageSize"
     >
+      <template #toolbar>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7"
+                :disabled="insertTemplateLoading"
+                @click="handleInsertClick"
+              >
+                <span
+                  v-if="insertTemplateLoading"
+                  class="i-carbon-circle-dash h-3.5 w-3.5 animate-spin"
+                />
+                <span v-else class="i-carbon-add h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{ lang.t('editor.es.insertDocument') }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </template>
       <template #columnHeader="{ column }">
-        <ContextMenu>
+        <ContextMenu v-if="column.key !== 'actions'">
           <ContextMenuTrigger as-child>
             <div class="th-content">
               <span>{{ column.title }}</span>
@@ -102,9 +124,38 @@
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
+        <div v-else class="th-content">
+          <span>{{ column.title }}</span>
+        </div>
       </template>
       <template #cell="{ column, row }">
-        <ContextMenu>
+        <DropdownMenu v-if="column.key === 'actions' && connection && indexName">
+          <DropdownMenuTrigger as-child>
+            <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop>
+              <span class="i-carbon-overflow-menu-horizontal h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" class="w-36">
+            <DropdownMenuItem :disabled="!getDocumentId(row)" @click="handleEditClick(row)">
+              <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
+              {{ lang.t('editor.es.editDocument') }}
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="handleCloneClick(row)">
+              <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
+              {{ lang.t('editor.es.cloneDocument') }}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              :disabled="!getDocumentId(row)"
+              class="text-destructive focus:text-destructive"
+              @click="handleDeleteClick(row)"
+            >
+              <span class="i-carbon-trash-can h-3.5 w-3.5 mr-2" />
+              {{ lang.t('editor.es.deleteDocument') }}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <ContextMenu v-else>
           <ContextMenuTrigger as-child>
             <span
               v-if="isComplexValue(row[column.key])"
@@ -156,6 +207,31 @@
     :value="jsonDialogValue"
     :title="jsonDialogTitle"
   />
+
+  <JsonDocumentDialog
+    ref="insertDocumentRef"
+    v-model:show="showInsertModal"
+    :title="lang.t('editor.es.insertDocumentTitle')"
+    :initial-value="insertTemplateValue"
+    :confirm-text="lang.t('editor.es.insert')"
+    @submit="handleInsertSubmit"
+  />
+  <JsonDocumentDialog
+    ref="editDocumentRef"
+    v-model:show="showEditModal"
+    :title="lang.t('editor.es.editDocumentTitle')"
+    :initial-value="editDocumentValue"
+    :confirm-text="lang.t('dialogOps.confirm')"
+    :strip-fields="['_id']"
+    @submit="handleEditSubmit"
+  />
+  <ConfirmDeleteDialog
+    ref="deleteConfirmRef"
+    v-model:show="showDeleteModal"
+    :confirm-text="lang.t('editor.es.deleteDocumentConfirm')"
+    :success-text="lang.t('editor.es.deleteDocumentSuccess')"
+    @confirm="handleDeleteConfirm"
+  />
 </template>
 
 <script setup lang="ts">
@@ -178,9 +254,17 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import JsonValueDialog from '@/components/json-value-dialog.vue';
 import IndexDocsColumnFilter from './index-docs-column-filter.vue';
-import { ResultPanel } from '@/components/result';
+import { ConfirmDeleteDialog, JsonDocumentDialog, ResultPanel } from '@/components/result';
 import type { ColumnDef, PaginationConfig } from '@/components/result';
 import { CustomError, jsonify } from '@/common';
 import {
@@ -194,6 +278,10 @@ import {
   type IndexDocumentHit,
 } from '@/datasources';
 import type { SearchConnection } from '@/store';
+import {
+  buildInsertTemplateValue,
+  extractDocumentId,
+} from '@/views/editor/es-editor/utils/es-result';
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
 
@@ -291,15 +379,20 @@ const activeQuery = computed(() => {
   });
 });
 
-const resultColumns = computed<ColumnDef[]>(() =>
-  columns.value.map(col => ({
+const resultColumns = computed<ColumnDef[]>(() => {
+  const cols: ColumnDef[] = columns.value.map(col => ({
     key: col,
     title: col,
     className: col === '_id' ? 'id-col' : undefined,
-    ellipsis: col !== '_id',
+    ellipsis: true,
+    width: col === '_id' ? 140 : undefined,
     sticky: col === '_id' ? 'left' : undefined,
-  })),
-);
+  }));
+  if (props.connection && props.indexName) {
+    cols.push({ key: 'actions', title: lang.t('editor.es.actions'), width: 60, align: 'center' });
+  }
+  return cols;
+});
 
 const resultData = computed<Record<string, unknown>[]>(() =>
   hits.value.map(hit => ({
@@ -399,6 +492,130 @@ const copyCellValue = async (value: unknown) => {
     message.success(lang.t('manage.docs.filterValueCopied'));
   } catch {
     message.error(lang.t('manage.docs.copyFailed'));
+  }
+};
+
+// ---- Document CRUD (same interactions as the ES editor result panel) ----
+
+const insertTemplateLoading = ref(false);
+const insertTemplateValue = ref<string | undefined>(undefined);
+const editDocumentValue = ref('');
+const editDocumentId = ref('');
+const deletingId = ref('');
+const showInsertModal = ref(false);
+const showEditModal = ref(false);
+const showDeleteModal = ref(false);
+
+type DialogExposed = { setLoading: (v: boolean) => void; setError: (msg: string) => void };
+type DeleteExposed = {
+  setLoading: (v: boolean) => void;
+  setResult: (type: 'success' | 'error', msg: string) => void;
+};
+const insertDocumentRef = ref<DialogExposed>();
+const editDocumentRef = ref<DialogExposed>();
+const deleteConfirmRef = ref<DeleteExposed>();
+
+const getDocumentId = (row: Record<string, unknown>): string | undefined => {
+  const id = row._id;
+  return id === undefined || id === null ? undefined : String(id);
+};
+
+const errMessage = (err: unknown): string =>
+  err instanceof CustomError
+    ? `status: ${err.status}, details: ${err.details}`
+    : ((err as Error)?.message ?? String(err));
+
+const handleInsertClick = async () => {
+  if (!props.connection || !props.indexName) return;
+  insertTemplateLoading.value = true;
+  try {
+    const mapping = await esApi
+      .getIndexMapping(props.connection, props.indexName)
+      .catch(() => undefined);
+    const template = buildInsertTemplateValue(mapping, resultData.value[0]);
+    insertTemplateValue.value = template ? jsonify.stringify(template, null, 2) : undefined;
+  } finally {
+    insertTemplateLoading.value = false;
+  }
+  showInsertModal.value = true;
+};
+
+const handleCloneClick = (row: Record<string, unknown>) => {
+  const clone = { ...row };
+  delete clone._id;
+  insertTemplateValue.value = JSON.stringify(clone, null, 2);
+  showInsertModal.value = true;
+};
+
+const handleEditClick = (row: Record<string, unknown>) => {
+  editDocumentValue.value = JSON.stringify(row, null, 2);
+  editDocumentId.value = getDocumentId(row) ?? '';
+  showEditModal.value = true;
+};
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  deletingId.value = getDocumentId(row) ?? '';
+  showDeleteModal.value = true;
+};
+
+const handleInsertSubmit = async (document: string) => {
+  if (!props.connection || !props.indexName) return;
+  const { id, body } = extractDocumentId(jsonify.parse(document) as unknown);
+  if (id !== undefined && id.trim() === '') {
+    insertDocumentRef.value?.setError(lang.t('editor.es.insertIdRequired'));
+    return;
+  }
+  insertDocumentRef.value?.setLoading(true);
+  try {
+    await esApi.indexDocument(props.connection, {
+      index: props.indexName,
+      id: id?.trim() || undefined,
+      body: jsonify.stringify(body),
+    });
+    showInsertModal.value = false;
+    message.success(lang.t('editor.es.insertSuccess'));
+    void reload();
+  } catch (err) {
+    insertDocumentRef.value?.setError(errMessage(err));
+  } finally {
+    insertDocumentRef.value?.setLoading(false);
+  }
+};
+
+const handleEditSubmit = async (document: string) => {
+  if (!props.connection || !props.indexName || !editDocumentId.value) return;
+  editDocumentRef.value?.setLoading(true);
+  try {
+    await esApi.indexDocument(props.connection, {
+      index: props.indexName,
+      id: editDocumentId.value,
+      body: document,
+    });
+    showEditModal.value = false;
+    message.success(lang.t('editor.es.updateSuccess'));
+    void reload();
+  } catch (err) {
+    editDocumentRef.value?.setError(errMessage(err));
+  } finally {
+    editDocumentRef.value?.setLoading(false);
+  }
+};
+
+const handleDeleteConfirm = async () => {
+  if (!props.connection || !props.indexName || !deletingId.value) return;
+  deleteConfirmRef.value?.setLoading(true);
+  try {
+    await esApi.deleteDocument(props.connection, {
+      index: props.indexName,
+      id: deletingId.value,
+    });
+    showDeleteModal.value = false;
+    message.success(lang.t('editor.es.deleteDocumentSuccess'));
+    void reload();
+  } catch (err) {
+    deleteConfirmRef.value?.setResult('error', errMessage(err));
+  } finally {
+    deleteConfirmRef.value?.setLoading(false);
   }
 };
 

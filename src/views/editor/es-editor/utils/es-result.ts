@@ -167,3 +167,17 @@ export const resolveMappingProperties = (mapping: unknown): Record<string, Mappi
   }
   return {};
 };
+
+/**
+ * Pick the insert template source: mapping-derived skeleton when the index has
+ * one, otherwise the given sample row (used when the mapping is empty or the
+ * lookup failed). Returns undefined when neither is available.
+ */
+export const buildInsertTemplateValue = (
+  mapping: unknown,
+  fallbackRow?: Record<string, unknown>,
+): Record<string, unknown> | undefined => {
+  const properties = resolveMappingProperties(mapping);
+  if (Object.keys(properties).length > 0) return buildSchemaTemplate(properties);
+  return fallbackRow ? buildSampleTemplate(fallbackRow) : undefined;
+};
