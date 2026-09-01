@@ -138,11 +138,11 @@
           <DropdownMenuContent align="end" class="w-36">
             <DropdownMenuItem :disabled="!getDocumentId(row)" @click="handleEditClick(row)">
               <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
-              {{ lang.t('editor.es.editDocument') }}
+              {{ lang.t('editor.es.edit') }}
             </DropdownMenuItem>
             <DropdownMenuItem @click="handleCloneClick(row)">
               <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
-              {{ lang.t('editor.es.cloneDocument') }}
+              {{ lang.t('editor.es.clone') }}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -151,7 +151,7 @@
               @click="handleDeleteClick(row)"
             >
               <span class="i-carbon-trash-can h-3.5 w-3.5 mr-2" />
-              {{ lang.t('editor.es.deleteDocument') }}
+              {{ lang.t('editor.es.delete') }}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

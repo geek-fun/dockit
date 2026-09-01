@@ -1169,13 +1169,12 @@ export const enUS = {
       insertSuccess: 'Document inserted successfully',
       insertIdRequired:
         'Fill in the _id field before inserting, or remove it to auto-generate an id',
-      editDocument: 'Edit Document',
+      edit: 'Edit',
       editDocumentTitle: 'Edit Document',
       updateSuccess: 'Document updated successfully',
-      cloneDocument: 'Clone Document',
+      clone: 'Clone',
       actions: 'Actions',
-      deleteDocument: 'Delete Document',
-      deleteDocumentTitle: 'Delete Document',
+      delete: 'Delete',
       deleteDocumentConfirm: 'Are you sure you want to delete this document?',
       deleteDocumentSuccess: 'Document deleted successfully',
       contextMenu: {
