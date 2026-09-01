@@ -1129,6 +1129,7 @@ export const zhCN = {
       insertDocumentTitle: '插入文档',
       insert: '插入',
       insertSuccess: '文档插入成功',
+      insertIdRequired: '请先填写 _id 字段，或删除该字段以自动生成 ID',
       editDocument: '编辑文档',
       editDocumentTitle: '编辑文档',
       updateSuccess: '文档更新成功',
