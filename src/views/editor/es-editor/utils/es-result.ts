@@ -5,12 +5,26 @@ export type EsResultShape = 'docs' | 'json' | 'text';
 type EsSearchHit = {
   _id?: string;
   _source?: Record<string, unknown>;
+  fields?: Record<string, unknown>;
 };
 
+/**
+ * Resolve the displayable fields of a hit. Elasticsearch returns data either in
+ * `_source` (default searches) or in `fields` (searches with `_source: false` or
+ * with explicit `fields` / `docvalue_fields`). `fields` values are arrays; a
+ * single-element array is unwrapped so table cells show the scalar like `_source`.
+ */
 const hitSource = (hit: unknown): Record<string, unknown> | undefined => {
   if (typeof hit !== 'object' || hit === null) return undefined;
-  const source = (hit as EsSearchHit)._source;
-  return typeof source === 'object' && source !== null ? source : undefined;
+  const { _source, fields } = hit as EsSearchHit;
+  if (typeof _source === 'object' && _source !== null) return _source;
+  if (typeof fields !== 'object' || fields === null) return undefined;
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, value]) => [
+      key,
+      Array.isArray(value) && value.length === 1 ? value[0] : value,
+    ]),
+  );
 };
 
 /**

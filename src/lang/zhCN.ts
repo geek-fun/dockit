@@ -805,6 +805,8 @@ export const zhCN = {
     port: '端口号',
     username: '用户名',
     password: '密码',
+    showPassword: '显示密码',
+    hidePassword: '隐藏密码',
     indexName: '索引/别名',
     queryParameters: '查询参数',
     sslCertVerification: 'SSL 证书验证',

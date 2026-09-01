@@ -6,16 +6,6 @@
       </slot>
     </div>
 
-    <div v-else-if="loading && data.length === 0" class="result-loading">
-      <Spinner class="mx-auto" />
-    </div>
-
-    <div v-else-if="data.length === 0 && !loading" class="result-empty">
-      <slot name="empty">
-        <Empty :description="emptyText" />
-      </slot>
-    </div>
-
     <template v-else>
       <div class="result-header">
         <div class="result-header-left">
@@ -176,141 +166,153 @@
         </div>
       </div>
 
-      <template v-if="internalView === 'table'">
-        <div class="table-scroll-area macos-scrollable">
-          <div v-if="loading && loadingOverlay" class="result-loading-overlay">
-            <Spinner />
+      <div v-if="loading && data.length === 0" class="result-loading">
+        <Spinner class="mx-auto" />
+      </div>
+
+      <div v-else-if="data.length === 0 && !loading" class="result-empty">
+        <slot name="empty">
+          <Empty :description="emptyText" />
+        </slot>
+      </div>
+
+      <template v-else>
+        <template v-if="internalView === 'table'">
+          <div class="table-scroll-area macos-scrollable">
+            <div v-if="loading && loadingOverlay" class="result-loading-overlay">
+              <Spinner />
+            </div>
+            <div class="table-container">
+              <Table>
+                <TableHeader class="sticky-header">
+                  <TableRow>
+                    <TableHead
+                      v-for="col in displayColumns"
+                      :key="col.key"
+                      :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
+                      :style="colStyle(col)"
+                    >
+                      <slot name="columnHeader" :column="col">{{ col.title }}</slot>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-if="loading" class="result-loading-row">
+                    <TableCell :colspan="displayColumns.length" class="text-center py-8">
+                      <Spinner class="mx-auto" />
+                    </TableCell>
+                  </TableRow>
+                  <TableRow
+                    v-for="(row, rowIndex) in displayData"
+                    v-else
+                    :key="getRowKey(row, rowIndex)"
+                    :class="rowClassName?.(row, rowIndex)"
+                    @click="$emit('row-click', row, rowIndex)"
+                  >
+                    <TableCell
+                      v-for="col in displayColumns"
+                      :key="col.key"
+                      :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
+                      :style="{ textAlign: col.align || 'left' }"
+                    >
+                      <slot name="cell" :column="col" :row="row">
+                        <span
+                          v-if="col.ellipsis"
+                          class="cell-ellipsis"
+                          :title="formatCellValue(row[col.key])"
+                        >
+                          {{ formatCellValue(row[col.key]) }}
+                        </span>
+                        <span v-else>{{ formatCellValue(row[col.key]) }}</span>
+                      </slot>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </div>
-          <div class="table-container">
-            <Table>
-              <TableHeader class="sticky-header">
-                <TableRow>
-                  <TableHead
-                    v-for="col in displayColumns"
-                    :key="col.key"
-                    :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
-                    :style="colStyle(col)"
-                  >
-                    <slot name="columnHeader" :column="col">{{ col.title }}</slot>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-if="loading" class="result-loading-row">
-                  <TableCell :colspan="displayColumns.length" class="text-center py-8">
-                    <Spinner class="mx-auto" />
-                  </TableCell>
-                </TableRow>
-                <TableRow
-                  v-for="(row, rowIndex) in displayData"
-                  v-else
-                  :key="getRowKey(row, rowIndex)"
-                  :class="rowClassName?.(row, rowIndex)"
-                  @click="$emit('row-click', row, rowIndex)"
+        </template>
+
+        <div v-if="internalView === 'tree'" class="tree-scroll-area macos-scrollable">
+          <TreeNode
+            v-for="(item, index) in treeData"
+            :key="index"
+            :value="item"
+            :label="String(index)"
+            :depth="0"
+          />
+        </div>
+
+        <JsonView v-if="internalView === 'json'" :value="props.rawValue ?? displayData" />
+
+        <div v-if="showPagination && !loading" class="result-pagination">
+          <div class="pagination-right">
+            <span class="text-xs text-muted-foreground whitespace-nowrap">
+              {{ total ?? displayData.length }} documents
+            </span>
+
+            <div class="pagination-divider" />
+
+            <Select :model-value="String(pageSize)" @update:model-value="handlePageSizeChange">
+              <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
+                  {{ size }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div class="flex items-center gap-1">
+              <Button
+                v-if="isCursor"
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7"
+                :disabled="!canGoPrev"
+                @click="handleFirstPage"
+              >
+                <span class="i-carbon-skip-back h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7"
+                :disabled="!canGoPrev"
+                @click="handlePrevPage"
+              >
+                <span class="i-carbon-chevron-left h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+            <span class="text-xs text-muted-foreground whitespace-nowrap">Page {{ page }}</span>
+
+            <div class="flex items-center gap-1">
+              <template v-if="hasPages">
+                <Button
+                  v-for="n in visiblePages"
+                  :key="n"
+                  :variant="n === page ? 'outline' : 'ghost'"
+                  size="sm"
+                  class="h-7 min-w-[28px] text-xs px-1"
+                  :class="{ 'border-primary text-primary': n === page }"
+                  @click="handleGoToPage(n)"
                 >
-                  <TableCell
-                    v-for="col in displayColumns"
-                    :key="col.key"
-                    :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
-                    :style="{ textAlign: col.align || 'left' }"
-                  >
-                    <slot name="cell" :column="col" :row="row">
-                      <span
-                        v-if="col.ellipsis"
-                        class="cell-ellipsis"
-                        :title="formatCellValue(row[col.key])"
-                      >
-                        {{ formatCellValue(row[col.key]) }}
-                      </span>
-                      <span v-else>{{ formatCellValue(row[col.key]) }}</span>
-                    </slot>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  {{ n }}
+                </Button>
+              </template>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7"
+                :disabled="!canGoNext"
+                @click="handleNextPage"
+              >
+                <span class="i-carbon-chevron-right h-3.5 w-3.5" />
+              </Button>
+            </div>
           </div>
         </div>
       </template>
-
-      <div v-if="internalView === 'tree'" class="tree-scroll-area macos-scrollable">
-        <TreeNode
-          v-for="(item, index) in displayData"
-          :key="index"
-          :value="item"
-          :label="String(index)"
-          :depth="0"
-        />
-      </div>
-
-      <JsonView v-if="internalView === 'json'" :value="displayData" />
-
-      <div v-if="showPagination && !loading" class="result-pagination">
-        <div class="pagination-right">
-          <span class="text-xs text-muted-foreground whitespace-nowrap">
-            {{ total ?? displayData.length }} documents
-          </span>
-
-          <div class="pagination-divider" />
-
-          <Select :model-value="String(pageSize)" @update:model-value="handlePageSizeChange">
-            <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
-                {{ size }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div class="flex items-center gap-1">
-            <Button
-              v-if="isCursor"
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="!canGoPrev"
-              @click="handleFirstPage"
-            >
-              <span class="i-carbon-skip-back h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="!canGoPrev"
-              @click="handlePrevPage"
-            >
-              <span class="i-carbon-chevron-left h-3.5 w-3.5" />
-            </Button>
-          </div>
-
-          <span class="text-xs text-muted-foreground whitespace-nowrap">Page {{ page }}</span>
-
-          <div class="flex items-center gap-1">
-            <template v-if="hasPages">
-              <Button
-                v-for="n in visiblePages"
-                :key="n"
-                :variant="n === page ? 'outline' : 'ghost'"
-                size="sm"
-                class="h-7 min-w-[28px] text-xs px-1"
-                :class="{ 'border-primary text-primary': n === page }"
-                @click="handleGoToPage(n)"
-              >
-                {{ n }}
-              </Button>
-            </template>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="!canGoNext"
-              @click="handleNextPage"
-            >
-              <span class="i-carbon-chevron-right h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </div>
     </template>
   </div>
 </template>
@@ -353,6 +355,7 @@ const props = withDefaults(
     viewModes?: ViewMode[];
     activeView?: ViewMode;
     persistViewKey?: string;
+    rawValue?: unknown;
     emptyText?: string;
     rowKey?: string | ((row: Record<string, unknown>) => string);
     closable?: boolean;
@@ -369,6 +372,7 @@ const props = withDefaults(
     viewModes: () => ['table', 'json'],
     activeView: 'table',
     persistViewKey: undefined,
+    rawValue: undefined,
     emptyText: 'No data',
     rowKey: undefined,
     closable: false,
@@ -424,8 +428,9 @@ const showPagination = computed(() => props.pagination !== undefined);
 const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [25, 50, 100]);
 
 const { copyResult, exportResult } = useResultExport();
-const handleCopy = (format: ResultExportFormat) => copyResult(props.data, format);
-const handleExport = (format: ResultExportFormat) => exportResult(props.data, format);
+const handleCopy = (format: ResultExportFormat) => copyResult(props.rawValue ?? props.data, format);
+const handleExport = (format: ResultExportFormat) =>
+  exportResult(props.rawValue ?? props.data, format);
 
 const derivedColumns = computed<ColumnDef[]>(() => {
   if (props.columns && props.columns.length > 0) return props.columns;
@@ -447,6 +452,10 @@ const displayData = computed(() => {
   }
   return props.data;
 });
+
+const treeData = computed(() =>
+  props.rawValue !== undefined ? [props.rawValue] : displayData.value,
+);
 
 const colStyle = (col: ColumnDef) => {
   if (!col.width) return undefined;

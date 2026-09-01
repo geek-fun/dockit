@@ -4,6 +4,7 @@
       v-if="shape === 'docs'"
       :columns="docColumns"
       :data="docRows"
+      :raw-value="resultValue"
       :view-modes="['table', 'tree', 'json']"
       active-view="json"
       persist-view-key="es-result-view"
@@ -72,8 +73,30 @@
             <TooltipContent>{{ lang.t('editor.exportCsv') }}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        <div class="header-divider" />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7"
+                :disabled="loading"
+                @click="emit('refresh')"
+              >
+                <span v-if="loading" class="i-carbon-renew h-3.5 w-3.5 animate-spin" />
+                <span v-else class="i-carbon-renew h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
-      <JsonView v-if="shape === 'json'" :value="resultValue" />
+      <JsonView
+        v-if="shape === 'json' || format === 'yaml'"
+        :value="resultValue"
+        :language="format === 'yaml' ? 'yaml' : 'json'"
+      />
       <pre v-else class="es-result-text macos-scrollable">{{ textContent }}</pre>
     </template>
   </div>
@@ -90,6 +113,15 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLang } from '@/lang';
 import { buildDocColumns, buildDocRows, resolveEsResultShape } from '../utils/es-result';
+
+withDefaults(
+  defineProps<{
+    loading?: boolean;
+  }>(),
+  {
+    loading: false,
+  },
+);
 
 const emit = defineEmits<{
   refresh: [];
@@ -112,6 +144,7 @@ const dispose = () => {};
 defineExpose({ display, dispose });
 
 const resultValue = computed(() => resultState.value?.value);
+const format = computed(() => resultState.value?.format);
 const shape = computed(() =>
   resultState.value ? resolveEsResultShape(resultState.value.value) : undefined,
 );
@@ -151,6 +184,13 @@ const textContent = computed(() =>
   gap: 0.125rem;
   flex-shrink: 0;
   padding: 0.125rem 0.25rem 0.375rem;
+}
+
+.es-result-actions .header-divider {
+  width: 1px;
+  height: 1rem;
+  background: hsl(var(--border));
+  margin: 0 0.25rem;
 }
 
 .es-result-text {

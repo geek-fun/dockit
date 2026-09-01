@@ -11,6 +11,7 @@ import { useAppStore } from '@/store';
 
 const props = defineProps<{
   value: unknown;
+  language?: 'json' | 'yaml';
 }>();
 
 const appStore = useAppStore();
@@ -23,7 +24,8 @@ let editor: Editor | null = null;
 const setContent = () => {
   if (!editor) return;
   const indent = editorConfig.value.insertSpaces ? ' '.repeat(editorConfig.value.tabSize) : '\t';
-  editor.setValue(jsonify.stringify(props.value, null, indent));
+  const isRawText = props.language === 'yaml' && typeof props.value === 'string';
+  editor.setValue(isRawText ? props.value : jsonify.stringify(props.value, null, indent));
 };
 
 const init = () => {
@@ -36,7 +38,7 @@ const init = () => {
   editor = monaco.editor.create(editorRef.value, {
     theme: getEditorTheme(),
     value: '',
-    language: 'json',
+    language: props.language ?? 'json',
     automaticLayout: true,
     readOnly: true,
     scrollBeyondLastLine: false,

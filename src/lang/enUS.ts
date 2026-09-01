@@ -838,6 +838,8 @@ export const enUS = {
     port: 'Port',
     username: 'Username',
     password: 'Password',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     indexName: 'Index/Alias',
     queryParameters: 'query parameters',
     sslCertVerification: 'SSL Certificate Verification',

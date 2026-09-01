@@ -75,6 +75,18 @@ describe('buildDocRows', () => {
   it('treats malformed hits as empty rows instead of crashing', () => {
     expect(buildDocRows([null, undefined])).toEqual([{ _id: '0' }, { _id: '1' }]);
   });
+
+  it('falls back to hit.fields when _source is absent (_source:false searches)', () => {
+    const rows = buildDocRows([{ _id: 'a1', fields: { title: ['DocKit'], tags: ['x', 'y'] } }]);
+    expect(rows).toEqual([{ title: 'DocKit', tags: ['x', 'y'], _id: 'a1' }]);
+  });
+
+  it('prefers _source over hit.fields when both are present', () => {
+    const rows = buildDocRows([
+      { _id: 'a1', _source: { title: 'fromSource' }, fields: { title: ['fromFields'] } },
+    ]);
+    expect(rows).toEqual([{ title: 'fromSource', _id: 'a1' }]);
+  });
 });
 
 describe('buildDocColumns', () => {
@@ -95,5 +107,10 @@ describe('buildDocColumns', () => {
 
   it('keeps only the _id column when hits carry no source keys', () => {
     expect(buildDocColumns([{ _id: '1' }]).map(column => column.key)).toEqual(['_id']);
+  });
+
+  it('derives columns from hit.fields when _source is absent', () => {
+    const columns = buildDocColumns([{ _id: '1', fields: { title: ['DocKit'] } }]);
+    expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
   });
 });

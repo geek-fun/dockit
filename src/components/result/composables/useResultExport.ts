@@ -1,40 +1,10 @@
 import { save } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
-import { jsonify } from '@/common';
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
+import { serialize, extensionOf, type ResultExportFormat } from '../resultSerialization';
 
-export type ResultExportFormat = 'json' | 'csv';
-
-const csvEscape = (value: string): string =>
-  value.includes(',') || value.includes('"') || value.includes('\n')
-    ? `"${value.replace(/"/g, '""')}"`
-    : value;
-
-const formatCell = (value: unknown): string => {
-  if (value === null || value === undefined) return '';
-  if (typeof value === 'object') return jsonify.stringify(value);
-  return String(value);
-};
-
-const toCsv = (rows: Record<string, unknown>[]): string => {
-  const keys = Array.from(new Set(rows.flatMap(row => Object.keys(row))));
-  const header = keys.map(csvEscape).join(',');
-  const body = rows.map(row => keys.map(key => csvEscape(formatCell(row[key]))).join(','));
-  return [header, ...body].join('\n');
-};
-
-const toJson = (rows: Record<string, unknown>[]): string => jsonify.stringify(rows, null, 2);
-
-const toRows = (value: unknown): Record<string, unknown>[] =>
-  Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
-
-const serialize = (value: unknown, format: ResultExportFormat): string => {
-  const rows = toRows(value);
-  return format === 'csv' ? toCsv(rows) : toJson(rows);
-};
-
-const extensionOf = (format: ResultExportFormat): string => (format === 'csv' ? 'csv' : 'json');
+export type { ResultExportFormat };
 
 /**
  * Copy / export helpers shared by result panels (ES, Mongo, Dynamo, docs browser).
