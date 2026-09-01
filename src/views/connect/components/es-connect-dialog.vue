@@ -163,11 +163,22 @@
                       <Input v-model="formData.username" :placeholder="$t('connection.username')" />
                     </FormItem>
                     <FormItem :label="$t('connection.password')" class="mt-[10px]">
-                      <Input
-                        v-model="formData.password"
-                        :type="showPassword ? 'text' : 'password'"
-                        :placeholder="$t('connection.password')"
-                      />
+                      <div class="relative">
+                        <Input
+                          v-model="formData.password"
+                          :type="showPassword ? 'text' : 'password'"
+                          :placeholder="$t('connection.password')"
+                          class="pr-9"
+                        />
+                        <button
+                          type="button"
+                          class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          @click="showPassword = !showPassword"
+                        >
+                          <EyeOff v-if="showPassword" class="h-4 w-4" />
+                          <Eye v-else class="h-4 w-4" />
+                        </button>
+                      </div>
                     </FormItem>
                   </template>
 
