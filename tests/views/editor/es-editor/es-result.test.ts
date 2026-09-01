@@ -99,9 +99,14 @@ describe('buildDocColumns', () => {
     expect(columns[0].sticky).toBe('left');
   });
 
-  it('enables ellipsis only for source fields', () => {
+  it('renders _id without wrapping: fixed min width + ellipsis', () => {
     const columns = buildDocColumns([{ _id: '1', _source: { note: 'n' } }]);
-    expect(columns[0].ellipsis).toBeFalsy();
+    expect(columns[0].ellipsis).toBe(true);
+    expect(columns[0].width).toBe(140);
+  });
+
+  it('enables ellipsis for source fields', () => {
+    const columns = buildDocColumns([{ _id: '1', _source: { note: 'n' } }]);
     expect(columns[1].ellipsis).toBe(true);
   });
 
@@ -119,9 +124,15 @@ describe('buildDocColumns', () => {
     expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
   });
 
-  it('appends a trailing actions column when withActions is true', () => {
-    const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }], true);
+  it('appends a trailing actions column with title when withActions is true', () => {
+    const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }], true, 'Actions');
     expect(columns.map(column => column.key)).toEqual(['_id', 'title', 'actions']);
     expect(columns[2].align).toBe('center');
+    expect(columns[2].title).toBe('Actions');
+  });
+
+  it('omits the actions column when withActions is false', () => {
+    const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }]);
+    expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
   });
 });

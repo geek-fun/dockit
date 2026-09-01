@@ -1133,6 +1133,7 @@ export const zhCN = {
       editDocumentTitle: '编辑文档',
       updateSuccess: '文档更新成功',
       cloneDocument: '克隆文档',
+      actions: '操作',
       deleteDocument: '删除文档',
       deleteDocumentTitle: '删除文档',
       deleteDocumentConfirm: '确定要删除该文档吗？',
