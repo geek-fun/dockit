@@ -163,11 +163,27 @@
                       <Input v-model="formData.username" :placeholder="$t('connection.username')" />
                     </FormItem>
                     <FormItem :label="$t('connection.password')" class="mt-[10px]">
-                      <Input
-                        v-model="formData.password"
-                        :type="showPassword ? 'text' : 'password'"
-                        :placeholder="$t('connection.password')"
-                      />
+                      <div class="relative">
+                        <Input
+                          v-model="formData.password"
+                          :type="showPassword ? 'text' : 'password'"
+                          :placeholder="$t('connection.password')"
+                          class="pr-9"
+                        />
+                        <button
+                          type="button"
+                          class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          :aria-label="
+                            showPassword
+                              ? $t('connection.hidePassword')
+                              : $t('connection.showPassword')
+                          "
+                          @click="showPassword = !showPassword"
+                        >
+                          <EyeOff v-if="showPassword" class="h-4 w-4" />
+                          <Eye v-else class="h-4 w-4" />
+                        </button>
+                      </div>
                     </FormItem>
                   </template>
 
@@ -187,6 +203,11 @@
                         <button
                           type="button"
                           class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          :aria-label="
+                            showApiKey
+                              ? $t('connection.hidePassword')
+                              : $t('connection.showPassword')
+                          "
                           @click="showApiKey = !showApiKey"
                         >
                           <EyeOff v-if="showApiKey" class="h-4 w-4" />
@@ -518,6 +539,8 @@ const showMedal = (
 
 const closeModal = () => {
   showModal.value = false;
+  showPassword.value = false;
+  showApiKey.value = false;
   formData.value = cloneDeep(defaultFormData);
   veeResetForm({ values: cloneDeep(defaultFormData) });
   modalTitle.value = lang.t('connection.new');
