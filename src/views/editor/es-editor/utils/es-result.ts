@@ -95,3 +95,75 @@ export const buildDocColumns = (
   }
   return columns;
 };
+
+export type MappingProperty = {
+  type?: string;
+  properties?: Record<string, MappingProperty>;
+};
+
+const buildTemplateField = (prop: MappingProperty): unknown => {
+  if (!prop.type && prop.properties) return buildSchemaTemplate(prop.properties);
+  if (prop.type === 'text' || prop.type === 'keyword') return '';
+  return null;
+};
+
+/**
+ * Build an insert skeleton from index mapping properties: string-ish fields
+ * (text/keyword) start as empty strings, everything else starts as null so
+ * users can fill what they need and delete what they do not.
+ */
+export const buildSchemaTemplate = (
+  properties: Record<string, MappingProperty>,
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(properties).map(([key, prop]) => [key, buildTemplateField(prop)]),
+  );
+
+/**
+ * Build an insert template from an existing document (used when the index has
+ * no usable mapping). The `_id` is blanked out so the user must supply a new
+ * one before the document can be written.
+ */
+export const buildSampleTemplate = (row: Record<string, unknown>): Record<string, unknown> => ({
+  ...row,
+  _id: '',
+});
+
+/**
+ * Split a top-level `_id` field out of a document body: it becomes the
+ * addressing id of the write request and must not be stored inside `_source`.
+ * An explicitly blank `_id` (the sample-template placeholder) returns `id: ''`
+ * so callers can reject the write.
+ */
+export const extractDocumentId = (
+  parsed: unknown,
+): { id?: string; body: Record<string, unknown> } => {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return { body: {} };
+  }
+  const doc = parsed as Record<string, unknown>;
+  if (!('_id' in doc)) return { body: doc };
+  const value = doc['_id'];
+  const id = value === null || value === undefined ? '' : String(value);
+  const { _id: _omit, ...rest } = doc;
+  return { id, body: rest as Record<string, unknown> };
+};
+
+/**
+ * Resolve the mapping properties of a `GET /{index}/_mapping` response body.
+ * Wildcard index patterns return one entry per concrete index — the first one
+ * with properties wins.
+ */
+export const resolveMappingProperties = (mapping: unknown): Record<string, MappingProperty> => {
+  if (!mapping || typeof mapping !== 'object') return {};
+  for (const entry of Object.values(mapping as Record<string, unknown>)) {
+    if (!entry || typeof entry !== 'object') continue;
+    const mappings = (entry as Record<string, unknown>)['mappings'];
+    if (!mappings || typeof mappings !== 'object') continue;
+    const properties = (mappings as Record<string, unknown>)['properties'];
+    if (properties && typeof properties === 'object' && Object.keys(properties).length > 0) {
+      return properties as Record<string, MappingProperty>;
+    }
+  }
+  return {};
+};

@@ -12,16 +12,27 @@
       @refresh="emit('refresh')"
     >
       <template #toolbar>
-        <Button
-          v-if="index && connection"
-          size="sm"
-          variant="ghost"
-          class="h-6 px-2 text-xs"
-          @click="handleInsertClick"
-        >
-          <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
-          {{ lang.t('editor.es.insertDocument') }}
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button
+                v-if="index && connection"
+                variant="ghost"
+                size="icon"
+                class="h-7 w-7"
+                :disabled="insertTemplateLoading"
+                @click="handleInsertClick"
+              >
+                <span
+                  v-if="insertTemplateLoading"
+                  class="i-carbon-circle-dash h-3.5 w-3.5 animate-spin"
+                />
+                <span v-else class="i-carbon-add h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{ lang.t('editor.es.insertDocument') }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </template>
       <template #cell="{ column, row }">
         <template v-if="column.key === 'actions' && index && connection">
@@ -174,7 +185,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { esApi } from '@/datasources';
-import { CustomError } from '@/common';
+import { CustomError, jsonify } from '@/common';
 import {
   JsonView,
   ResultPanel,
@@ -197,7 +208,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
 import type { SearchConnection } from '@/store';
-import { buildDocColumns, buildDocRows, resolveEsResultShape } from '../utils/es-result';
+import {
+  buildDocColumns,
+  buildDocRows,
+  buildSampleTemplate,
+  buildSchemaTemplate,
+  extractDocumentId,
+  resolveEsResultShape,
+  resolveMappingProperties,
+} from '../utils/es-result';
 
 const props = withDefaults(
   defineProps<{
@@ -291,8 +310,30 @@ const insertDocumentRef = ref<DialogExposed>();
 const editDocumentRef = ref<DialogExposed>();
 const deleteConfirmRef = ref<DeleteExposed>();
 
-const handleInsertClick = () => {
-  cloneDocumentValue.value = undefined;
+const insertTemplateLoading = ref(false);
+
+const buildInsertTemplate = async (): Promise<string | undefined> => {
+  if (!props.connection || !props.index) return undefined;
+  try {
+    const mapping = await esApi.getIndexMapping(props.connection, props.index);
+    const properties = resolveMappingProperties(mapping);
+    if (Object.keys(properties).length > 0) {
+      return jsonify.stringify(buildSchemaTemplate(properties), null, 2);
+    }
+  } catch {
+    // mapping unavailable — fall through to the sample template
+  }
+  const firstRow = docRows.value[0];
+  return firstRow ? jsonify.stringify(buildSampleTemplate(firstRow), null, 2) : undefined;
+};
+
+const handleInsertClick = async () => {
+  insertTemplateLoading.value = true;
+  try {
+    cloneDocumentValue.value = await buildInsertTemplate();
+  } finally {
+    insertTemplateLoading.value = false;
+  }
   showInsertModal.value = true;
 };
 
@@ -316,11 +357,18 @@ const handleDeleteClick = (row: Record<string, unknown>) => {
 
 const handleInsertSubmit = async (document: string) => {
   if (!props.connection || !props.index) return;
+  const parsed = jsonify.parse(document) as unknown;
+  const { id, body } = extractDocumentId(parsed);
+  if (id !== undefined && id.trim() === '') {
+    insertDocumentRef.value?.setError(lang.t('editor.es.insertIdRequired'));
+    return;
+  }
   insertDocumentRef.value?.setLoading(true);
   try {
     await esApi.indexDocument(props.connection, {
       index: props.index,
-      body: document,
+      id: id?.trim() || undefined,
+      body: jsonify.stringify(body),
     });
     showInsertModal.value = false;
     message.success(lang.t('editor.es.insertSuccess'));
