@@ -1253,7 +1253,7 @@ const esApi: ESApi = {
       const path = id ? `/${index}/_doc/${encodeURIComponent(id)}` : `/${index}/_doc`;
       const response = await client.put<{ _id?: string }>(
         path,
-        undefined,
+        'refresh=true',
         jsonify.stringify(parsedBody),
       );
       return { id: response._id };
@@ -1273,7 +1273,7 @@ const esApi: ESApi = {
     try {
       const response = await client.post<{ _id?: string }>(
         `/${index}/_update/${encodeURIComponent(id)}`,
-        undefined,
+        'refresh=true',
         body,
       );
       return { id: response._id };
@@ -1293,6 +1293,7 @@ const esApi: ESApi = {
     try {
       const response = await client.delete<{ _id?: string }>(
         `/${index}/_doc/${encodeURIComponent(id)}`,
+        'refresh=true',
       );
       return { id: response._id };
     } catch (err) {
