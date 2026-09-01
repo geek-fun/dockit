@@ -70,19 +70,24 @@ export const buildDocRows = (hits: unknown[]): Array<Record<string, unknown>> =>
 
 /**
  * Derive table columns from search hits: sticky `_id` column first, then the
- * sorted union of `_source` top-level keys. Nested values degrade to JSON
+ * sorted union of `_source`/`fields` keys. Nested values degrade to JSON
  * strings inside cells, matching how Mongo/Dynamo panels render complex cells.
+ * An optional trailing actions column is appended when row actions are shown.
  */
-export const buildDocColumns = (hits: unknown[]): ColumnDef[] => {
+export const buildDocColumns = (hits: unknown[], withActions = false): ColumnDef[] => {
   const keys = new Set<string>();
   for (const hit of hits) {
     for (const key of Object.keys(hitSource(hit) ?? {})) keys.add(key);
   }
 
-  return [
+  const columns: ColumnDef[] = [
     { key: '_id', title: '_id', sticky: 'left' },
     ...Array.from(keys)
       .sort((a, b) => a.localeCompare(b))
       .map(key => ({ key, title: key, ellipsis: true })),
   ];
+  if (withActions) {
+    columns.push({ key: 'actions', title: '', width: 60, align: 'center' });
+  }
+  return columns;
 };
