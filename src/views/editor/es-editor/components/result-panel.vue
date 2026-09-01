@@ -2,7 +2,7 @@
   <div id="es-result-panel">
     <ResultPanel
       v-if="shape === 'docs'"
-      :columns="docColumns"
+      :columns="displayColumns"
       :data="docRows"
       :raw-value="resultValue"
       :view-modes="['table', 'tree', 'json']"
@@ -10,7 +10,51 @@
       persist-view-key="es-result-view"
       row-key="_id"
       @refresh="emit('refresh')"
-    />
+    >
+      <template #toolbar>
+        <Button
+          v-if="index && connection"
+          size="sm"
+          variant="ghost"
+          class="h-6 px-2 text-xs"
+          @click="handleInsertClick"
+        >
+          <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
+          {{ lang.t('editor.es.insertDocument') }}
+        </Button>
+      </template>
+      <template #cell="{ column, row }">
+        <template v-if="column.key === 'actions' && index && connection">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop>
+                <span class="i-carbon-overflow-menu-horizontal h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="w-36">
+              <DropdownMenuItem :disabled="!getDocumentId(row)" @click="handleEditClick(row)">
+                <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
+                {{ lang.t('editor.es.editDocument') }}
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="handleCloneClick(row)">
+                <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
+                {{ lang.t('editor.es.cloneDocument') }}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                :disabled="!getDocumentId(row)"
+                class="text-destructive focus:text-destructive"
+                @click="handleDeleteClick(row)"
+              >
+                <span class="i-carbon-trash-can h-3.5 w-3.5 mr-2" />
+                {{ lang.t('editor.es.deleteDocument') }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </template>
+        <span v-else class="cell-value">{{ formatCellValue(row[column.key]) }}</span>
+      </template>
+    </ResultPanel>
     <template v-else-if="shape === 'json' || shape === 'text'">
       <div class="es-result-actions">
         <TooltipProvider>
@@ -99,26 +143,72 @@
       />
       <pre v-else class="es-result-text macos-scrollable">{{ textContent }}</pre>
     </template>
+
+    <JsonDocumentDialog
+      ref="insertDocumentRef"
+      v-model:show="showInsertModal"
+      :title="lang.t('editor.es.insertDocumentTitle')"
+      :initial-value="cloneDocumentValue"
+      :confirm-text="lang.t('editor.es.insert')"
+      @submit="handleInsertSubmit"
+    />
+    <JsonDocumentDialog
+      ref="editDocumentRef"
+      v-model:show="showEditModal"
+      :title="lang.t('editor.es.editDocumentTitle')"
+      :initial-value="editDocumentValue"
+      :confirm-text="lang.t('dialogOps.confirm')"
+      :strip-fields="['_id']"
+      @submit="handleEditSubmit"
+    />
+    <ConfirmDeleteDialog
+      ref="deleteConfirmRef"
+      v-model:show="showDeleteModal"
+      :confirm-text="lang.t('editor.es.deleteDocumentConfirm')"
+      :success-text="lang.t('editor.es.deleteDocumentSuccess')"
+      @confirm="handleDeleteConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { JsonView, ResultPanel } from '@/components/result';
+import { esApi } from '@/datasources';
+import { CustomError } from '@/common';
+import {
+  JsonView,
+  ResultPanel,
+  JsonDocumentDialog,
+  ConfirmDeleteDialog,
+} from '@/components/result';
 import {
   useResultExport,
   type ResultExportFormat,
 } from '@/components/result/composables/useResultExport';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useLang } from '@/lang';
+import { useMessageService } from '@/composables';
+import type { SearchConnection } from '@/store';
+import type { ColumnDef } from '@/components/result';
 import { buildDocColumns, buildDocRows, resolveEsResultShape } from '../utils/es-result';
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
+    connection?: SearchConnection;
+    index?: string;
     loading?: boolean;
   }>(),
   {
+    connection: undefined,
+    index: undefined,
     loading: false,
   },
 );
@@ -128,6 +218,7 @@ const emit = defineEmits<{
 }>();
 
 const lang = useLang();
+const message = useMessageService();
 const { copyResult, exportResult } = useResultExport();
 const handleCopy = (format: ResultExportFormat) => copyResult(resultState.value?.value, format);
 const handleExport = (format: ResultExportFormat) => exportResult(resultState.value?.value, format);
@@ -162,10 +253,127 @@ const searchHits = computed<unknown[]>(() => {
 
 const docRows = computed(() => buildDocRows(searchHits.value));
 const docColumns = computed(() => buildDocColumns(searchHits.value));
+const displayColumns = computed<ColumnDef[]>(() => [
+  ...docColumns.value,
+  ...(props.index && props.connection
+    ? [{ key: 'actions', title: '', width: 60, align: 'center' as const }]
+    : []),
+]);
 
 const textContent = computed(() =>
   typeof resultState.value?.value === 'string' ? resultState.value.value : '',
 );
+
+const formatCellValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const getDocumentId = (row: Record<string, unknown>): string | undefined => {
+  const id = row._id;
+  return id === undefined || id === null ? undefined : String(id);
+};
+
+const cloneDocumentValue = ref<string | undefined>(undefined);
+const editDocumentValue = ref('');
+const editDocumentId = ref('');
+const deletingId = ref('');
+const showInsertModal = ref(false);
+const showEditModal = ref(false);
+const showDeleteModal = ref(false);
+
+type DialogExposed = { setLoading: (v: boolean) => void; setError: (msg: string) => void };
+type DeleteExposed = {
+  setLoading: (v: boolean) => void;
+  setResult: (type: 'success' | 'error', msg: string) => void;
+};
+const insertDocumentRef = ref<DialogExposed>();
+const editDocumentRef = ref<DialogExposed>();
+const deleteConfirmRef = ref<DeleteExposed>();
+
+const handleInsertClick = () => {
+  cloneDocumentValue.value = undefined;
+  showInsertModal.value = true;
+};
+
+const handleCloneClick = (row: Record<string, unknown>) => {
+  const clone = { ...row };
+  delete clone._id;
+  cloneDocumentValue.value = JSON.stringify(clone, null, 2);
+  showInsertModal.value = true;
+};
+
+const handleEditClick = (row: Record<string, unknown>) => {
+  editDocumentValue.value = JSON.stringify(row, null, 2);
+  editDocumentId.value = getDocumentId(row) ?? '';
+  showEditModal.value = true;
+};
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  deletingId.value = getDocumentId(row) ?? '';
+  showDeleteModal.value = true;
+};
+
+const handleInsertSubmit = async (document: string) => {
+  if (!props.connection || !props.index) return;
+  insertDocumentRef.value?.setLoading(true);
+  try {
+    await esApi.indexDocument(props.connection, {
+      index: props.index,
+      body: document,
+    });
+    showInsertModal.value = false;
+    message.success(lang.t('editor.es.insertSuccess'));
+    emit('refresh');
+  } catch (err) {
+    insertDocumentRef.value?.setError(errMessage(err));
+  } finally {
+    insertDocumentRef.value?.setLoading(false);
+  }
+};
+
+const handleEditSubmit = async (document: string) => {
+  if (!props.connection || !props.index || !editDocumentId.value) return;
+  editDocumentRef.value?.setLoading(true);
+  try {
+    await esApi.indexDocument(props.connection, {
+      index: props.index,
+      id: editDocumentId.value,
+      body: document,
+    });
+    showEditModal.value = false;
+    message.success(lang.t('editor.es.updateSuccess'));
+    emit('refresh');
+  } catch (err) {
+    editDocumentRef.value?.setError(errMessage(err));
+  } finally {
+    editDocumentRef.value?.setLoading(false);
+  }
+};
+
+const handleDeleteConfirm = async () => {
+  if (!props.connection || !props.index || !deletingId.value) return;
+  deleteConfirmRef.value?.setLoading(true);
+  try {
+    await esApi.deleteDocument(props.connection, {
+      index: props.index,
+      id: deletingId.value,
+    });
+    showDeleteModal.value = false;
+    message.success(lang.t('editor.es.deleteDocumentSuccess'));
+    emit('refresh');
+  } catch (err) {
+    deleteConfirmRef.value?.setResult('error', errMessage(err));
+  } finally {
+    deleteConfirmRef.value?.setLoading(false);
+  }
+};
+
+const errMessage = (err: unknown): string =>
+  err instanceof CustomError
+    ? `status: ${err.status}, details: ${err.details}`
+    : ((err as Error)?.message ?? String(err));
 </script>
 
 <style scoped>

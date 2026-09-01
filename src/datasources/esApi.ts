@@ -542,6 +542,21 @@ interface ESApi {
       query?: Record<string, unknown>;
     },
   ): Promise<AggregateFieldValue[]>;
+
+  indexDocument(
+    connection: SearchConnection,
+    options: { index: string; id?: string; body: string },
+  ): Promise<{ id?: string }>;
+
+  updateDocument(
+    connection: SearchConnection,
+    options: { index: string; id: string; body: string },
+  ): Promise<{ id?: string }>;
+
+  deleteDocument(
+    connection: SearchConnection,
+    options: { index: string; id: string },
+  ): Promise<{ id?: string }>;
 }
 
 const esApi: ESApi = {
@@ -1220,6 +1235,64 @@ const esApi: ESApi = {
         value: bucket.key,
         count: bucket.doc_count,
       }));
+    } catch (err) {
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  indexDocument: async (
+    connection,
+    { index, id, body }: { index: string; id?: string; body: string },
+  ): Promise<{ id?: string }> => {
+    const client = loadHttpClient(connection);
+    const parsedBody = jsonify.parse(body);
+    try {
+      const path = id ? `/${index}/_doc/${id}` : `/${index}/_doc`;
+      const response = await client.put<{ _id?: string }>(
+        path,
+        undefined,
+        jsonify.stringify(parsedBody),
+      );
+      return { id: response._id };
+    } catch (err) {
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  updateDocument: async (
+    connection,
+    { index, id, body }: { index: string; id: string; body: string },
+  ): Promise<{ id?: string }> => {
+    const client = loadHttpClient(connection);
+    try {
+      const response = await client.post<{ _id?: string }>(
+        `/${index}/_update/${id}`,
+        undefined,
+        body,
+      );
+      return { id: response._id };
+    } catch (err) {
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  deleteDocument: async (
+    connection,
+    { index, id }: { index: string; id: string },
+  ): Promise<{ id?: string }> => {
+    const client = loadHttpClient(connection);
+    try {
+      const response = await client.delete<{ _id?: string }>(`/${index}/_doc/${id}`);
+      return { id: response._id };
     } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
