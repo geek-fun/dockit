@@ -1115,7 +1115,7 @@ describe('esApi document CRUD', () => {
       body: '{"title":"x"}',
     });
     expect(result).toEqual({ id: 'auto1' });
-    expect(mockPut).toHaveBeenCalledWith('/idx/_doc', undefined, '{"title":"x"}');
+    expect(mockPut).toHaveBeenCalledWith('/idx/_doc', 'refresh=true', '{"title":"x"}');
   });
 
   it('indexDocument PUTs to _doc/{id} when id is provided', async () => {
@@ -1123,7 +1123,7 @@ describe('esApi document CRUD', () => {
     loadHttpClient.mockReturnValue({ put: mockPut });
 
     await esApi.indexDocument(baseConn, { index: 'idx', id: 'doc1', body: '{"a":1}' });
-    expect(mockPut).toHaveBeenCalledWith('/idx/_doc/doc1', undefined, '{"a":1}');
+    expect(mockPut).toHaveBeenCalledWith('/idx/_doc/doc1', 'refresh=true', '{"a":1}');
   });
 
   it('indexDocument wraps thrown errors as CustomError', async () => {
@@ -1145,7 +1145,7 @@ describe('esApi document CRUD', () => {
       body: '{"doc":{"a":2}}',
     });
     expect(result).toEqual({ id: 'doc1' });
-    expect(mockPost).toHaveBeenCalledWith('/idx/_update/doc1', undefined, '{"doc":{"a":2}}');
+    expect(mockPost).toHaveBeenCalledWith('/idx/_update/doc1', 'refresh=true', '{"doc":{"a":2}}');
   });
 
   it('deleteDocument DELETEs to _doc/{id}', async () => {
@@ -1154,7 +1154,7 @@ describe('esApi document CRUD', () => {
 
     const result = await esApi.deleteDocument(baseConn, { index: 'idx', id: 'doc1' });
     expect(result).toEqual({ id: 'doc1' });
-    expect(mockDelete).toHaveBeenCalledWith('/idx/_doc/doc1');
+    expect(mockDelete).toHaveBeenCalledWith('/idx/_doc/doc1', 'refresh=true');
   });
 
   it('deleteDocument wraps thrown errors as CustomError', async () => {
@@ -1171,19 +1171,19 @@ describe('esApi document CRUD', () => {
     loadHttpClient.mockReturnValue({ put: mockPut });
 
     await esApi.indexDocument(baseConn, { index: 'idx', id: 'a/b?x=1', body: '{"a":1}' });
-    expect(mockPut).toHaveBeenCalledWith('/idx/_doc/a%2Fb%3Fx%3D1', undefined, '{"a":1}');
+    expect(mockPut).toHaveBeenCalledWith('/idx/_doc/a%2Fb%3Fx%3D1', 'refresh=true', '{"a":1}');
   });
 
   it('updateDocument and deleteDocument URL-encode ids containing special characters', async () => {
     const mockPost = jest.fn().mockResolvedValue({ _id: 'a#b' });
     loadHttpClient.mockReturnValue({ post: mockPost });
     await esApi.updateDocument(baseConn, { index: 'idx', id: 'a#b', body: '{"doc":{}}' });
-    expect(mockPost).toHaveBeenCalledWith('/idx/_update/a%23b', undefined, '{"doc":{}}');
+    expect(mockPost).toHaveBeenCalledWith('/idx/_update/a%23b', 'refresh=true', '{"doc":{}}');
 
     const mockDelete = jest.fn().mockResolvedValue({ _id: 'a/b' });
     loadHttpClient.mockReturnValue({ delete: mockDelete });
     await esApi.deleteDocument(baseConn, { index: 'idx', id: 'a/b' });
-    expect(mockDelete).toHaveBeenCalledWith('/idx/_doc/a%2Fb');
+    expect(mockDelete).toHaveBeenCalledWith('/idx/_doc/a%2Fb', 'refresh=true');
   });
 
   it('indexDocument wraps malformed JSON body as CustomError', async () => {
@@ -1194,5 +1194,22 @@ describe('esApi document CRUD', () => {
       esApi.indexDocument(baseConn, { index: 'idx', body: '{invalid' }),
     ).rejects.toMatchObject({ status: 500 });
     expect(mockPut).not.toHaveBeenCalled();
+  });
+
+  it('all writes pass refresh=true so subsequent searches see the change', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ _id: '1' });
+    const mockPost = jest.fn().mockResolvedValue({ _id: '1' });
+    const mockDelete = jest.fn().mockResolvedValue({ _id: '1' });
+
+    loadHttpClient.mockReturnValue({ put: mockPut });
+    await esApi.indexDocument(baseConn, { index: 'idx', body: '{}' });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+    await esApi.updateDocument(baseConn, { index: 'idx', id: '1', body: '{"doc":{}}' });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+    await esApi.deleteDocument(baseConn, { index: 'idx', id: '1' });
+
+    expect(mockPut.mock.calls[0][1]).toBe('refresh=true');
+    expect(mockPost.mock.calls[0][1]).toBe('refresh=true');
+    expect(mockDelete.mock.calls[0][1]).toBe('refresh=true');
   });
 });
