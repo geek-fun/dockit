@@ -215,16 +215,14 @@
                       :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
                       :style="{ textAlign: col.align || 'left' }"
                     >
-                      <slot name="cell" :column="col" :row="row">
-                        <span
-                          v-if="col.ellipsis"
-                          class="cell-ellipsis"
-                          :title="formatCellValue(row[col.key])"
-                        >
+                      <div
+                        :class="col.ellipsis === false ? undefined : 'cell-truncate'"
+                        :title="formatCellValue(row[col.key])"
+                      >
+                        <slot name="cell" :column="col" :row="row">
                           {{ formatCellValue(row[col.key]) }}
-                        </span>
-                        <span v-else>{{ formatCellValue(row[col.key]) }}</span>
-                      </slot>
+                        </slot>
+                      </div>
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -615,7 +613,7 @@ watch(
 .result-loading-row :deep(td) {
   text-align: center;
 }
-.cell-ellipsis {
+.cell-truncate {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
