@@ -19,6 +19,75 @@
     <template v-else>
       <div class="result-header">
         <div class="result-header-left">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/20"
+                  :disabled="loading"
+                  @click="handleCopy('json')"
+                >
+                  <span class="i-carbon-copy h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ $t('editor.copyJson') }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 dark:hover:bg-sky-500/20"
+                  :disabled="loading"
+                  @click="handleCopy('csv')"
+                >
+                  <span class="i-carbon-csv h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ $t('editor.copyCsv') }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/20"
+                  :disabled="loading"
+                  @click="handleExport('json')"
+                >
+                  <span class="i-carbon-download h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ $t('editor.exportJson') }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 dark:hover:bg-violet-500/20"
+                  :disabled="loading"
+                  @click="handleExport('csv')"
+                >
+                  <span class="i-carbon-document-download h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{{ $t('editor.exportCsv') }}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div v-if="$slots.toolbar" class="header-divider" />
           <slot name="toolbar" />
         </div>
         <div class="result-header-right">
@@ -49,7 +118,7 @@
                   size="icon"
                   variant="ghost"
                   class="h-7 w-7"
-                  :class="{ 'bg-accent': internalView === 'table' }"
+                  :class="{ 'text-primary': internalView === 'table' }"
                   @click="switchView('table')"
                 >
                   <span class="i-carbon-table h-3.5 w-3.5" />
@@ -66,7 +135,7 @@
                   size="icon"
                   variant="ghost"
                   class="h-7 w-7"
-                  :class="{ 'bg-accent': internalView === 'tree' }"
+                  :class="{ 'text-primary': internalView === 'tree' }"
                   @click="switchView('tree')"
                 >
                   <span class="i-carbon-tree-view h-3.5 w-3.5" />
@@ -83,7 +152,7 @@
                   size="icon"
                   variant="ghost"
                   class="h-7 w-7"
-                  :class="{ 'bg-accent': internalView === 'json' }"
+                  :class="{ 'text-primary': internalView === 'json' }"
                   @click="switchView('json')"
                 >
                   <span class="i-carbon-code h-3.5 w-3.5" />
@@ -270,6 +339,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import JsonView from './JsonView.vue';
 import TreeNode from './TreeNode.vue';
 import { usePagination } from './composables/usePagination';
+import { useResultExport, type ResultExportFormat } from './composables/useResultExport';
 import type { ColumnDef, ViewMode, PaginationConfig } from './types';
 
 const props = withDefaults(
@@ -282,6 +352,7 @@ const props = withDefaults(
     pagination?: PaginationConfig;
     viewModes?: ViewMode[];
     activeView?: ViewMode;
+    persistViewKey?: string;
     emptyText?: string;
     rowKey?: string | ((row: Record<string, unknown>) => string);
     closable?: boolean;
@@ -297,6 +368,7 @@ const props = withDefaults(
     pagination: undefined,
     viewModes: () => ['table', 'json'],
     activeView: 'table',
+    persistViewKey: undefined,
     emptyText: 'No data',
     rowKey: undefined,
     closable: false,
@@ -317,7 +389,19 @@ const emit = defineEmits<{
   'row-click': [row: Record<string, unknown>, rowIndex: number];
 }>();
 
-const internalView = ref<ViewMode>(props.activeView);
+const getInitialView = (): ViewMode => {
+  if (props.persistViewKey) {
+    try {
+      const saved = localStorage.getItem(props.persistViewKey) as ViewMode | null;
+      if (saved && props.viewModes.includes(saved)) return saved;
+    } catch {
+      // localStorage unavailable — fall through to default
+    }
+  }
+  return props.activeView;
+};
+
+const internalView = ref<ViewMode>(getInitialView());
 
 const paginationConfig = computed(() => props.pagination);
 const {
@@ -338,6 +422,10 @@ const isCursor = computed(() => paginationMode.value === 'cursor');
 const hasPages = computed(() => visiblePages.value.length > 0);
 const showPagination = computed(() => props.pagination !== undefined);
 const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [25, 50, 100]);
+
+const { copyResult, exportResult } = useResultExport();
+const handleCopy = (format: ResultExportFormat) => copyResult(props.data, format);
+const handleExport = (format: ResultExportFormat) => exportResult(props.data, format);
 
 const derivedColumns = computed<ColumnDef[]>(() => {
   if (props.columns && props.columns.length > 0) return props.columns;
@@ -381,6 +469,13 @@ const formatCellValue = (value: unknown): string => {
 
 const switchView = (view: ViewMode) => {
   internalView.value = view;
+  if (props.persistViewKey) {
+    try {
+      localStorage.setItem(props.persistViewKey, view);
+    } catch {
+      // ignore persistence failures
+    }
+  }
   emit('update:activeView', view);
 };
 
@@ -440,7 +535,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  padding-bottom: 0.5rem;
+  padding: 0.125rem 0.25rem 0.5rem;
   gap: 0.5rem;
 }
 .result-header-left {
@@ -527,6 +622,42 @@ watch(
   padding: 0.5rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.75rem;
+}
+
+/* Slim scrollbars for the result table/tree — matches the JSON view's Monaco
+   scrollbar sizing. Covers both axes: tables scroll horizontally too, and the
+   inner Table wrapper can become the scroll container on some layouts. */
+.table-scroll-area,
+.tree-scroll-area,
+.table-scroll-area :deep(.relative.w-full.overflow-auto) {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.table-scroll-area::-webkit-scrollbar,
+.tree-scroll-area::-webkit-scrollbar,
+.table-scroll-area :deep(.relative.w-full.overflow-auto)::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.table-scroll-area::-webkit-scrollbar-track,
+.tree-scroll-area::-webkit-scrollbar-track,
+.table-scroll-area :deep(.relative.w-full.overflow-auto)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-scroll-area::-webkit-scrollbar-thumb,
+.tree-scroll-area::-webkit-scrollbar-thumb,
+.table-scroll-area :deep(.relative.w-full.overflow-auto)::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.table-scroll-area::-webkit-scrollbar-thumb:hover,
+.tree-scroll-area::-webkit-scrollbar-thumb:hover,
+.table-scroll-area :deep(.relative.w-full.overflow-auto)::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.6);
 }
 .result-pagination {
   display: flex;

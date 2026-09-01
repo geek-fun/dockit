@@ -44,6 +44,11 @@ const init = () => {
     ...options,
     minimap: { enabled: false },
     lineNumbers: 'off',
+    scrollbar: {
+      verticalScrollbarSize: 6,
+      horizontalScrollbarSize: 6,
+      useShadows: false,
+    },
   });
   editor.getModel()?.updateOptions({
     tabSize: options.tabSize,
