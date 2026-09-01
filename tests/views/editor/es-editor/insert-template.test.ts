@@ -1,6 +1,7 @@
 import {
   buildSchemaTemplate,
   buildSampleTemplate,
+  buildInsertTemplateValue,
   extractDocumentId,
   resolveMappingProperties,
 } from '../../../../src/views/editor/es-editor/utils/es-result';
@@ -116,5 +117,23 @@ describe('resolveMappingProperties', () => {
     expect(resolveMappingProperties(undefined)).toEqual({});
     expect(resolveMappingProperties({})).toEqual({});
     expect(resolveMappingProperties({ 'logs-1': { mappings: { properties: {} } } })).toEqual({});
+  });
+});
+
+describe('buildInsertTemplateValue', () => {
+  it('prefers the mapping skeleton when properties exist', () => {
+    const mapping = { idx: { mappings: { properties: { title: { type: 'text' } } } } };
+    expect(buildInsertTemplateValue(mapping, { _id: '', name: 'sample' })).toEqual({ title: '' });
+  });
+
+  it('falls back to the sample row when the mapping is empty', () => {
+    const fallbackRow = { _id: '', name: 'sample' };
+    expect(buildInsertTemplateValue({}, fallbackRow)).toEqual(fallbackRow);
+    expect(buildInsertTemplateValue(undefined, fallbackRow)).toEqual(fallbackRow);
+  });
+
+  it('returns undefined when neither mapping nor sample row is available', () => {
+    expect(buildInsertTemplateValue(undefined)).toBeUndefined();
+    expect(buildInsertTemplateValue({ idx: { mappings: {} } })).toBeUndefined();
   });
 });

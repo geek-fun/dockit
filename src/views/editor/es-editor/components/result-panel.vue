@@ -211,11 +211,9 @@ import type { SearchConnection } from '@/store';
 import {
   buildDocColumns,
   buildDocRows,
-  buildSampleTemplate,
-  buildSchemaTemplate,
+  buildInsertTemplateValue,
   extractDocumentId,
   resolveEsResultShape,
-  resolveMappingProperties,
 } from '../utils/es-result';
 
 const props = withDefaults(
@@ -314,17 +312,9 @@ const insertTemplateLoading = ref(false);
 
 const buildInsertTemplate = async (): Promise<string | undefined> => {
   if (!props.connection || !props.index) return undefined;
-  try {
-    const mapping = await esApi.getIndexMapping(props.connection, props.index);
-    const properties = resolveMappingProperties(mapping);
-    if (Object.keys(properties).length > 0) {
-      return jsonify.stringify(buildSchemaTemplate(properties), null, 2);
-    }
-  } catch {
-    // mapping unavailable — fall through to the sample template
-  }
-  const firstRow = docRows.value[0];
-  return firstRow ? jsonify.stringify(buildSampleTemplate(firstRow), null, 2) : undefined;
+  const mapping = await esApi.getIndexMapping(props.connection, props.index).catch(() => undefined);
+  const template = buildInsertTemplateValue(mapping, docRows.value[0]);
+  return template ? jsonify.stringify(template, null, 2) : undefined;
 };
 
 const handleInsertClick = async () => {
