@@ -74,20 +74,24 @@ export const buildDocRows = (hits: unknown[]): Array<Record<string, unknown>> =>
  * strings inside cells, matching how Mongo/Dynamo panels render complex cells.
  * An optional trailing actions column is appended when row actions are shown.
  */
-export const buildDocColumns = (hits: unknown[], withActions = false): ColumnDef[] => {
+export const buildDocColumns = (
+  hits: unknown[],
+  withActions = false,
+  actionsTitle = '',
+): ColumnDef[] => {
   const keys = new Set<string>();
   for (const hit of hits) {
     for (const key of Object.keys(hitSource(hit) ?? {})) keys.add(key);
   }
 
   const columns: ColumnDef[] = [
-    { key: '_id', title: '_id', sticky: 'left' },
+    { key: '_id', title: '_id', sticky: 'left', width: 140, ellipsis: true },
     ...Array.from(keys)
       .sort((a, b) => a.localeCompare(b))
       .map(key => ({ key, title: key, ellipsis: true })),
   ];
   if (withActions) {
-    columns.push({ key: 'actions', title: '', width: 60, align: 'center' });
+    columns.push({ key: 'actions', title: actionsTitle, width: 60, align: 'center' });
   }
   return columns;
 };

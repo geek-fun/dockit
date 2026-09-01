@@ -1171,6 +1171,7 @@ export const enUS = {
       editDocumentTitle: 'Edit Document',
       updateSuccess: 'Document updated successfully',
       cloneDocument: 'Clone Document',
+      actions: 'Actions',
       deleteDocument: 'Delete Document',
       deleteDocumentTitle: 'Delete Document',
       deleteDocumentConfirm: 'Are you sure you want to delete this document?',

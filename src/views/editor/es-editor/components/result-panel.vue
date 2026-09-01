@@ -252,7 +252,11 @@ const searchHits = computed<unknown[]>(() => {
 
 const docRows = computed(() => buildDocRows(searchHits.value));
 const displayColumns = computed(() =>
-  buildDocColumns(searchHits.value, Boolean(props.index && props.connection)),
+  buildDocColumns(
+    searchHits.value,
+    Boolean(props.index && props.connection),
+    lang.t('editor.es.actions'),
+  ),
 );
 
 const textContent = computed(() =>
