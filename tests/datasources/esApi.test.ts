@@ -1101,3 +1101,68 @@ describe('esApi.aggregateFieldValues', () => {
     ).rejects.toMatchObject({ status: 500, details: 'boom' });
   });
 });
+
+describe('esApi document CRUD', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('indexDocument PUTs to _doc without id for auto-generated ids', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ _id: 'auto1' });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    const result = await esApi.indexDocument(baseConn, {
+      index: 'idx',
+      body: '{"title":"x"}',
+    });
+    expect(result).toEqual({ id: 'auto1' });
+    expect(mockPut).toHaveBeenCalledWith('/idx/_doc', undefined, '{"title":"x"}');
+  });
+
+  it('indexDocument PUTs to _doc/{id} when id is provided', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ _id: 'doc1' });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await esApi.indexDocument(baseConn, { index: 'idx', id: 'doc1', body: '{"a":1}' });
+    expect(mockPut).toHaveBeenCalledWith('/idx/_doc/doc1', undefined, '{"a":1}');
+  });
+
+  it('indexDocument wraps thrown errors as CustomError', async () => {
+    const mockPut = jest.fn().mockRejectedValue(new Error('boom'));
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await expect(esApi.indexDocument(baseConn, { index: 'idx', body: '{}' })).rejects.toMatchObject(
+      { status: 500, details: 'boom' },
+    );
+  });
+
+  it('updateDocument POSTs to _update/{id}', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ _id: 'doc1' });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.updateDocument(baseConn, {
+      index: 'idx',
+      id: 'doc1',
+      body: '{"doc":{"a":2}}',
+    });
+    expect(result).toEqual({ id: 'doc1' });
+    expect(mockPost).toHaveBeenCalledWith('/idx/_update/doc1', undefined, '{"doc":{"a":2}}');
+  });
+
+  it('deleteDocument DELETEs to _doc/{id}', async () => {
+    const mockDelete = jest.fn().mockResolvedValue({ _id: 'doc1' });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+
+    const result = await esApi.deleteDocument(baseConn, { index: 'idx', id: 'doc1' });
+    expect(result).toEqual({ id: 'doc1' });
+    expect(mockDelete).toHaveBeenCalledWith('/idx/_doc/doc1');
+  });
+
+  it('deleteDocument wraps thrown errors as CustomError', async () => {
+    const mockDelete = jest.fn().mockRejectedValue(new Error('nope'));
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+
+    await expect(
+      esApi.deleteDocument(baseConn, { index: 'idx', id: 'doc1' }),
+    ).rejects.toMatchObject({ status: 500, details: 'nope' });
+  });
+});

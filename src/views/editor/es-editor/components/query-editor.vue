@@ -32,6 +32,8 @@
       <EsResultPanel
         id="es-result-panel"
         ref="displayRef"
+        :connection="activeConnection as SearchConnection"
+        :index="lastExecutedIndex"
         :loading="resultLoading"
         @refresh="handleRefresh"
       />
@@ -102,6 +104,7 @@ const queryEditorRef = ref();
 const displayRef = ref();
 // Last successfully executed action position, used by the result panel refresh button
 const lastExecutedPosition = ref<{ column: number; lineNumber: number } | null>(null);
+const lastExecutedIndex = ref<string | undefined>(undefined);
 const resultLoading = ref(false);
 
 useEditorInsertCode(() => queryEditor);
@@ -254,6 +257,8 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
 
     const format = new URLSearchParams(action.queryParams ?? '').get('format') ?? undefined;
     lastExecutedPosition.value = position;
+    lastExecutedIndex.value =
+      action.index || (activeConnection.value as SearchConnection)?.activeIndex?.index;
     showDisplayEditor(data, format);
     loadingBar.finish();
   } catch (err) {
