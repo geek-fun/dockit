@@ -434,10 +434,10 @@ const errMessage = (err: unknown): string =>
 
 <style scoped>
 #es-result-panel {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
   min-height: 0;
 }
 
@@ -460,7 +460,8 @@ const errMessage = (err: unknown): string =>
 .es-result-text {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: scroll;
+  overflow-x: auto;
   margin: 0;
   padding: 0.5rem;
   border: 1px solid hsl(var(--border));
