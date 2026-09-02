@@ -1250,12 +1250,14 @@ const esApi: ESApi = {
     const client = loadHttpClient(connection);
     try {
       const parsedBody = jsonify.parse(body);
-      const path = id ? `/${index}/_doc/${encodeURIComponent(id)}` : `/${index}/_doc`;
-      const response = await client.put<{ _id?: string }>(
-        path,
-        'refresh=true',
-        jsonify.stringify(parsedBody),
-      );
+      const payload = jsonify.stringify(parsedBody);
+      const response = id
+        ? await client.put<{ _id?: string }>(
+            `/${index}/_doc/${encodeURIComponent(id)}`,
+            'refresh=true',
+            payload,
+          )
+        : await client.post<{ _id?: string }>(`/${index}/_doc`, 'refresh=true', payload);
       return { id: response._id };
     } catch (err) {
       throw new CustomError(
