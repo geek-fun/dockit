@@ -1106,16 +1106,16 @@ describe('esApi document CRUD', () => {
   const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
   const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
 
-  it('indexDocument PUTs to _doc without id for auto-generated ids', async () => {
-    const mockPut = jest.fn().mockResolvedValue({ _id: 'auto1' });
-    loadHttpClient.mockReturnValue({ put: mockPut });
+  it('indexDocument POSTs to _doc without id for auto-generated ids', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ _id: 'auto1' });
+    loadHttpClient.mockReturnValue({ post: mockPost });
 
     const result = await esApi.indexDocument(baseConn, {
       index: 'idx',
       body: '{"title":"x"}',
     });
     expect(result).toEqual({ id: 'auto1' });
-    expect(mockPut).toHaveBeenCalledWith('/idx/_doc', 'refresh=true', '{"title":"x"}');
+    expect(mockPost).toHaveBeenCalledWith('/idx/_doc', 'refresh=true', '{"title":"x"}');
   });
 
   it('indexDocument PUTs to _doc/{id} when id is provided', async () => {
@@ -1127,8 +1127,8 @@ describe('esApi document CRUD', () => {
   });
 
   it('indexDocument wraps thrown errors as CustomError', async () => {
-    const mockPut = jest.fn().mockRejectedValue(new Error('boom'));
-    loadHttpClient.mockReturnValue({ put: mockPut });
+    const mockPost = jest.fn().mockRejectedValue(new Error('boom'));
+    loadHttpClient.mockReturnValue({ post: mockPost });
 
     await expect(esApi.indexDocument(baseConn, { index: 'idx', body: '{}' })).rejects.toMatchObject(
       { status: 500, details: 'boom' },
@@ -1202,7 +1202,7 @@ describe('esApi document CRUD', () => {
     const mockDelete = jest.fn().mockResolvedValue({ _id: '1' });
 
     loadHttpClient.mockReturnValue({ put: mockPut });
-    await esApi.indexDocument(baseConn, { index: 'idx', body: '{}' });
+    await esApi.indexDocument(baseConn, { index: 'idx', id: '1', body: '{}' });
     loadHttpClient.mockReturnValue({ post: mockPost });
     await esApi.updateDocument(baseConn, { index: 'idx', id: '1', body: '{"doc":{}}' });
     loadHttpClient.mockReturnValue({ delete: mockDelete });
