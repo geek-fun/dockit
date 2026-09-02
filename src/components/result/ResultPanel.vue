@@ -189,7 +189,13 @@
                     <TableHead
                       v-for="col in displayColumns"
                       :key="col.key"
-                      :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
+                      :class="[
+                        col.className,
+                        {
+                          'col-sticky-left': col.sticky === 'left',
+                          'col-sticky-right': col.sticky === 'right',
+                        },
+                      ]"
                       :style="colStyle(col)"
                     >
                       <slot name="columnHeader" :column="col">{{ col.title }}</slot>
@@ -212,7 +218,13 @@
                     <TableCell
                       v-for="col in displayColumns"
                       :key="col.key"
-                      :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
+                      :class="[
+                        col.className,
+                        {
+                          'col-sticky-left': col.sticky === 'left',
+                          'col-sticky-right': col.sticky === 'right',
+                        },
+                      ]"
                       :style="{ textAlign: col.align || 'left' }"
                     >
                       <div
@@ -597,6 +609,13 @@ watch(
   background: hsl(var(--background));
 }
 
+.table-container :deep(.col-sticky-right) {
+  position: sticky;
+  right: 0;
+  z-index: 5;
+  background: hsl(var(--background));
+}
+
 .table-container :deep(.sticky-header) {
   position: sticky;
   top: 0;
@@ -605,6 +624,11 @@ watch(
 }
 
 .table-container :deep(.sticky-header .col-sticky-left) {
+  z-index: 11;
+  background: hsl(var(--muted));
+}
+
+.table-container :deep(.sticky-header .col-sticky-right) {
   z-index: 11;
   background: hsl(var(--muted));
 }
