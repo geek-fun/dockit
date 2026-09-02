@@ -87,20 +87,20 @@ export const buildDocColumns = (
   const columns: ColumnDef[] = [
     { key: '_id', title: '_id', sticky: 'left', width: 140, ellipsis: true },
   ];
+  columns.push(
+    ...Array.from(keys)
+      .sort((a, b) => a.localeCompare(b))
+      .map(key => ({ key, title: key, ellipsis: true })),
+  );
   if (withActions) {
     columns.push({
       key: 'actions',
       title: actionsTitle,
       width: 60,
       align: 'center',
-      sticky: 'left',
+      sticky: 'right',
     });
   }
-  columns.push(
-    ...Array.from(keys)
-      .sort((a, b) => a.localeCompare(b))
-      .map(key => ({ key, title: key, ellipsis: true })),
-  );
   return columns;
 };
 
