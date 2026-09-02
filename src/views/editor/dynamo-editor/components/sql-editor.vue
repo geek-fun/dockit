@@ -67,6 +67,12 @@
               <Button size="icon" variant="ghost" @click.stop="handleDeleteClick(row)">
                 <span class="i-carbon-trash-can h-4 w-4" />
               </Button>
+              <Button size="icon" variant="ghost" @click.stop="handleCopyRow(row, 'json')">
+                <span class="i-carbon-json h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" @click.stop="handleCopyRow(row, 'csv')">
+                <span class="i-carbon-csv h-4 w-4" />
+              </Button>
             </div>
           </template>
           <span v-else>{{ formatCellValue(row[column.key]) }}</span>
@@ -104,6 +110,10 @@
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { useMessageService, useLoadingBarService } from '@/composables';
+import {
+  useResultExport,
+  type ResultExportFormat,
+} from '@/components/result/composables/useResultExport';
 import { storeToRefs } from 'pinia';
 import { SplitPane } from '@/components/ui/split-pane';
 import { CustomError, jsonify } from '../../../../common';
@@ -150,6 +160,11 @@ import {
 const lang = useLang();
 const message = useMessageService();
 const loadingBar = useLoadingBarService();
+const { copyResult } = useResultExport();
+
+const handleCopyRow = (row: Record<string, unknown>, format: ResultExportFormat) => {
+  void copyResult(row, format);
+};
 
 const appStore = useAppStore();
 const { getEditorTheme, getEditorOptions } = appStore;

@@ -187,6 +187,12 @@
               <Button size="icon" variant="ghost" @click.stop="handleDeleteClick(row)">
                 <span class="i-carbon-trash-can h-4 w-4" />
               </Button>
+              <Button size="icon" variant="ghost" @click.stop="handleCopyRow(row, 'json')">
+                <span class="i-carbon-json h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="ghost" @click.stop="handleCopyRow(row, 'csv')">
+                <span class="i-carbon-csv h-4 w-4" />
+              </Button>
             </div>
           </template>
           <span v-else>{{ formatCellValue(row[column.key]) }}</span>
@@ -223,6 +229,10 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useMessageService, useLoadingBarService } from '@/composables';
+import {
+  useResultExport,
+  type ResultExportFormat,
+} from '@/components/result/composables/useResultExport';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormItem } from '@/components/ui/form';
@@ -323,6 +333,11 @@ const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 
 const message = useMessageService();
 const loadingBar = useLoadingBarService();
+const { copyResult } = useResultExport();
+
+const handleCopyRow = (row: Record<string, unknown>, format: ResultExportFormat) => {
+  void copyResult(row, format);
+};
 
 // Watch for showResultPanel changes and adjust split pane size
 watch(
