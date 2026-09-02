@@ -183,7 +183,7 @@
               <Spinner />
             </div>
             <div class="table-container">
-              <Table class="table-fixed">
+              <Table>
                 <TableHeader class="sticky-header">
                   <TableRow>
                     <TableHead
@@ -282,7 +282,10 @@
               </Button>
             </div>
 
-            <span class="text-xs text-muted-foreground whitespace-nowrap">Page {{ page }}</span>
+            <span class="text-xs text-muted-foreground whitespace-nowrap">
+              Page {{ page }}
+              <template v-if="hasPages">/{{ totalPages }}</template>
+            </span>
 
             <div class="flex items-center gap-1">
               <template v-if="hasPages">
@@ -412,6 +415,7 @@ const {
   mode: paginationMode,
   canGoPrev,
   canGoNext,
+  totalPages,
   visiblePages,
   goToPage,
   nextPage,
@@ -566,10 +570,10 @@ watch(
 .table-scroll-area {
   flex: 1;
   min-height: 0;
-  /* overflow-y: scroll — WebKit (Safari 15 WKWebView) fails to register
+  /* overflow scroll (not auto) — WebKit (Safari 15 WKWebView) fails to register
      overflow:auto containers as scrollable (#390); scroll forces it. */
+  overflow-x: scroll;
   overflow-y: scroll;
-  overflow-x: auto;
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
   position: relative;
@@ -621,6 +625,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 200px;
 }
 .tree-scroll-area {
   flex: 1;
