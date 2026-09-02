@@ -566,7 +566,10 @@ watch(
 .table-scroll-area {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  /* overflow-y: scroll — WebKit (Safari 15 WKWebView) fails to register
+     overflow:auto containers as scrollable (#390); scroll forces it. */
+  overflow-y: scroll;
+  overflow-x: auto;
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
   position: relative;
@@ -622,7 +625,8 @@ watch(
 .tree-scroll-area {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-y: scroll;
+  overflow-x: auto;
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
   padding: 0.5rem;

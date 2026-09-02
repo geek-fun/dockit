@@ -91,7 +91,10 @@ onUnmounted(() => {
     ref="containerRef"
     :class="cn('flex h-full w-full', isHorizontal ? 'flex-row' : 'flex-col', props.class)"
   >
-    <div :style="pane1Style" :class="cn('overflow-auto', isHorizontal ? 'h-full' : 'w-full')">
+    <div
+      :style="pane1Style"
+      :class="cn('relative overflow-auto', isHorizontal ? 'h-full' : 'w-full')"
+    >
       <slot name="1" />
     </div>
     <div
@@ -103,7 +106,10 @@ onUnmounted(() => {
       "
       @mousedown="handleMouseDown"
     />
-    <div :style="pane2Style" :class="cn('overflow-auto', isHorizontal ? 'h-full' : 'w-full')">
+    <div
+      :style="pane2Style"
+      :class="cn('relative overflow-auto', isHorizontal ? 'h-full' : 'w-full')"
+    >
       <slot name="2" />
     </div>
   </div>
