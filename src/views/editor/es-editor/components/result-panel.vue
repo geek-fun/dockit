@@ -5,6 +5,13 @@
       :columns="displayColumns"
       :data="docRows"
       :raw-value="resultValue"
+      :total="docRows.length"
+      :loading="loading"
+      :pagination="{
+        mode: 'client',
+        pageSize: 25,
+        pageSizeOptions: [25, 50, 100, 200],
+      }"
       :view-modes="['table', 'tree', 'json']"
       active-view="json"
       persist-view-key="es-result-view"
