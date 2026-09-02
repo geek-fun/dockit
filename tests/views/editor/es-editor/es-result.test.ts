@@ -124,11 +124,12 @@ describe('buildDocColumns', () => {
     expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
   });
 
-  it('appends a trailing actions column with title when withActions is true', () => {
+  it('inserts the actions column after _id with title when withActions is true', () => {
     const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }], true, 'Actions');
-    expect(columns.map(column => column.key)).toEqual(['_id', 'title', 'actions']);
-    expect(columns[2].align).toBe('center');
-    expect(columns[2].title).toBe('Actions');
+    expect(columns.map(column => column.key)).toEqual(['_id', 'actions', 'title']);
+    expect(columns[1].align).toBe('center');
+    expect(columns[1].title).toBe('Actions');
+    expect(columns[1].sticky).toBe('left');
   });
 
   it('omits the actions column when withActions is false', () => {

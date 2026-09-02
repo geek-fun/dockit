@@ -187,7 +187,7 @@
                 <TableHeader class="sticky-header">
                   <TableRow>
                     <TableHead
-                      v-for="col in displayColumns"
+                      v-for="(col, colIndex) in displayColumns"
                       :key="col.key"
                       :class="[
                         col.className,
@@ -196,7 +196,10 @@
                           'col-sticky-right': col.sticky === 'right',
                         },
                       ]"
-                      :style="colStyle(col)"
+                      :style="{
+                        ...colStyle(col),
+                        ...stickyLeftStyle(col, colIndex),
+                      }"
                     >
                       <slot name="columnHeader" :column="col">{{ col.title }}</slot>
                     </TableHead>
@@ -216,7 +219,7 @@
                     @click="$emit('row-click', row, rowIndex)"
                   >
                     <TableCell
-                      v-for="col in displayColumns"
+                      v-for="(col, colIndex) in displayColumns"
                       :key="col.key"
                       :class="[
                         col.className,
@@ -225,7 +228,10 @@
                           'col-sticky-right': col.sticky === 'right',
                         },
                       ]"
-                      :style="{ textAlign: col.align || 'left' }"
+                      :style="{
+                        textAlign: col.align || 'left',
+                        ...stickyLeftStyle(col, colIndex),
+                      }"
                     >
                       <div
                         :class="col.ellipsis === false ? undefined : 'cell-truncate'"
@@ -475,6 +481,20 @@ const colStyle = (col: ColumnDef) => {
   if (!col.width) return undefined;
   const w = typeof col.width === 'number' ? `${col.width}px` : col.width;
   return { width: w, minWidth: w };
+};
+
+// Stacked sticky-left columns: each pins after the accumulated width of the
+// sticky columns before it (_id at 0, actions at 140, ...).
+const stickyLeftStyle = (col: ColumnDef, columnIndex: number): { left?: string } => {
+  if (col.sticky !== 'left') return {};
+  let offset = 0;
+  for (let i = 0; i < columnIndex; i++) {
+    const prev = displayColumns.value[i];
+    if (prev?.sticky === 'left') {
+      offset += typeof prev.width === 'number' ? prev.width : 140;
+    }
+  }
+  return offset > 0 ? { left: `${offset}px` } : {};
 };
 
 const getRowKey = (row: Record<string, unknown>, index: number): string => {

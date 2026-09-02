@@ -401,16 +401,17 @@ const resultColumns = computed<ColumnDef[]>(() => {
     width: col === '_id' ? 140 : undefined,
     sticky: col === '_id' ? 'left' : undefined,
   }));
+  const dataColumns = cols.splice(1);
   if (props.connection && props.indexName) {
     cols.push({
       key: 'actions',
       title: lang.t('editor.es.actions'),
       width: 60,
       align: 'center',
-      sticky: 'right',
+      sticky: 'left',
     });
   }
-  return cols;
+  return [...cols, ...dataColumns];
 });
 
 const resultData = computed<Record<string, unknown>[]>(() =>
