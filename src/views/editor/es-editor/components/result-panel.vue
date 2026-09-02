@@ -51,9 +51,13 @@
                 <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
                 {{ lang.t('editor.es.clone') }}
               </DropdownMenuItem>
-              <DropdownMenuItem @click="handleCopyRow(row)">
+              <DropdownMenuItem @click="handleCopyRow(row, 'json')">
                 <span class="i-carbon-json h-3.5 w-3.5 mr-2" />
                 {{ lang.t('editor.copyJson') }}
+              </DropdownMenuItem>
+              <DropdownMenuItem @click="handleCopyRow(row, 'csv')">
+                <span class="i-carbon-csv h-3.5 w-3.5 mr-2" />
+                {{ lang.t('editor.copyCsv') }}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -338,8 +342,8 @@ const handleCloneClick = (row: Record<string, unknown>) => {
   showInsertModal.value = true;
 };
 
-const handleCopyRow = (row: Record<string, unknown>) => {
-  void copyResult(row, 'json');
+const handleCopyRow = (row: Record<string, unknown>, format: ResultExportFormat) => {
+  void copyResult(row, format);
 };
 
 const handleEditClick = (row: Record<string, unknown>) => {

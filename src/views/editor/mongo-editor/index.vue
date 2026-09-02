@@ -98,6 +98,14 @@
                   <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
                   {{ $t('editor.mongo.cloneDocument') }}
                 </DropdownMenuItem>
+                <DropdownMenuItem @click="handleCopyRow(row, 'json')">
+                  <span class="i-carbon-json h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.copyJson') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleCopyRow(row, 'csv')">
+                  <span class="i-carbon-csv h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.copyCsv') }}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   :disabled="!getDocumentId(row)"
@@ -145,6 +153,10 @@ import { storeToRefs } from 'pinia';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService, useEditorInsertCode } from '@/composables';
+import {
+  useResultExport,
+  type ResultExportFormat,
+} from '@/components/result/composables/useResultExport';
 import { jsonify } from '../../../common';
 import {
   DatabaseType,
@@ -191,6 +203,7 @@ const appStore = useAppStore();
 const message = useMessageService();
 const loadingBar = useLoadingBarService();
 const lang = useLang();
+const { copyResult } = useResultExport();
 const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
 
@@ -569,6 +582,10 @@ const handleCloneClick = (row: Record<string, unknown>) => {
   cloneDocumentValue.value = JSON.stringify(clone, null, 2);
   insertMode.value = 'clone';
   showInsertModal.value = true;
+};
+
+const handleCopyRow = (row: Record<string, unknown>, format: ResultExportFormat) => {
+  void copyResult(row, format);
 };
 
 const handleEditClick = (row: Record<string, unknown>) => {

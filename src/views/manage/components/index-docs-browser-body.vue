@@ -144,9 +144,13 @@
               <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
               {{ lang.t('editor.es.clone') }}
             </DropdownMenuItem>
-            <DropdownMenuItem @click="handleCopyRow(row)">
+            <DropdownMenuItem @click="handleCopyRow(row, 'json')">
               <span class="i-carbon-json h-3.5 w-3.5 mr-2" />
               {{ lang.t('editor.copyJson') }}
+            </DropdownMenuItem>
+            <DropdownMenuItem @click="handleCopyRow(row, 'csv')">
+              <span class="i-carbon-csv h-3.5 w-3.5 mr-2" />
+              {{ lang.t('editor.copyCsv') }}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -288,7 +292,10 @@ import {
 } from '@/views/editor/es-editor/utils/es-result';
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
-import { useResultExport } from '@/components/result/composables/useResultExport';
+import {
+  useResultExport,
+  type ResultExportFormat,
+} from '@/components/result/composables/useResultExport';
 
 const props = withDefaults(
   defineProps<{
@@ -553,8 +560,8 @@ const handleCloneClick = (row: Record<string, unknown>) => {
   showInsertModal.value = true;
 };
 
-const handleCopyRow = (row: Record<string, unknown>) => {
-  void copyResult(row, 'json');
+const handleCopyRow = (row: Record<string, unknown>, format: ResultExportFormat) => {
+  void copyResult(row, format);
 };
 
 const handleEditClick = (row: Record<string, unknown>) => {
