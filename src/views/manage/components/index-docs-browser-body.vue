@@ -144,6 +144,10 @@
               <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
               {{ lang.t('editor.es.clone') }}
             </DropdownMenuItem>
+            <DropdownMenuItem @click="handleCopyRow(row)">
+              <span class="i-carbon-json h-3.5 w-3.5 mr-2" />
+              {{ lang.t('editor.copyJson') }}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               :disabled="!getDocumentId(row)"
@@ -284,6 +288,7 @@ import {
 } from '@/views/editor/es-editor/utils/es-result';
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
+import { useResultExport } from '@/components/result/composables/useResultExport';
 
 const props = withDefaults(
   defineProps<{
@@ -306,6 +311,7 @@ defineEmits<{
 
 const lang = useLang();
 const message = useMessageService();
+const { copyResult } = useResultExport();
 
 const pageSizeOptions = [25, 50, 100] as const;
 const pageSize = ref<(typeof pageSizeOptions)[number]>(25);
@@ -545,6 +551,10 @@ const handleCloneClick = (row: Record<string, unknown>) => {
   delete clone._id;
   insertTemplateValue.value = JSON.stringify(clone, null, 2);
   showInsertModal.value = true;
+};
+
+const handleCopyRow = (row: Record<string, unknown>) => {
+  void copyResult(row, 'json');
 };
 
 const handleEditClick = (row: Record<string, unknown>) => {
