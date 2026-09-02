@@ -183,7 +183,7 @@
               <Spinner />
             </div>
             <div class="table-container">
-              <Table>
+              <Table class="table-fixed">
                 <TableHeader class="sticky-header">
                   <TableRow>
                     <TableHead
@@ -458,7 +458,7 @@ const treeData = computed(() =>
 const colStyle = (col: ColumnDef) => {
   if (!col.width) return undefined;
   const w = typeof col.width === 'number' ? `${col.width}px` : col.width;
-  return { minWidth: w };
+  return { width: w, minWidth: w };
 };
 
 const getRowKey = (row: Record<string, unknown>, index: number): string => {
@@ -618,7 +618,6 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 200px;
 }
 .tree-scroll-area {
   flex: 1;
