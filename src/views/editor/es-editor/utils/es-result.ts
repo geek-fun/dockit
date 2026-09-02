@@ -91,7 +91,13 @@ export const buildDocColumns = (
       .map(key => ({ key, title: key, ellipsis: true })),
   ];
   if (withActions) {
-    columns.push({ key: 'actions', title: actionsTitle, width: 60, align: 'center' });
+    columns.push({
+      key: 'actions',
+      title: actionsTitle,
+      width: 60,
+      align: 'center',
+      sticky: 'right',
+    });
   }
   return columns;
 };

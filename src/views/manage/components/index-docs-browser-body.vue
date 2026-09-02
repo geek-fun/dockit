@@ -402,7 +402,13 @@ const resultColumns = computed<ColumnDef[]>(() => {
     sticky: col === '_id' ? 'left' : undefined,
   }));
   if (props.connection && props.indexName) {
-    cols.push({ key: 'actions', title: lang.t('editor.es.actions'), width: 60, align: 'center' });
+    cols.push({
+      key: 'actions',
+      title: lang.t('editor.es.actions'),
+      width: 60,
+      align: 'center',
+      sticky: 'right',
+    });
   }
   return cols;
 });
