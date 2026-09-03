@@ -2,6 +2,8 @@ import {
   resolveEsResultShape,
   buildDocRows,
   buildDocColumns,
+  collectResultIndices,
+  mergeMappingFieldTypes,
 } from '../../../../src/views/editor/es-editor/utils/es-result';
 
 describe('resolveEsResultShape', () => {
@@ -135,5 +137,52 @@ describe('buildDocColumns', () => {
   it('omits the actions column when withActions is false', () => {
     const columns = buildDocColumns([{ _id: '1', _source: { title: 'x' } }]);
     expect(columns.map(column => column.key)).toEqual(['_id', 'title']);
+  });
+});
+
+describe('collectResultIndices', () => {
+  it('collects distinct _index values from hits', () => {
+    const hits = [
+      { _index: 'events', _id: '1', _source: {} },
+      { _index: 'events', _id: '2', _source: {} },
+      { _index: 'orders', _id: '3', _source: {} },
+    ];
+    expect(collectResultIndices(hits)).toEqual(['events', 'orders']);
+  });
+
+  it('skips hits without a usable _index and caps the list at 5', () => {
+    const hits = [
+      { _source: {} },
+      null,
+      ...Array.from({ length: 8 }, (_, i) => ({ _index: `idx${i}` })),
+    ];
+    const indices = collectResultIndices(hits);
+    expect(indices).toHaveLength(5);
+  });
+});
+
+describe('mergeMappingFieldTypes', () => {
+  it('merges field types across a multi-index mapping response', () => {
+    const mapping = {
+      events: { mappings: { properties: { title: { type: 'text' }, capacity: { type: 'long' } } } },
+      orders: {
+        mappings: { properties: { title: { type: 'keyword' }, total: { type: 'integer' } } },
+      },
+    };
+    expect(mergeMappingFieldTypes(mapping)).toEqual({
+      title: 'text',
+      capacity: 'long',
+      total: 'integer',
+    });
+  });
+
+  it('labels property-less objects as object and degrades malformed responses', () => {
+    expect(
+      mergeMappingFieldTypes({ idx: { mappings: { properties: { meta: { properties: {} } } } } }),
+    ).toEqual({
+      meta: 'object',
+    });
+    expect(mergeMappingFieldTypes(undefined)).toEqual({});
+    expect(mergeMappingFieldTypes({ status: 403 })).toEqual({});
   });
 });
