@@ -52,16 +52,16 @@ describe('buildSchemaTemplate', () => {
 });
 
 describe('buildSampleTemplate', () => {
-  it('blanks the _id placeholder while keeping other fields', () => {
-    expect(buildSampleTemplate({ _id: 'evt-001', name: 'x', count: 2 })).toEqual({
-      _id: '',
+  it('keeps the source _id visible while stripping the read-only _index', () => {
+    expect(buildSampleTemplate({ _id: 'evt-001', _index: 'events', name: 'x', count: 2 })).toEqual({
+      _id: 'evt-001',
       name: 'x',
       count: 2,
     });
   });
 
-  it('adds an _id placeholder when the row has none', () => {
-    expect(buildSampleTemplate({ name: 'x' })).toEqual({ name: 'x', _id: '' });
+  it('passes rows without metadata through untouched', () => {
+    expect(buildSampleTemplate({ name: 'x' })).toEqual({ name: 'x' });
   });
 });
 
