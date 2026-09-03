@@ -48,9 +48,6 @@
         @first-page="handleFirstPage"
         @close="handleCloseResultPanel"
       >
-        <template #toolbar>
-          <span class="text-base font-semibold">{{ $t('editor.dynamo.resultTitle') }}</span>
-        </template>
         <template #error>
           <Card class="w-full">
             <CardHeader class="p-3 flex flex-row items-center justify-between">

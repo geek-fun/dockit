@@ -174,9 +174,6 @@
         @update:page-size="changePageSize"
         @close="handleCloseResultPanel"
       >
-        <template #toolbar>
-          <span class="text-base font-semibold">{{ $t('editor.dynamo.resultTitle') }}</span>
-        </template>
         <template #cell="{ column, row }">
           <template v-if="column.key === 'actions'">
             <div class="flex gap-2">

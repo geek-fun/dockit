@@ -1198,7 +1198,6 @@ export const enUS = {
       inputOperator: 'Select Operator',
       type: 'Select attribute type',
       inputAttrValue: 'Enter attribute value',
-      resultTitle: 'Query Result',
       indexIsRequired: 'Table/Index is required',
       partitionKeyRequired: 'Table/Index Partition key is required',
       atLeastRequired: 'Partition key or at least 1 filter is required',
