@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-09-03
+
+### Added
+
+- **MongoDB: surface find truncation with grand total** — show total document count when find results are truncated (#484)
+- **Result panel: make `_id` editable in insert body** — auto-generate `_id` when left empty, with validation rule (#483)
+- **Result panel: color-coded data type hints** — column headers now display type badges with nowrap for better readability (#482)
+- **Result panel: data type hints in column headers across all engines** — unified type hints for ES, OpenSearch, DynamoDB, MongoDB (#481)
+- **Result panel: Copy JSON/CSV row actions** — copy individual rows as JSON or CSV from any result panel (#480)
+- **ES Editor: add Copy JSON action to row menus** — quick copy document as JSON from context menu (#479)
+- **Manage: document CRUD in docs browser result panel** — full insert/edit/clone/delete for viewed documents (#478)
+- **ES Editor: schema-aware insert template** — insert template includes field types and placeholder guard for `_id` (#477)
+- **ES Editor: add ES document CRUD to result panel** — Phase 1b: inline create, edit, clone, delete documents (#476)
+- **ES Editor: rich result panel** — full-featured table/tree/JSON view with pagination for ES/OpenSearch/EasySearch (#475)
+- **ES Editor: auto-fetch remaining search hits** — fetch all pages automatically for complete pagination (#474)
+- **ES Editor: show 'X of Y documents' indicator** — display progress instead of auto-fetching on first load (#473)
+
+### Fixed
+
+- **ES Editor: lint fix** — resolve ESLint warnings (#502)
+- **DynamoDB: bound editor heights** — result footer stays in view during editing (#501)
+- **DynamoDB: default page size to 25** — page size selector shows a value by default (#500)
+- **Result panel: page-size selector in uncontrolled panels** — selector works without controlled state (#499)
+- **DynamoDB & MongoDB: port ES result-panel bug fixes** — consistent behavior across all databases (#498)
+- **Result panel: keep pagination bar visible in client-mode JSON view** — pagination controls remain accessible (#497)
+- **Result panel: hide pagination in JSON view, pad meta summary** — cleaner JSON view layout (#496)
+- **Result panel: show hits list in tree view and docs-only exports** — tree view and exports include all hits (#495)
+- **Result panel: put `_id` first in insert/clone JSON payload** — consistent field ordering (#494)
+- **ES Editor: derive column type hints from result hit indices** — accurate type detection (#493)
+- **ES Editor: harden mapping fetch against permission errors** — gracefully handle missing permissions (#492)
+- **ES Editor: row actions target the hit's own `_index`** — correct index targeting for row operations (#491)
+- **ES Editor: repair mojibake in gutter context menu shortcuts** — fix encoding issues in shortcuts display (#490)
+- **ES Editor: persist query result across Query/Browse and tab switches** — results survive navigation (#489)
+- **ES Editor: force scrollable-area registration and absolute-fill panel** — fix scrolling and layout issues (#488)
+- **ES Editor: auto-id insert must POST `_doc`, not PUT** — correct HTTP method for auto-ID inserts (#487)
+- **Result panel: fixed table layout** — every column stays visible, no horizontal overflow (#486)
+- **ES Editor: show pagination and bound result panel height** — consistent pagination UI (#485)
+- **Result panel: truncate all table cells instead of wrapping** — prevent cell content overflow (#484)
+- **ES Editor: make document writes visible to search immediately** — no delay between write and search visibility (#483)
+- **ES Editor: URL-encode document IDs and contain JSON parse errors** — robust ID handling and error boundaries (#482)
+- **ES Editor: title the actions column and prevent `_id` cell wrapping** — better column UX (#481)
+- **ES Editor: add ES document CRUD to result panel (Phase 1b)** — inline document operations (#480)
+
+### Changed
+
+- **DynamoDB: collapse row actions into overflow menu** — cleaner row action presentation (#499)
+- **Result panel: unify page-size options across all engines** — consistent pagination options everywhere (#498)
+
 ## [1.4.3] - 2026-08-20
 
 ### Fixed
