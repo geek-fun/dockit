@@ -204,7 +204,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { esApi } from '@/datasources';
+import { esApi, extractDocsBrowseFields } from '@/datasources';
 import { CustomError, jsonify } from '@/common';
 import {
   JsonView,
@@ -294,8 +294,32 @@ const searchHits = computed<unknown[]>(() => {
 });
 
 const docRows = computed(() => buildDocRows(searchHits.value));
+const fieldTypes = ref<Record<string, string>>({});
+
+watch(
+  [resultValue, () => props.index],
+  async ([, requestedIndex]) => {
+    fieldTypes.value = {};
+    if (shape.value !== 'docs' || !props.connection || !requestedIndex) return;
+    try {
+      const mapping = await esApi.getIndexMapping(props.connection, requestedIndex);
+      if (props.index !== requestedIndex) return;
+      const fields = extractDocsBrowseFields(mapping, requestedIndex);
+      fieldTypes.value = Object.fromEntries(fields.map(f => [f.name, f.kind]));
+    } catch {
+      fieldTypes.value = {};
+    }
+  },
+  { immediate: true },
+);
+
 const displayColumns = computed(() =>
-  buildDocColumns(searchHits.value, Boolean(props.connection), lang.t('editor.es.actions')),
+  buildDocColumns(
+    searchHits.value,
+    Boolean(props.connection),
+    lang.t('editor.es.actions'),
+    fieldTypes.value,
+  ),
 );
 
 const textContent = computed(() =>

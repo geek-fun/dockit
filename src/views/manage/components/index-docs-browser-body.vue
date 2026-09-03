@@ -99,6 +99,7 @@
           <ContextMenuTrigger as-child>
             <div class="th-content">
               <span>{{ column.title }}</span>
+              <span v-if="column.dataType" class="column-data-type">{{ column.dataType }}</span>
               <IndexDocsColumnFilter
                 v-if="enableSearchFilters && connection && canFilterColumn(column.key)"
                 :open="columnFilterOpen === column.key"
@@ -126,6 +127,7 @@
         </ContextMenu>
         <div v-else class="th-content">
           <span>{{ column.title }}</span>
+          <span v-if="column.dataType" class="column-data-type">{{ column.dataType }}</span>
         </div>
       </template>
       <template #cell="{ column, row }">
@@ -393,6 +395,8 @@ const activeQuery = computed(() => {
 });
 
 const resultColumns = computed<ColumnDef[]>(() => {
+  const kindOf = (key: string): string | undefined =>
+    browseFields.value.find(f => f.name === key)?.kind;
   const cols: ColumnDef[] = columns.value.map(col => ({
     key: col,
     title: col,
@@ -400,6 +404,7 @@ const resultColumns = computed<ColumnDef[]>(() => {
     ellipsis: true,
     width: col === '_id' ? 140 : undefined,
     sticky: col === '_id' ? 'left' : undefined,
+    dataType: col === '_id' ? undefined : kindOf(col),
   }));
   if (props.connection && props.indexName) {
     cols.push({
@@ -825,6 +830,13 @@ watch(searchText, () => {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+}
+
+.column-data-type {
+  font-size: 10px;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
 }
 
 .cell-value {

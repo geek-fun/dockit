@@ -144,6 +144,7 @@ import {
   findTable,
 } from '../../../../store';
 import { ResultPanel } from '@/components/result';
+import { inferColumnTypes } from '@/components/result/columnTypes';
 import type { ColumnDef } from '@/components/result';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -632,7 +633,11 @@ const handleDeleteClick = (row: Record<string, unknown>) => {
 
 // Flattened columns + actions column for the shared ResultPanel
 const displayColumns = computed<ColumnDef[]>(() => {
-  const flattened = flattenDynamoColumns(partiqlData.value.columns);
+  const typeHints = inferColumnTypes(partiqlData.value.data ?? []);
+  const flattened: ColumnDef[] = flattenDynamoColumns(partiqlData.value.columns).map(col => ({
+    ...col,
+    dataType: typeHints[col.key],
+  }));
   if (flattened.length > 0) {
     flattened.push({ key: 'actions', title: lang.t('editor.dynamo.actions'), width: 100 });
   }
