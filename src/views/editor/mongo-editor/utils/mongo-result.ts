@@ -104,6 +104,7 @@ export const deriveMongoColumns = (
       title: actionsTitle,
       width: ACTION_COLUMN_WIDTH,
       align: 'center',
+      sticky: 'right',
     });
   }
   return columns;

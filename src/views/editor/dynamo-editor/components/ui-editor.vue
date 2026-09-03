@@ -161,13 +161,12 @@
         v-if="dynamoData.queryData.showResultPanel"
         :columns="displayColumns"
         :data="dynamoData.queryData.data ?? []"
-        :total="queryPagination.pageCount * queryPagination.pageSize"
         :loading="loadingRef.queryResult"
         :pagination="{
-          mode: 'offset',
+          mode: 'cursor',
           page: queryPagination.page,
           pageSize: queryPagination.pageSize,
-          total: queryPagination.pageCount * queryPagination.pageSize,
+          hasNext: !!dynamoData.queryData.lastEvaluatedKeys[queryPagination.page],
           pageSizeOptions: queryPagination.pageSizes,
         }"
         :closable="true"
@@ -567,7 +566,14 @@ const displayColumns = computed<ColumnDef[]>(() => {
     }),
   );
   if (flattened.length > 0) {
-    flattened.push({ key: 'actions', title: lang.t('editor.dynamo.actions'), width: 100 });
+    flattened.push({
+      key: 'actions',
+      title: lang.t('editor.dynamo.actions'),
+      width: 150,
+      align: 'center',
+      ellipsis: false,
+      sticky: 'right',
+    });
   }
   return flattened;
 });

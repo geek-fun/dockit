@@ -31,6 +31,7 @@
     <template #2>
       <ResultPanel
         v-if="partiqlData.showResultPanel"
+        :key="partiqlPanelKey"
         :error="partiqlData.errorMessage"
         :columns="displayColumns"
         :data="partiqlData.data"
@@ -43,6 +44,8 @@
         }"
         :closable="true"
         @next-page="handleNextPage"
+        @prev-page="handlePrevPage"
+        @first-page="handleFirstPage"
         @close="handleCloseResultPanel"
       >
         <template #toolbar>
@@ -180,6 +183,11 @@ const { dynamoData } = storeToRefs(dbDataStore);
 
 const historyStore = useHistoryStore();
 const partiqlData = computed(() => dynamoData.value.partiqlData);
+// Remounts the panel on every fresh execution so the page label resets to 1
+// (DynamoDB has no total, cursor navigation is tracked by the token stack).
+const partiqlPanelKey = computed(
+  () => `${partiqlData.value.lastExecutedStatement ?? ''}#${partiqlRunId.value}`,
+);
 
 let editor: Editor | null = null;
 let cleanupKeyboardShortcuts: (() => void) | null = null;
@@ -311,10 +319,14 @@ const insertRawQueryText = (queryText: string) => {
  * Execute PartiQL statement with state management
  * Encapsulates the common logic for executing statements and managing state
  */
+const pageStartTokens = ref<Array<string | null>>([null]);
+const partiqlRunId = ref(0);
+
 const executePartiqlStatement = async (
   statement: string,
   nextToken?: string | null,
   mode: 'append' | 'replace' = 'append',
+  trackHistory = true,
 ) => {
   if (!activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
@@ -324,9 +336,12 @@ const executePartiqlStatement = async (
     return;
   }
 
-  // Set editor size to show results panel
+  // Set editor size to show results panel; a fresh execution also restarts
+  // cursor navigation at page 1.
   if (!nextToken) {
     editorSize.value = 0.5;
+    pageStartTokens.value = [null];
+    partiqlRunId.value += 1;
   }
 
   loadingRef.value = true;
@@ -355,7 +370,7 @@ const executePartiqlStatement = async (
       { nextToken, mode },
     );
 
-    if (!nextToken) {
+    if (!nextToken && trackHistory) {
       historyStore.addEntry({
         databaseType: DatabaseType.DYNAMODB,
         method: 'PartiQL',
@@ -583,11 +598,28 @@ const handleNextPage = async () => {
   )
     return;
 
+  const token = partiqlData.value.nextToken;
+  pageStartTokens.value = [...pageStartTokens.value, token];
+  await executePartiqlStatement(partiqlData.value.lastExecutedStatement, token, 'replace');
+};
+
+// DynamoDB cursors only move forward, so going back re-executes the statement
+// from the token that started the target page (null = page 1, a fresh run).
+const handlePrevPage = async () => {
+  if (pageStartTokens.value.length < 2 || !partiqlData.value.lastExecutedStatement) return;
+  const target = pageStartTokens.value[pageStartTokens.value.length - 2];
+  pageStartTokens.value = pageStartTokens.value.slice(0, -1);
   await executePartiqlStatement(
     partiqlData.value.lastExecutedStatement,
-    partiqlData.value.nextToken,
+    target,
     'replace',
+    target === null,
   );
+};
+
+const handleFirstPage = async () => {
+  if (!partiqlData.value.lastExecutedStatement) return;
+  await executePartiqlStatement(partiqlData.value.lastExecutedStatement, null, 'replace', false);
 };
 
 const handleCloseResultPanel = () => {
@@ -639,7 +671,14 @@ const displayColumns = computed<ColumnDef[]>(() => {
     dataType: typeHints[col.key],
   }));
   if (flattened.length > 0) {
-    flattened.push({ key: 'actions', title: lang.t('editor.dynamo.actions'), width: 100 });
+    flattened.push({
+      key: 'actions',
+      title: lang.t('editor.dynamo.actions'),
+      width: 150,
+      align: 'center',
+      ellipsis: false,
+      sticky: 'right',
+    });
   }
   return flattened;
 });
