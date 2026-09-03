@@ -561,10 +561,11 @@ const handleInsertClick = async () => {
     const mapping = await esApi
       .getIndexMapping(props.connection, props.indexName)
       .catch(() => undefined);
-    const template = buildInsertTemplateValue(mapping, resultData.value[0]);
-    if (template && template['_id'] === undefined && sampleSourceId.value !== undefined) {
-      template['_id'] = sampleSourceId.value;
-    }
+    const raw = buildInsertTemplateValue(mapping, resultData.value[0]);
+    const template =
+      raw && raw['_id'] === undefined && sampleSourceId.value !== undefined
+        ? { _id: sampleSourceId.value, ...raw }
+        : raw;
     insertTemplateValue.value = template ? jsonify.stringify(template, null, 2) : undefined;
   } finally {
     insertTemplateLoading.value = false;

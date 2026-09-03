@@ -63,11 +63,11 @@ export const resolveEsResultShape = (result: unknown): EsResultShape => {
 export const buildDocRows = (hits: unknown[]): Array<Record<string, unknown>> =>
   hits.map((hit, index) => {
     const row: Record<string, unknown> = {
-      ...(hitSource(hit) ?? {}),
       _id:
         typeof hit === 'object' && hit !== null
           ? ((hit as EsSearchHit)._id ?? String(index))
           : String(index),
+      ...(hitSource(hit) ?? {}),
     };
     if (typeof hit === 'object' && hit !== null) {
       const hitIndex = (hit as EsSearchHit)._index;

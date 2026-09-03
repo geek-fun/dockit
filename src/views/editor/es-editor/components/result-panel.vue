@@ -388,13 +388,14 @@ const insertTemplateLoading = ref(false);
 const buildInsertTemplate = async (): Promise<string | undefined> => {
   if (!props.connection || !props.index) return undefined;
   const mapping = await fetchMappingSafe(props.index);
-  const template = buildInsertTemplateValue(mapping, docRows.value[0]);
-  if (!template) return undefined;
+  const raw = buildInsertTemplateValue(mapping, docRows.value[0]);
+  if (!raw) return undefined;
   // Prefill the sample id from the first listed doc so users see what an _id
   // looks like; submitting it unchanged is blocked in handleInsertSubmit.
-  if (template['_id'] === undefined && sampleSourceId.value !== undefined) {
-    template['_id'] = sampleSourceId.value;
-  }
+  const template =
+    raw['_id'] === undefined && sampleSourceId.value !== undefined
+      ? { _id: sampleSourceId.value, ...raw }
+      : raw;
   return jsonify.stringify(template, null, 2);
 };
 
