@@ -1169,7 +1169,7 @@ export const enUS = {
       insertSuccess: 'Document inserted successfully',
       insertIdExists: 'This _id already exists — modify it or delete the field to auto-generate',
       insertIdHint:
-        'Keeping _id will overwrite that document; delete the _id field to auto-generate a new one',
+        'Update the _id value before writing; delete the _id field to auto-generate a new id',
       edit: 'Edit',
       editDocumentTitle: 'Edit Document',
       updateSuccess: 'Document updated successfully',
