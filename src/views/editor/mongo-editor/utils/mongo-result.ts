@@ -4,6 +4,7 @@ import { inferColumnTypes } from '@/components/result/columnTypes';
 export type MongoResultState = {
   documents: Record<string, unknown>[];
   total?: number;
+  truncated?: boolean;
   hasData: boolean;
   error: string | null;
   queryTime?: number;
@@ -47,6 +48,34 @@ export const normalizeMongoResult = (
     documents = content as Record<string, unknown>[];
     total = content.length;
     hasData = true;
+  } else if (
+    content !== null &&
+    content !== undefined &&
+    content !== '' &&
+    typeof content === 'object' &&
+    Array.isArray((content as Record<string, unknown>)['documents']) &&
+    (content as Record<string, unknown>)['truncated'] === true
+  ) {
+    // Truncated find from the Rust layer: the capped documents plus a flag,
+    // and (for unfiltered finds) the server's estimated grand total.
+    const payload = content as { documents: Record<string, unknown>[]; total?: unknown };
+    documents = payload.documents;
+    total =
+      typeof payload.total === 'number' && payload.total > payload.documents.length
+        ? payload.total
+        : payload.documents.length;
+    hasData = true;
+    return {
+      documents,
+      total,
+      truncated: true,
+      hasData,
+      error: null,
+      queryTime,
+      collection,
+      columns: deriveMongoColumns(documents, !!collection, 'Actions'),
+      executed: true,
+    };
   } else if (content !== null && content !== undefined && content !== '') {
     // Plain objects (e.g., write acknowledgments like insertOne result) spread
     // their keys as columns so they render in table view. Scalars wrap under a

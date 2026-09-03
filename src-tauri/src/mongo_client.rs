@@ -771,15 +771,31 @@ async fn execute_statement(
                     }
                 }
             }
-            opts.limit = Some(stmt.chain_limit.unwrap_or(100).min(1000));
+            let cap = stmt.chain_limit.unwrap_or(100).min(1000);
+            // Fetch one past the cap so the panel can tell "exactly this many
+            // matches" apart from "results were truncated at the limit".
+            opts.limit = Some(cap + 1);
             opts.skip = stmt.chain_skip;
             opts.sort = stmt.chain_sort;
+            let is_unfiltered = filter == doc! {};
             let mut cursor = coll.find(filter).with_options(opts).await.map_err(|e| e.to_string())?;
             let mut docs: Vec<Value> = vec![];
             while let Some(d) = cursor.try_next().await.map_err(|e| e.to_string())? {
                 docs.push(doc_to_json(d));
             }
-            Ok(Value::Array(docs))
+            if docs.len() <= cap as usize {
+                return Ok(Value::Array(docs));
+            }
+            docs.pop();
+            // Unfiltered finds piggyback the server's estimated total so the
+            // panel can show "X of Y"; filtered finds only flag the truncation
+            // (an exact count would need a full scan of the filter).
+            let total = if is_unfiltered {
+                coll.estimated_document_count().await.ok().map(|c| serde_json::json!(c))
+            } else {
+                None
+            };
+            Ok(serde_json::json!({ "documents": docs, "truncated": true, "total": total }))
         }
         "findOne" => {
             let filter = if stmt.args.is_empty() || stmt.args[0].is_empty() {
