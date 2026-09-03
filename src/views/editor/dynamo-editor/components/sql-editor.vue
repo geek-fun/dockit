@@ -1006,7 +1006,8 @@ defineExpose({
 <style scoped>
 .partiql-editor {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .partiql-editor .editor-container {

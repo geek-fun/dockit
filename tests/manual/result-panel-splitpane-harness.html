@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ResultPanel in SplitPane Harness</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; background: #f6f7f9; }
+      #host { height: 100vh; }
+      pre#report { position: fixed; top: 8px; left: 8px; background: #fff; border: 1px solid #ccc;
+        padding: 8px; font-size: 11px; z-index: 99; max-width: 480px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <div id="host"></div>
+    <pre id="report">measuring…</pre>
+    <script type="module">
+      import { createApp, h, ref } from 'vue';
+      import ResultPanel from '/src/components/result/ResultPanel.vue';
+      import { SplitPane } from '/src/components/ui/split-pane';
+      import { lang } from '/src/lang/index.ts';
+
+      const rows = n => Array.from({ length: n }, (_, i) => ({ _id: `id-${i}`, name: `row ${i}`, val: i * 7 }));
+      const size = ref(0.55);
+      const showResultPanel = ref(true);
+
+      const app = createApp({
+        setup() {
+          return () =>
+            h('div', { style: 'display:flex;flex-direction:column;height:100%' }, [
+              h('div', { style: 'flex-shrink:0;height:44px;background:#dfe7df;display:flex;align-items:center;padding:0 12px' }, 'ToolBar (fixed 44px sibling)'),
+              h(SplitPane, { direction: 'vertical', size: size.value, 'onUpdate:size': v => (size.value = v), class: 'ui-editor', style: 'flex:1;min-height:0;width:100%' }, {
+              '1': () => h('div', { style: 'padding:16px;background:#fff;height:100%;box-sizing:border-box' }, 'query form'),
+              '2': () => [
+                h(ResultPanel, {
+                  columns: [
+                    { key: '_id', title: 'id(PK)', width: 140, ellipsis: true, dataType: 'string' },
+                    { key: 'name', title: 'user_name', ellipsis: true, dataType: 'string' },
+                    { key: 'val', title: 'val', ellipsis: true, dataType: 'number' },
+                    { key: 'actions', title: 'Actions', width: 150, align: 'center', ellipsis: false, sticky: 'right' },
+                  ],
+                  data: rows(25),
+                  loading: false,
+                  pagination: { mode: 'cursor', page: 1, pageSize: 25, hasNext: true },
+                  closable: true,
+                  rowKey: '_id',
+                  style: 'border-top:1px solid hsl(var(--border))',
+                }),
+                h('div', { style: 'display:none' }, 'delete-modal-placeholder'),
+              ],
+              }),
+            ]);
+        },
+      });
+      app.use(lang);
+      app.config.globalProperties.$t = key => key;
+      app.mount('#host');
+
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const root = document.querySelector('#host .result-panel');
+          const bar = document.querySelector('#host .result-pagination');
+          const panes = document.querySelectorAll('#host .flex > div');
+          const pane2 = panes[panes.length - 1];
+          const info = {
+            resultPanelHeight: root?.getBoundingClientRect().height,
+            paneHeight: pane2?.getBoundingClientRect().height,
+            paneScrollHeight: pane2?.scrollHeight,
+            footerRendered: !!bar,
+            footerRectTop: bar?.getBoundingClientRect().top,
+            footerRectBottom: bar?.getBoundingClientRect().bottom,
+            viewportH: window.innerHeight,
+            footerWithinViewport: bar ? bar.getBoundingClientRect().bottom <= window.innerHeight : false,
+          };
+          document.getElementById('report').textContent = JSON.stringify(info, null, 2);
+        }, 300);
+      });
+    </script>
+  </body>
+</html>
