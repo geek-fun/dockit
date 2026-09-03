@@ -12,6 +12,8 @@
         </button>
       </DialogHeader>
 
+      <p v-if="hint" class="dialog-hint">{{ hint }}</p>
+
       <Alert v-if="errorMessage" variant="destructive" class="mb-2">
         <AlertDescription>{{ errorMessage }}</AlertDescription>
       </Alert>
@@ -55,11 +57,13 @@ const props = withDefaults(
     initialValue?: string;
     confirmText?: string;
     stripFields?: string[];
+    hint?: string;
   }>(),
   {
     initialValue: undefined,
     confirmText: undefined,
     stripFields: () => [],
+    hint: undefined,
   },
 );
 
@@ -162,6 +166,13 @@ defineExpose({ setLoading, setError });
 </script>
 
 <style scoped>
+.dialog-hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+}
+
 .document-editor {
   height: 320px;
   border: 1px solid hsl(var(--border));

@@ -180,6 +180,7 @@
       v-model:show="showInsertModal"
       :title="lang.t('editor.es.insertDocumentTitle')"
       :initial-value="cloneDocumentValue"
+      :hint="lang.t('editor.es.insertIdHint')"
       :confirm-text="lang.t('editor.es.insert')"
       @submit="handleInsertSubmit"
     />
@@ -365,7 +366,6 @@ const rowTargetIndex = (row: Record<string, unknown>): string | undefined => {
   return typeof idx === 'string' && idx !== '' ? idx : undefined;
 };
 
-const cloneDocumentValue = ref<string | undefined>(undefined);
 const editDocumentValue = ref('');
 const editDocumentId = ref('');
 const deletingId = ref('');
@@ -389,11 +389,23 @@ const buildInsertTemplate = async (): Promise<string | undefined> => {
   if (!props.connection || !props.index) return undefined;
   const mapping = await fetchMappingSafe(props.index);
   const template = buildInsertTemplateValue(mapping, docRows.value[0]);
-  return template ? jsonify.stringify(template, null, 2) : undefined;
+  if (!template) return undefined;
+  // Prefill the sample id from the first listed doc so users see what an _id
+  // looks like; submitting it unchanged is blocked in handleInsertSubmit.
+  if (template['_id'] === undefined && sampleSourceId.value !== undefined) {
+    template['_id'] = sampleSourceId.value;
+  }
+  return jsonify.stringify(template, null, 2);
 };
+
+const cloneDocumentValue = ref<string | undefined>(undefined);
+const sampleSourceId = ref<string | undefined>(undefined);
 
 const handleInsertClick = async () => {
   targetIndex.value = props.index;
+  sampleSourceId.value = docRows.value[0]
+    ? (getDocumentId(docRows.value[0]) ?? undefined)
+    : undefined;
   insertTemplateLoading.value = true;
   try {
     cloneDocumentValue.value = await buildInsertTemplate();
@@ -405,9 +417,9 @@ const handleInsertClick = async () => {
 
 const handleCloneClick = (row: Record<string, unknown>) => {
   const clone = { ...row };
-  delete clone._id;
   delete clone._index;
   cloneDocumentValue.value = JSON.stringify(clone, null, 2);
+  sampleSourceId.value = getDocumentId(row);
   targetIndex.value = rowTargetIndex(row);
   showInsertModal.value = true;
 };
@@ -431,17 +443,20 @@ const handleDeleteClick = (row: Record<string, unknown>) => {
 
 const handleInsertSubmit = async (document: string) => {
   if (!props.connection || !targetIndex.value) return;
-  const parsed = jsonify.parse(document) as unknown;
-  const { id, body } = extractDocumentId(parsed);
+  const { id, body } = extractDocumentId(jsonify.parse(document) as unknown);
   if (id !== undefined && id.trim() === '') {
     insertDocumentRef.value?.setError(lang.t('editor.es.insertIdRequired'));
+    return;
+  }
+  if (id !== undefined && id === sampleSourceId.value) {
+    insertDocumentRef.value?.setError(lang.t('editor.es.insertIdExists'));
     return;
   }
   insertDocumentRef.value?.setLoading(true);
   try {
     await esApi.indexDocument(props.connection, {
       index: targetIndex.value,
-      id: id?.trim() || undefined,
+      id: id || undefined,
       body: jsonify.stringify(body),
     });
     showInsertModal.value = false;

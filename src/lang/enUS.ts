@@ -1167,8 +1167,9 @@ export const enUS = {
       insertDocumentTitle: 'Insert Document',
       insert: 'Insert',
       insertSuccess: 'Document inserted successfully',
-      insertIdRequired:
-        'Fill in the _id field before inserting, or remove it to auto-generate an id',
+      insertIdExists: 'This _id already exists — modify it or delete the field to auto-generate',
+      insertIdHint:
+        'Keeping _id will overwrite that document; delete the _id field to auto-generate a new one',
       edit: 'Edit',
       editDocumentTitle: 'Edit Document',
       updateSuccess: 'Document updated successfully',

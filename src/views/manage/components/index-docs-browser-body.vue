@@ -223,6 +223,7 @@
     v-model:show="showInsertModal"
     :title="lang.t('editor.es.insertDocumentTitle')"
     :initial-value="insertTemplateValue"
+    :hint="lang.t('editor.es.insertIdHint')"
     :confirm-text="lang.t('editor.es.insert')"
     @submit="handleInsertSubmit"
   />
@@ -523,6 +524,7 @@ const copyCellValue = async (value: unknown) => {
 
 const insertTemplateLoading = ref(false);
 const insertTemplateValue = ref<string | undefined>(undefined);
+const sampleSourceId = ref<string | undefined>(undefined);
 const editDocumentValue = ref('');
 const editDocumentId = ref('');
 const deletingId = ref('');
@@ -551,12 +553,18 @@ const errMessage = (err: unknown): string =>
 
 const handleInsertClick = async () => {
   if (!props.connection || !props.indexName) return;
+  sampleSourceId.value = resultData.value[0]
+    ? (getDocumentId(resultData.value[0]) ?? undefined)
+    : undefined;
   insertTemplateLoading.value = true;
   try {
     const mapping = await esApi
       .getIndexMapping(props.connection, props.indexName)
       .catch(() => undefined);
     const template = buildInsertTemplateValue(mapping, resultData.value[0]);
+    if (template && template['_id'] === undefined && sampleSourceId.value !== undefined) {
+      template['_id'] = sampleSourceId.value;
+    }
     insertTemplateValue.value = template ? jsonify.stringify(template, null, 2) : undefined;
   } finally {
     insertTemplateLoading.value = false;
@@ -566,7 +574,7 @@ const handleInsertClick = async () => {
 
 const handleCloneClick = (row: Record<string, unknown>) => {
   const clone = { ...row };
-  delete clone._id;
+  sampleSourceId.value = getDocumentId(row);
   insertTemplateValue.value = JSON.stringify(clone, null, 2);
   showInsertModal.value = true;
 };
@@ -593,11 +601,15 @@ const handleInsertSubmit = async (document: string) => {
     insertDocumentRef.value?.setError(lang.t('editor.es.insertIdRequired'));
     return;
   }
+  if (id !== undefined && id === sampleSourceId.value) {
+    insertDocumentRef.value?.setError(lang.t('editor.es.insertIdExists'));
+    return;
+  }
   insertDocumentRef.value?.setLoading(true);
   try {
     await esApi.indexDocument(props.connection, {
       index: props.indexName,
-      id: id?.trim() || undefined,
+      id: id || undefined,
       body: jsonify.stringify(body),
     });
     showInsertModal.value = false;

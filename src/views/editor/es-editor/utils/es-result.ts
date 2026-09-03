@@ -150,20 +150,20 @@ export const buildSchemaTemplate = (
   );
 
 /**
- * Build an insert template from an existing document (used when the index has
- * no usable mapping). The `_id` is blanked out so the user must supply a new
- * one before the document can be written.
+ * Sample document for the insert dialog: keeps the source `_id` so users can
+ * see what one looks like (and modify or delete it), while `_index` is a
+ * read-only hit attribute that must not leak into the stored document.
  */
-export const buildSampleTemplate = (row: Record<string, unknown>): Record<string, unknown> => ({
-  ...row,
-  _id: '',
-});
+export const buildSampleTemplate = (row: Record<string, unknown>): Record<string, unknown> => {
+  const { _index: _indexOmit, ...fields } = row;
+  return fields;
+};
 
 /**
  * Split a top-level `_id` field out of a document body: it becomes the
  * addressing id of the write request and must not be stored inside `_source`.
- * An explicitly blank `_id` (the sample-template placeholder) returns `id: ''`
- * so callers can reject the write.
+ * Absence of the field means the caller may let the cluster auto-generate the
+ * id (POST); a blank `_id` returns `id: ''` so callers can reject the write.
  */
 export const extractDocumentId = (
   parsed: unknown,
