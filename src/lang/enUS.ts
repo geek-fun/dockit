@@ -1286,6 +1286,8 @@ export const enUS = {
       invalidJson: 'Invalid JSON format',
       totalDocuments: '{count} document(s)',
       noDocuments: 'No documents found',
+      resultsTruncated:
+        'Results truncated at the limit — refine the query or add a higher .limit() to see more',
       insertDocument: 'Insert Document',
       editDocument: 'Edit',
       cloneDocument: 'Clone',

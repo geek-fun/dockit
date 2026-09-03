@@ -35,6 +35,8 @@
         :columns="resultColumns"
         :data="resultDocuments"
         :total="resultTotal"
+        :fetched-count="resultDocuments.length"
+        :meta-summary="resultTruncationHint"
         :loading="resultLoading"
         :error="resultError"
         :pagination="resultPagination"
@@ -259,6 +261,7 @@ const menuItems = computed(() => [
 const resultPanelVisible = ref(false);
 const resultDocuments = ref<Record<string, unknown>[]>([]);
 const resultTotal = ref<number | undefined>(undefined);
+const resultTruncated = ref(false);
 const resultQueryTime = ref<number | undefined>(undefined);
 const resultCollection = ref<string | undefined>(undefined);
 const resultError = ref<string | null>(null);
@@ -267,6 +270,14 @@ const resultExecuted = ref(false);
 const resultLoading = ref(false);
 const resultColumns = ref<ColumnDef[]>([]);
 const resultQueryId = ref(0);
+// When truncation is flagged without a grand total, say so plainly next to
+// the pagination; with a total the "X of Y" label already conveys it.
+const resultTruncationHint = computed(() =>
+  resultTruncated.value && resultTotal.value === resultDocuments.value.length
+    ? lang.t('editor.mongo.resultsTruncated')
+    : undefined,
+);
+
 const resultPagination = computed(() => ({
   mode: 'client' as const,
   total: resultDocuments.value.length,
@@ -380,6 +391,7 @@ const showResultPanel = (
   const state = normalizeMongoResult(content, error, queryTime, collection);
   resultDocuments.value = state.documents;
   resultTotal.value = state.total;
+  resultTruncated.value = state.truncated ?? false;
   resultHasData.value = state.hasData;
   resultError.value = state.error;
   resultQueryTime.value = state.queryTime;

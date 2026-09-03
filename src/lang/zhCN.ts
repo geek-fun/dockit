@@ -335,6 +335,7 @@ export const zhCN = {
       title: '文档',
       totalDocuments: '{count} 条文档',
       noDocuments: '未找到文档',
+      resultsTruncated: '结果已达上限被截断——请缩小查询范围或调大 .limit() 以查看更多',
       refresh: '刷新',
       pageInfo: '第 {page} 页',
       viewJson: '查看 JSON',
