@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ResultPanel Pagination Harness</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; background: #f6f7f9; }
+      .case { border: 1px solid #ccc; border-radius: 8px; padding: 8px; margin-bottom: 16px; }
+      .case h2 { font-size: 14px; margin: 4px 0; }
+      .panel-box { height: 420px; }
+    </style>
+  </head>
+  <body>
+    <h1>ResultPanel Pagination Harness</h1>
+    <div class="case">
+      <h2>A — DynamoDB UI editor config (cursor, no total)</h2>
+      <div id="case-dynamo-ui" class="panel-box"></div>
+    </div>
+    <div class="case">
+      <h2>B — ES query panel config (client)</h2>
+      <div id="case-es" class="panel-box"></div>
+    </div>
+    <div class="case">
+      <h2>C — docs browser config (cursor with total)</h2>
+      <div id="case-docs" class="panel-box"></div>
+    </div>
+    <pre id="report"></pre>
+
+    <script type="module">
+      import { createApp, h } from 'vue';
+      import ResultPanel from '/src/components/result/ResultPanel.vue';
+      import { lang } from '/src/lang/index.ts';
+
+      const rows = n => Array.from({ length: n }, (_, i) => ({ _id: `id-${i}`, name: `row ${i}` }));
+
+      const cases = [
+        {
+          mount: '#case-dynamo-ui',
+          label: 'A: dynamo ui',
+          props: {
+            columns: [
+              { key: '_id', title: '_id', width: 140, ellipsis: true },
+              { key: 'name', title: 'name', ellipsis: true },
+              { key: 'actions', title: 'Actions', width: 150, align: 'center', ellipsis: false, sticky: 'right' },
+            ],
+            data: rows(10),
+            loading: false,
+            pagination: { mode: 'cursor', page: 1, pageSize: 25, hasNext: true },
+            closable: true,
+          },
+        },
+        {
+          mount: '#case-es',
+          label: 'B: es query',
+          props: {
+            columns: [
+              { key: '_id', title: '_id', width: 140, ellipsis: true },
+              { key: 'name', title: 'name', ellipsis: true },
+            ],
+            data: rows(37),
+            total: 37,
+            fetchedCount: 37,
+            loading: false,
+            pagination: { mode: 'client', total: 37 },
+            viewModes: ['table', 'tree', 'json'],
+          },
+        },
+        {
+          mount: '#case-docs',
+          label: 'C: docs browser',
+          props: {
+            columns: [
+              { key: '_id', title: '_id', width: 140, ellipsis: true, sticky: 'left' },
+              { key: 'name', title: 'name', ellipsis: true },
+            ],
+            data: rows(25),
+            total: 100,
+            loading: false,
+            pagination: { mode: 'cursor', hasNext: true, total: 100, pageSize: 25 },
+          },
+        },
+      ];
+
+      const report = [];
+      for (const c of cases) {
+        const app = createApp({ render: () => h(ResultPanel, c.props) });
+        app.use(lang);
+        app.config.globalProperties.$t = key => key;
+        app.mount(c.mount);
+        const host = document.querySelector(c.mount);
+        const bar = host.querySelector('.result-pagination');
+        const style = bar ? getComputedStyle(bar) : null;
+        report.push({
+          case: c.label,
+          footerRendered: !!bar,
+          display: style?.display,
+          height: bar?.getBoundingClientRect().height,
+          childCount: bar?.children.length,
+          text: bar?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 120),
+        });
+      }
+      document.getElementById('report').textContent = JSON.stringify(report, null, 2);
+    </script>
+  </body>
+</html>
