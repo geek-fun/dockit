@@ -1,4 +1,8 @@
-import { inferColumnTypes } from '../../../src/components/result/columnTypes';
+import {
+  dataTypeBucket,
+  dataTypeClass,
+  inferColumnTypes,
+} from '../../../src/components/result/columnTypes';
 
 describe('inferColumnTypes', () => {
   it('labels each key by the first non-null value type', () => {
@@ -32,5 +36,29 @@ describe('inferColumnTypes', () => {
   it('distinguishes nested objects from arrays', () => {
     const rows = [{ list: [1], obj: { k: 1 } }];
     expect(inferColumnTypes(rows)).toEqual({ list: 'array', obj: 'object' });
+  });
+});
+
+describe('dataTypeBucket / dataTypeClass', () => {
+  it('buckets ES mapping types and inferred JS types alike', () => {
+    expect(dataTypeBucket('text')).toBe('string');
+    expect(dataTypeBucket('keyword')).toBe('string');
+    expect(dataTypeBucket('long')).toBe('number');
+    expect(dataTypeBucket('double')).toBe('number');
+    expect(dataTypeBucket('date')).toBe('date');
+    expect(dataTypeBucket('boolean')).toBe('boolean');
+    expect(dataTypeBucket('nested')).toBe('object');
+    expect(dataTypeBucket('string')).toBe('string');
+    expect(dataTypeBucket('ip')).toBe('string');
+    expect(dataTypeBucket('geo_point')).toBeUndefined();
+  });
+
+  it('maps buckets to distinct color classes with dark variants', () => {
+    expect(dataTypeClass('text')).toContain('text-sky-600');
+    expect(dataTypeClass('long')).toContain('text-amber-600');
+    expect(dataTypeClass('boolean')).toContain('text-violet-600');
+    expect(dataTypeClass('date')).toContain('text-emerald-600');
+    expect(dataTypeClass('nested')).toContain('text-rose-600');
+    expect(dataTypeClass('geo_point')).toBe('');
   });
 });

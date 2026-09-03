@@ -97,9 +97,17 @@ export const buildDocColumns = (
     for (const key of Object.keys(hitSource(hit) ?? {})) keys.add(key);
   }
 
-  const columns: ColumnDef[] = [{ key: '_id', title: '_id', width: 140, ellipsis: true }];
+  const columns: ColumnDef[] = [
+    { key: '_id', title: '_id', width: 140, ellipsis: true, dataType: 'keyword' },
+  ];
   if (hasIndex) {
-    columns.push({ key: '_index', title: '_index', width: 140, ellipsis: true });
+    columns.push({
+      key: '_index',
+      title: '_index',
+      width: 140,
+      ellipsis: true,
+      dataType: 'keyword',
+    });
   }
   columns.push(
     ...Array.from(keys)
