@@ -259,6 +259,12 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     lastExecutedPosition.value = position;
     lastExecutedIndex.value =
       action.index || (activeConnection.value as SearchConnection)?.activeIndex?.index;
+    tabStore.saveQueryResult({
+      value: data,
+      format,
+      index: lastExecutedIndex.value,
+      position: lastExecutedPosition.value,
+    });
     showDisplayEditor(data, format);
     loadingBar.finish();
   } catch (err) {
@@ -735,7 +741,28 @@ defineExpose({
   insertSampleQuery,
 });
 
+type SavedQueryResult = {
+  value?: unknown;
+  format?: string;
+  index?: string;
+  position?: { column: number; lineNumber: number };
+};
+
+/**
+ * Re-attach the last query result when the editor re-mounts (Query ↔ Browse
+ * switch, tab switch). The saved state lives on the tabStore panel and is only
+ * discarded when the tab is closed or the app exits.
+ */
+const restoreSavedResult = () => {
+  const saved = activePanel.value.queryResult as SavedQueryResult | undefined;
+  if (!saved || saved.value === undefined) return;
+  lastExecutedIndex.value = saved.index;
+  lastExecutedPosition.value = saved.position ?? null;
+  showDisplayEditor(saved.value, saved.format);
+};
+
 onMounted(async () => {
+  restoreSavedResult();
   setupQueryEditor();
   await setupFileListener();
   // Add document click listener for context menu
@@ -749,7 +776,14 @@ onMounted(async () => {
       // Silently fail
     }
   }
+
+  restoreSavedResult();
 });
+
+watch(
+  () => [activePanel.value.id, activePanel.value.editorType],
+  () => restoreSavedResult(),
+);
 
 onUnmounted(async () => {
   await cleanupFileListener();
