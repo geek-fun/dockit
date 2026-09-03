@@ -204,7 +204,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { esApi, extractDocsBrowseFields } from '@/datasources';
+import { esApi } from '@/datasources';
 import { CustomError, jsonify } from '@/common';
 import {
   JsonView,
@@ -232,8 +232,10 @@ import {
   buildDocColumns,
   buildDocRows,
   buildInsertTemplateValue,
+  collectResultIndices,
   extractDocumentId,
   extractHitsTotal,
+  mergeMappingFieldTypes,
   resolveEsResultShape,
 } from '../utils/es-result';
 
@@ -318,14 +320,15 @@ const fetchMappingSafe = async (index: string): Promise<unknown | undefined> => 
 };
 
 watch(
-  [resultValue, () => props.index],
-  async ([, requestedIndex]) => {
+  [resultValue, searchHits],
+  async () => {
     fieldTypes.value = {};
-    if (shape.value !== 'docs' || !props.connection || !requestedIndex) return;
-    const mapping = await fetchMappingSafe(requestedIndex);
-    if (!mapping || props.index !== requestedIndex) return;
-    const fields = extractDocsBrowseFields(mapping, requestedIndex);
-    fieldTypes.value = Object.fromEntries(fields.map(f => [f.name, f.kind]));
+    if (shape.value !== 'docs' || !props.connection) return;
+    const indices = collectResultIndices(searchHits.value);
+    if (indices.length === 0) return;
+    const mapping = await fetchMappingSafe(indices.join(','));
+    if (!mapping) return;
+    fieldTypes.value = mergeMappingFieldTypes(mapping);
   },
   { immediate: true },
 );

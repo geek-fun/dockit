@@ -218,3 +218,40 @@ export const extractHitsTotal = (hitsContainer: unknown): number | undefined => 
   }
   return undefined;
 };
+
+/**
+ * Distinct index names referenced by the result hits (max 5) — used to fetch
+ * mappings for type hints on cluster-wide searches without an index in the
+ * query path.
+ */
+export const collectResultIndices = (hits: unknown[]): string[] => {
+  const indices = new Set<string>();
+  for (const hit of hits) {
+    if (typeof hit !== 'object' || hit === null) continue;
+    const idx = (hit as EsSearchHit)._index;
+    if (typeof idx === 'string' && idx !== '') indices.add(idx);
+  }
+  return [...indices].slice(0, 5);
+};
+
+/**
+ * Merge field types across a multi-index mapping response: the first index
+ * that declares a field wins.
+ */
+export const mergeMappingFieldTypes = (mapping: unknown): Record<string, string> => {
+  if (!mapping || typeof mapping !== 'object') return {};
+  const merged: Record<string, string> = {};
+  for (const entry of Object.values(mapping as Record<string, unknown>)) {
+    if (!entry || typeof entry !== 'object') continue;
+    const mappings = (entry as Record<string, unknown>)['mappings'];
+    if (!mappings || typeof mappings !== 'object') continue;
+    const properties = (mappings as Record<string, unknown>)['properties'];
+    if (!properties || typeof properties !== 'object') continue;
+    for (const [name, prop] of Object.entries(properties as Record<string, unknown>)) {
+      if (merged[name]) continue;
+      const type = (prop as Record<string, unknown> | null)?.['type'];
+      merged[name] = typeof type === 'string' ? type : 'object';
+    }
+  }
+  return merged;
+};
