@@ -612,7 +612,11 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
 <style scoped>
 .ui-editor {
   width: 100%;
-  height: 100%;
+  /* Flex child of .dynamo-editor (column, shares space with ToolBar):
+     height:100% would overflow by the toolbar height and push the result
+     footer out of view. */
+  flex: 1;
+  min-height: 0;
 }
 
 .ui-editor .query-container {
