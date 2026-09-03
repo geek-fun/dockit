@@ -3,6 +3,7 @@ import {
   buildSampleTemplate,
   buildInsertTemplateValue,
   extractDocumentId,
+  extractHitsTotal,
   resolveMappingProperties,
 } from '../../../../src/views/editor/es-editor/utils/es-result';
 
@@ -135,5 +136,21 @@ describe('buildInsertTemplateValue', () => {
   it('returns undefined when neither mapping nor sample row is available', () => {
     expect(buildInsertTemplateValue(undefined)).toBeUndefined();
     expect(buildInsertTemplateValue({ idx: { mappings: {} } })).toBeUndefined();
+  });
+});
+
+describe('extractHitsTotal', () => {
+  it('reads the numeric total from ES 7+ shape', () => {
+    expect(extractHitsTotal({ total: { value: 27, relation: 'eq' }, hits: [] })).toBe(27);
+  });
+
+  it('reads the plain number total from legacy shape', () => {
+    expect(extractHitsTotal({ total: 42, hits: [] })).toBe(42);
+  });
+
+  it('returns undefined for missing or malformed totals', () => {
+    expect(extractHitsTotal(undefined)).toBeUndefined();
+    expect(extractHitsTotal({})).toBeUndefined();
+    expect(extractHitsTotal({ total: { relation: 'eq' } })).toBeUndefined();
   });
 });

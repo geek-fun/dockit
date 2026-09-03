@@ -177,77 +177,79 @@
       </div>
 
       <template v-else>
-        <template v-if="internalView === 'table'">
-          <div class="table-scroll-area macos-scrollable">
-            <div v-if="loading && loadingOverlay" class="result-loading-overlay">
-              <Spinner />
-            </div>
-            <div class="table-container">
-              <Table>
-                <TableHeader class="sticky-header">
-                  <TableRow>
-                    <TableHead
-                      v-for="(col, colIndex) in displayColumns"
-                      :key="col.key"
-                      :class="[
-                        col.className,
-                        {
-                          'col-sticky-left': col.sticky === 'left',
-                          'col-sticky-right': col.sticky === 'right',
-                        },
-                      ]"
-                      :style="{
-                        ...colStyle(col),
-                        ...stickyLeftStyle(col, colIndex),
-                      }"
-                    >
-                      <slot name="columnHeader" :column="col">{{ col.title }}</slot>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-if="loading" class="result-loading-row">
-                    <TableCell :colspan="displayColumns.length" class="text-center py-8">
-                      <Spinner class="mx-auto" />
-                    </TableCell>
-                  </TableRow>
-                  <TableRow
-                    v-for="(row, rowIndex) in displayData"
-                    v-else
-                    :key="getRowKey(row, rowIndex)"
-                    :class="rowClassName?.(row, rowIndex)"
-                    @click="$emit('row-click', row, rowIndex)"
-                  >
-                    <TableCell
-                      v-for="(col, colIndex) in displayColumns"
-                      :key="col.key"
-                      :class="[
-                        col.className,
-                        {
-                          'col-sticky-left': col.sticky === 'left',
-                          'col-sticky-right': col.sticky === 'right',
-                        },
-                      ]"
-                      :style="{
-                        textAlign: col.align || 'left',
-                        ...stickyLeftStyle(col, colIndex),
-                      }"
-                    >
-                      <div
-                        :class="col.ellipsis === false ? undefined : 'cell-truncate'"
-                        :title="formatCellValue(row[col.key])"
-                      >
-                        <slot name="cell" :column="col" :row="row">
-                          {{ formatCellValue(row[col.key]) }}
-                        </slot>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+        <div
+          v-if="internalView === 'table'"
+          class="table-scroll-area macos-scrollable"
+          @wheel="handleTableWheel"
+        >
+          <div v-if="loading && loadingOverlay" class="result-loading-overlay">
+            <Spinner />
           </div>
-        </template>
+          <div class="table-container">
+            <Table>
+              <TableHeader class="sticky-header">
+                <TableRow>
+                  <TableHead
+                    v-for="(col, colIndex) in displayColumns"
+                    :key="col.key"
+                    :class="[
+                      col.className,
+                      {
+                        'col-sticky-left': col.sticky === 'left',
+                        'col-sticky-right': col.sticky === 'right',
+                      },
+                    ]"
+                    :style="{
+                      ...colStyle(col),
+                      ...stickyLeftStyle(col, colIndex),
+                    }"
+                  >
+                    <slot name="columnHeader" :column="col">{{ col.title }}</slot>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-if="loading" class="result-loading-row">
+                  <TableCell :colspan="displayColumns.length" class="text-center py-8">
+                    <Spinner class="mx-auto" />
+                  </TableCell>
+                </TableRow>
+                <TableRow
+                  v-for="(row, rowIndex) in displayData"
+                  v-else
+                  :key="getRowKey(row, rowIndex)"
+                  :class="rowClassName?.(row, rowIndex)"
+                  @click="$emit('row-click', row, rowIndex)"
+                >
+                  <TableCell
+                    v-for="(col, colIndex) in displayColumns"
+                    :key="col.key"
+                    :class="[
+                      col.className,
+                      {
+                        'col-sticky-left': col.sticky === 'left',
+                        'col-sticky-right': col.sticky === 'right',
+                      },
+                    ]"
+                    :style="{
+                      textAlign: col.align || 'left',
+                      ...stickyLeftStyle(col, colIndex),
+                    }"
+                  >
+                    <div
+                      :class="col.ellipsis === false ? undefined : 'cell-truncate'"
+                      :title="formatCellValue(row[col.key])"
+                    >
+                      <slot name="cell" :column="col" :row="row">
+                        {{ formatCellValue(row[col.key]) }}
+                      </slot>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
 
         <div v-if="internalView === 'tree'" class="tree-scroll-area macos-scrollable">
           <TreeNode
@@ -527,6 +529,20 @@ const handlePageSizeChange = (value: string) => {
   const newPage = setPageSize(size);
   emit('update:page-size', size);
   emit('update:page', newPage);
+};
+
+/**
+ * Wide result tables overflow horizontally while fitting vertically. WebKit
+ * does not convert vertical wheel input to horizontal scrolling, so with no
+ * vertical overflow the wheel would do nothing — translate it instead.
+ */
+const handleTableWheel = (event: WheelEvent) => {
+  const el = event.currentTarget as HTMLElement;
+  if (event.deltaX !== 0) return;
+  if (el.scrollHeight > el.clientHeight) return;
+  if (el.scrollWidth <= el.clientWidth) return;
+  el.scrollLeft += event.deltaY;
+  event.preventDefault();
 };
 
 const handleGoToPage = (n: number) => {
