@@ -6,7 +6,7 @@ import { dynamoApi } from '../datasources';
 
 const resetPagination = {
   page: 1,
-  pageSize: 10,
+  pageSize: 25,
   pageCount: 1,
   showSizePicker: true,
 };
