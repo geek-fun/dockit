@@ -404,7 +404,7 @@ const resultColumns = computed<ColumnDef[]>(() => {
     ellipsis: true,
     width: col === '_id' ? 140 : undefined,
     sticky: col === '_id' ? 'left' : undefined,
-    dataType: col === '_id' ? undefined : kindOf(col),
+    dataType: col === '_id' ? 'keyword' : kindOf(col),
   }));
   if (props.connection && props.indexName) {
     cols.push({

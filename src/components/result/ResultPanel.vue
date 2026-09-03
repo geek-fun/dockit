@@ -205,8 +205,16 @@
                     }"
                   >
                     <slot name="columnHeader" :column="col">
-                      {{ col.title }}
-                      <span v-if="col.dataType" class="column-data-type">{{ col.dataType }}</span>
+                      <span class="header-nowrap">
+                        {{ col.title }}
+                        <span
+                          v-if="col.dataType"
+                          class="column-data-type"
+                          :class="dataTypeClass(col.dataType)"
+                        >
+                          {{ col.dataType }}
+                        </span>
+                      </span>
                     </slot>
                   </TableHead>
                 </TableRow>
@@ -368,6 +376,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import JsonView from './JsonView.vue';
 import TreeNode from './TreeNode.vue';
 import { usePagination } from './composables/usePagination';
+import { dataTypeClass } from './columnTypes';
 import { useResultExport, type ResultExportFormat } from './composables/useResultExport';
 import type { ColumnDef, ViewMode, PaginationConfig } from './types';
 
@@ -699,7 +708,9 @@ watch(
   margin-left: 6px;
   font-size: 10px;
   font-weight: 400;
-  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+.header-nowrap {
   white-space: nowrap;
 }
 .tree-scroll-area {
