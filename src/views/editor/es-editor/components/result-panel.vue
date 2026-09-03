@@ -5,6 +5,7 @@
       :columns="displayColumns"
       :data="docRows"
       :raw-value="resultValue"
+      :meta-summary="responseSummary"
       :total="hitsTotal ?? docRows.length"
       :fetched-count="docRows.length"
       :loading="loading"
@@ -233,6 +234,7 @@ import {
   buildDocColumns,
   buildDocRows,
   buildInsertTemplateValue,
+  buildResponseSummary,
   collectResultIndices,
   extractDocumentId,
   extractHitsTotal,
@@ -283,6 +285,10 @@ const hitsTotal = computed(() => {
 const format = computed(() => resultState.value?.format);
 const shape = computed(() =>
   resultState.value ? resolveEsResultShape(resultState.value.value) : undefined,
+);
+
+const responseSummary = computed(() =>
+  shape.value === 'docs' ? buildResponseSummary(resultValue.value) : undefined,
 );
 
 const searchHits = computed<unknown[]>(() => {

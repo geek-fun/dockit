@@ -228,6 +228,28 @@ export const extractHitsTotal = (hitsContainer: unknown): number | undefined => 
 };
 
 /**
+ * Compact envelope summary for the pagination bar: search-response metadata
+ * (took / _shards / timed_out) that no longer clutters the tree view, which
+ * shows the hits list instead. Returns undefined when nothing is present.
+ */
+export const buildResponseSummary = (value: unknown): string | undefined => {
+  if (!value || typeof value !== 'object') return undefined;
+  const body = value as Record<string, unknown>;
+  const parts: string[] = [];
+  if (typeof body['took'] === 'number') parts.push(`took: ${body['took']}ms`);
+  const shards = body['_shards'];
+  if (shards && typeof shards === 'object') {
+    const { total, successful, failed } = shards as Record<string, unknown>;
+    if (typeof total === 'number' && typeof successful === 'number') {
+      const failedNote = typeof failed === 'number' && failed > 0 ? `, ${failed} failed` : '';
+      parts.push(`_shards: ${successful}/${total}${failedNote}`);
+    }
+  }
+  if ('timed_out' in body) parts.push(`timed_out: ${String(body['timed_out'])}`);
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+};
+
+/**
  * Distinct index names referenced by the result hits (max 5) — used to fetch
  * mappings for type hints on cluster-wide searches without an index in the
  * query path.

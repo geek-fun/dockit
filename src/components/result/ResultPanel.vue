@@ -275,6 +275,9 @@
         <JsonView v-if="internalView === 'json'" :value="props.rawValue ?? displayData" />
 
         <div v-if="showPagination && !loading" class="result-pagination">
+          <span v-if="metaSummary" class="meta-summary" :title="metaSummary">
+            {{ metaSummary }}
+          </span>
           <div class="pagination-right">
             <span class="text-xs text-muted-foreground whitespace-nowrap">
               <template v-if="props.fetchedCount !== undefined && total !== props.fetchedCount">
@@ -392,6 +395,7 @@ const props = withDefaults(
     activeView?: ViewMode;
     persistViewKey?: string;
     rawValue?: unknown;
+    metaSummary?: string;
     fetchedCount?: number;
     emptyText?: string;
     rowKey?: string | ((row: Record<string, unknown>) => string);
@@ -410,6 +414,7 @@ const props = withDefaults(
     activeView: 'table',
     persistViewKey: undefined,
     rawValue: undefined,
+    metaSummary: undefined,
     fetchedCount: undefined,
     emptyText: 'No data',
     rowKey: undefined,
@@ -467,9 +472,8 @@ const showPagination = computed(() => props.pagination !== undefined);
 const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [25, 50, 100]);
 
 const { copyResult, exportResult } = useResultExport();
-const handleCopy = (format: ResultExportFormat) => copyResult(props.rawValue ?? props.data, format);
-const handleExport = (format: ResultExportFormat) =>
-  exportResult(props.rawValue ?? props.data, format);
+const handleCopy = (format: ResultExportFormat) => copyResult(props.data, format);
+const handleExport = (format: ResultExportFormat) => exportResult(props.data, format);
 
 const derivedColumns = computed<ColumnDef[]>(() => {
   if (props.columns && props.columns.length > 0) return props.columns;
@@ -492,9 +496,7 @@ const displayData = computed(() => {
   return props.data;
 });
 
-const treeData = computed(() =>
-  props.rawValue !== undefined ? [props.rawValue] : displayData.value,
-);
+const treeData = computed(() => displayData.value);
 
 const colStyle = (col: ColumnDef) => {
   if (!col.width) return undefined;
@@ -766,6 +768,15 @@ watch(
   justify-content: flex-end;
   padding: 0.25rem 0;
   flex-shrink: 0;
+}
+.meta-summary {
+  margin-right: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 .pagination-right {
   display: flex;

@@ -2,9 +2,29 @@ import {
   resolveEsResultShape,
   buildDocRows,
   buildDocColumns,
+  buildResponseSummary,
   collectResultIndices,
   mergeMappingFieldTypes,
 } from '../../../../src/views/editor/es-editor/utils/es-result';
+
+describe('buildResponseSummary', () => {
+  it('joins took, shards and timed_out into one line', () => {
+    expect(
+      buildResponseSummary({ took: 12, timed_out: false, _shards: { total: 5, successful: 5 } }),
+    ).toBe('took: 12ms · _shards: 5/5 · timed_out: false');
+  });
+
+  it('notes failed shards only when they exist', () => {
+    expect(buildResponseSummary({ _shards: { total: 6, successful: 4, failed: 2 } })).toBe(
+      '_shards: 4/6, 2 failed',
+    );
+  });
+
+  it('returns undefined for responses without envelope metadata', () => {
+    expect(buildResponseSummary({ hits: { hits: [] } })).toBeUndefined();
+    expect(buildResponseSummary('plain text')).toBeUndefined();
+  });
+});
 
 describe('resolveEsResultShape', () => {
   it('returns "text" for plaintext responses (_cat without format=json)', () => {
