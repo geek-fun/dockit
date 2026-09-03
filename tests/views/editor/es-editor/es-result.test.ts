@@ -90,13 +90,13 @@ describe('buildDocRows', () => {
 });
 
 describe('buildDocColumns', () => {
-  it('puts sticky _id column first and unions+sorts source keys', () => {
+  it('puts _id column first and unions+sorts source keys', () => {
     const columns = buildDocColumns([
       { _id: '1', _source: { user: 'ann', price: 9 } },
       { _id: '2', _source: { user: 'bob', tag: 'x' } },
     ]);
     expect(columns.map(column => column.key)).toEqual(['_id', 'price', 'tag', 'user']);
-    expect(columns[0].sticky).toBe('left');
+    expect(columns[0].sticky).toBeUndefined();
   });
 
   it('renders _id without wrapping: fixed min width + ellipsis', () => {
