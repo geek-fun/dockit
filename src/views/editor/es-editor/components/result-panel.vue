@@ -44,7 +44,7 @@
         </TooltipProvider>
       </template>
       <template #cell="{ column, row }">
-        <template v-if="column.key === 'actions' && index && connection">
+        <template v-if="column.key === 'actions' && connection">
           <DropdownMenu>
             <DropdownMenuTrigger as-child>
               <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop>
@@ -52,11 +52,14 @@
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" class="w-36">
-              <DropdownMenuItem :disabled="!getDocumentId(row)" @click="handleEditClick(row)">
+              <DropdownMenuItem
+                :disabled="!getDocumentId(row) || !rowTargetIndex(row)"
+                @click="handleEditClick(row)"
+              >
                 <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
                 {{ lang.t('editor.es.edit') }}
               </DropdownMenuItem>
-              <DropdownMenuItem @click="handleCloneClick(row)">
+              <DropdownMenuItem :disabled="!rowTargetIndex(row)" @click="handleCloneClick(row)">
                 <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
                 {{ lang.t('editor.es.clone') }}
               </DropdownMenuItem>
@@ -70,7 +73,7 @@
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                :disabled="!getDocumentId(row)"
+                :disabled="!getDocumentId(row) || !rowTargetIndex(row)"
                 class="text-destructive focus:text-destructive"
                 @click="handleDeleteClick(row)"
               >
@@ -186,7 +189,7 @@
       :title="lang.t('editor.es.editDocumentTitle')"
       :initial-value="editDocumentValue"
       :confirm-text="lang.t('dialogOps.confirm')"
-      :strip-fields="['_id']"
+      :strip-fields="['_id', '_index']"
       @submit="handleEditSubmit"
     />
     <ConfirmDeleteDialog
@@ -292,11 +295,7 @@ const searchHits = computed<unknown[]>(() => {
 
 const docRows = computed(() => buildDocRows(searchHits.value));
 const displayColumns = computed(() =>
-  buildDocColumns(
-    searchHits.value,
-    Boolean(props.index && props.connection),
-    lang.t('editor.es.actions'),
-  ),
+  buildDocColumns(searchHits.value, Boolean(props.connection), lang.t('editor.es.actions')),
 );
 
 const textContent = computed(() =>
@@ -314,10 +313,19 @@ const getDocumentId = (row: Record<string, unknown>): string | undefined => {
   return id === undefined || id === null ? undefined : String(id);
 };
 
+// Write target for a row action: the hit's own `_index` — always the accurate
+// target (cluster-wide searches return hits from many indices). A row without
+// one cannot be written to, so the row actions disable themselves.
+const rowTargetIndex = (row: Record<string, unknown>): string | undefined => {
+  const idx = row._index;
+  return typeof idx === 'string' && idx !== '' ? idx : undefined;
+};
+
 const cloneDocumentValue = ref<string | undefined>(undefined);
 const editDocumentValue = ref('');
 const editDocumentId = ref('');
 const deletingId = ref('');
+const targetIndex = ref<string | undefined>(undefined);
 const showInsertModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteModal = ref(false);
@@ -341,6 +349,7 @@ const buildInsertTemplate = async (): Promise<string | undefined> => {
 };
 
 const handleInsertClick = async () => {
+  targetIndex.value = props.index;
   insertTemplateLoading.value = true;
   try {
     cloneDocumentValue.value = await buildInsertTemplate();
@@ -353,7 +362,9 @@ const handleInsertClick = async () => {
 const handleCloneClick = (row: Record<string, unknown>) => {
   const clone = { ...row };
   delete clone._id;
+  delete clone._index;
   cloneDocumentValue.value = JSON.stringify(clone, null, 2);
+  targetIndex.value = rowTargetIndex(row);
   showInsertModal.value = true;
 };
 
@@ -364,16 +375,18 @@ const handleCopyRow = (row: Record<string, unknown>, format: ResultExportFormat)
 const handleEditClick = (row: Record<string, unknown>) => {
   editDocumentValue.value = JSON.stringify(row, null, 2);
   editDocumentId.value = getDocumentId(row) ?? '';
+  targetIndex.value = rowTargetIndex(row);
   showEditModal.value = true;
 };
 
 const handleDeleteClick = (row: Record<string, unknown>) => {
   deletingId.value = getDocumentId(row) ?? '';
+  targetIndex.value = rowTargetIndex(row);
   showDeleteModal.value = true;
 };
 
 const handleInsertSubmit = async (document: string) => {
-  if (!props.connection || !props.index) return;
+  if (!props.connection || !targetIndex.value) return;
   const parsed = jsonify.parse(document) as unknown;
   const { id, body } = extractDocumentId(parsed);
   if (id !== undefined && id.trim() === '') {
@@ -383,7 +396,7 @@ const handleInsertSubmit = async (document: string) => {
   insertDocumentRef.value?.setLoading(true);
   try {
     await esApi.indexDocument(props.connection, {
-      index: props.index,
+      index: targetIndex.value,
       id: id?.trim() || undefined,
       body: jsonify.stringify(body),
     });
@@ -398,11 +411,11 @@ const handleInsertSubmit = async (document: string) => {
 };
 
 const handleEditSubmit = async (document: string) => {
-  if (!props.connection || !props.index || !editDocumentId.value) return;
+  if (!props.connection || !targetIndex.value || !editDocumentId.value) return;
   editDocumentRef.value?.setLoading(true);
   try {
     await esApi.indexDocument(props.connection, {
-      index: props.index,
+      index: targetIndex.value,
       id: editDocumentId.value,
       body: document,
     });
@@ -417,11 +430,11 @@ const handleEditSubmit = async (document: string) => {
 };
 
 const handleDeleteConfirm = async () => {
-  if (!props.connection || !props.index || !deletingId.value) return;
+  if (!props.connection || !targetIndex.value || !deletingId.value) return;
   deleteConfirmRef.value?.setLoading(true);
   try {
     await esApi.deleteDocument(props.connection, {
-      index: props.index,
+      index: targetIndex.value,
       id: deletingId.value,
     });
     showDeleteModal.value = false;
