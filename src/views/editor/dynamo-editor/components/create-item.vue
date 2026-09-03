@@ -430,7 +430,13 @@ const handleSubmit = async (event: MouseEvent) => {
       type: string;
     }>;
 
-    await createItem(activeConnection.value as DynamoDBConnection, tableName, attributes);
+    // Guard against silently overwriting an existing item: the Rust side adds
+    // an attribute_not_exists(pk) condition when skipExisting is set, so a
+    // duplicate key fails loudly instead of replacing the record.
+    await createItem(activeConnection.value as DynamoDBConnection, tableName, attributes, {
+      skipExisting: true,
+      partitionKey: partitionKey.name,
+    });
     message.success(lang.t('editor.dynamo.createItemSuccess'));
   } catch (error) {
     const { status, details } = error as CustomError;
