@@ -1160,7 +1160,6 @@ export const zhCN = {
       inputOperator: '选择操作符',
       type: '选择属性类型',
       inputAttrValue: '请输入属性的值',
-      resultTitle: '查询结果',
       partitionKeyRequired: '表/索引的 Partition Key 是必需的',
       indexIsRequired: '表/索引 是必需的',
       atLeastRequired: 'Partition Key 或至少 1 个过滤器是必需的',
