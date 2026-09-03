@@ -120,7 +120,7 @@ const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
-const cmdKey = computed(() => (platform() === 'macos' ? 'Γîÿ' : 'Ctrl+'));
+const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
 
 const contextMenuRef = ref<HTMLElement | null>(null);
 const highlightedIndex = ref(0);
@@ -129,7 +129,7 @@ const menuItems = computed(() => [
   {
     action: 'execute',
     label: lang.t('editor.es.contextMenu.execute'),
-    shortcut: `${cmdKey.value}Γå╡`,
+    shortcut: `${cmdKey.value}↵`,
   },
   {
     action: 'autoIndent',
@@ -414,7 +414,7 @@ const setupQueryEditor = () => {
     // Monaco's triggerCharacters don't fire inside string tokens, so we use
     // requestAnimationFrame to trigger suggestions after the content change
     // is fully committed and the cursor position is updated.
-    // We scan backwards from cursor to find the `query:` key ΓÇö this handles
+    // We scan backwards from cursor to find the `query:` key — this handles
     // multi-line triple-quoted strings where `query:` is on a different line.
     if (_changes.changes.length > 0 && queryEditor) {
       const lastChange = _changes.changes[_changes.changes.length - 1];
@@ -565,7 +565,7 @@ const setupQueryEditor = () => {
   // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+0 (handled via DOM-level keydown)
   // Unfold All: Ctrl/Cmd+K, Ctrl/Cmd+J (also handled via DOM-level keydown to share chord state with fold-all)
 
-  // Open ES API doc: Γîÿ+D on Mac, Ctrl+D on Windows/Linux
+  // Open ES API doc: ⌘+D on Mac, Ctrl+D on Windows/Linux
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
     const action = getAction(queryEditor!.getPosition());
     if (!action) return;
@@ -625,7 +625,7 @@ const setupQueryEditor = () => {
     chords: [
       {
         // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+0
-        // Uses '0' (like VS Code's Fold All) ΓÇö works on all keyboard layouts
+        // Uses '0' (like VS Code's Fold All) — works on all keyboard layouts
         // unlike '-' which requires Shift on AZERTY, or 'f' which conflicts
         // with Monaco's built-in Format Selection (Ctrl/Cmd+K, Ctrl/Cmd+F)
         first: { key: 'k', ctrlOrMeta: true },
