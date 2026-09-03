@@ -189,3 +189,18 @@ export const buildInsertTemplateValue = (
   if (Object.keys(properties).length > 0) return buildSchemaTemplate(properties);
   return fallbackRow ? buildSampleTemplate(fallbackRow) : undefined;
 };
+
+/**
+ * Total matching documents from a search response's `hits.total`, which older
+ * ES versions return as a plain number and newer ones as `{ value }`.
+ */
+export const extractHitsTotal = (hitsContainer: unknown): number | undefined => {
+  if (!hitsContainer || typeof hitsContainer !== 'object') return undefined;
+  const total = (hitsContainer as Record<string, unknown>)['total'];
+  if (typeof total === 'number') return total;
+  if (total && typeof total === 'object') {
+    const value = (total as Record<string, unknown>)['value'];
+    if (typeof value === 'number') return value;
+  }
+  return undefined;
+};
