@@ -1130,7 +1130,7 @@ export const zhCN = {
       insert: '插入',
       insertSuccess: '文档插入成功',
       insertIdExists: '该 _id 已存在，请修改或删除该字段以自动生成',
-      insertIdHint: '保留 _id 将覆盖对应文档；删除 _id 字段则自动生成新 ID',
+      insertIdHint: '写入前请更新 _id 值，删除 _id 字段将自动生成新 ID',
       edit: '编辑',
       editDocumentTitle: '编辑文档',
       updateSuccess: '文档更新成功',
