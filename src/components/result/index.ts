@@ -6,3 +6,4 @@ export { default as ConfirmDeleteDialog } from './ConfirmDeleteDialog.vue';
 export { usePagination } from './composables/usePagination';
 export { inferColumnTypes } from './columnTypes';
 export type { ColumnDef, ViewMode, PaginationConfig, PaginationMode } from './types';
+export { PAGE_SIZE_OPTIONS } from './types';

@@ -12,7 +12,6 @@
       :pagination="{
         mode: 'client',
         total: docRows.length,
-        pageSizeOptions: [25, 50, 100, 200],
       }"
       :view-modes="['table', 'tree', 'json']"
       active-view="json"

@@ -40,7 +40,6 @@
         :pagination="{
           mode: 'cursor',
           hasNext: !!partiqlData.nextToken,
-          pageSizeOptions: [25, 50, 100],
         }"
         :closable="true"
         @next-page="handleNextPage"
