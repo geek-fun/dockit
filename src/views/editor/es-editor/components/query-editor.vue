@@ -53,14 +53,12 @@ import {
   DatabaseType,
   ElasticsearchConnection,
   SearchConnection,
-  type Connection,
   useAppStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
 } from '../../../../store';
 import { useLang } from '../../../../lang';
-import { extractHitsTotal } from '../utils/es-result';
 import EsResultPanel from './result-panel.vue';
 import {
   buildSearchToken,
@@ -240,17 +238,12 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
 
     resultLoading.value = true;
     loadingBar.start();
-    const firstResponse = await searchQDSL(activeConnection.value, {
+    const data = await searchQDSL(activeConnection.value, {
       ...action,
       queryParams: action.queryParams ?? undefined,
       qdsl: transformQDSL(action),
       index: action.index,
     });
-    const data = await collectAllSearchHits(
-      activeConnection.value,
-      action,
-      firstResponse as Record<string, unknown>,
-    );
 
     historyStore.addEntry({
       databaseType: activeConnection.value.type,
@@ -283,70 +276,6 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
 const handleRefresh = () => {
   if (!lastExecutedPosition.value) return;
   void executeQueryAction(lastExecutedPosition.value);
-};
-
-const MAX_RESULT_DOCS = 1000;
-
-const extractResponseHits = (response: unknown): { hits: unknown[]; total: number | undefined } => {
-  if (!response || typeof response !== 'object') return { hits: [], total: undefined };
-  const hitsContainer = (response as Record<string, unknown>)['hits'];
-  if (!hitsContainer || typeof hitsContainer !== 'object') return { hits: [], total: undefined };
-  const hits = (hitsContainer as Record<string, unknown>)['hits'];
-  return {
-    hits: Array.isArray(hits) ? hits : [],
-    total: extractHitsTotal(hitsContainer),
-  };
-};
-
-/**
- * ES `_search` defaults to size=10, so a query without an explicit size only
- * surfaces the first page of matches. Re-issue the same query with from/size
- * until every matching document (capped) has been fetched, then merge the
- * hits back into the response so the result panel paginates the full set.
- */
-const collectAllSearchHits = async (
-  connection: Connection,
-  action: SearchAction,
-  firstResponse: Record<string, unknown>,
-): Promise<Record<string, unknown>> => {
-  const { hits: firstHits, total: totalHits } = extractResponseHits(firstResponse);
-  if (totalHits === undefined || totalHits <= firstHits.length) return firstResponse;
-
-  let baseBody: Record<string, unknown> = {};
-  const originalBody = transformQDSL(action);
-  if (originalBody) {
-    try {
-      const parsed = jsonify.parse(originalBody) as unknown;
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        baseBody = parsed as Record<string, unknown>;
-        if (baseBody['size'] !== undefined || baseBody['from'] !== undefined) return firstResponse;
-      }
-    } catch {
-      baseBody = {};
-    }
-  }
-
-  const target = Math.min(totalHits, MAX_RESULT_DOCS);
-  const allHits = [...firstHits];
-  for (let round = 0; round < 5 && allHits.length < target; round++) {
-    const pageBody = jsonify.stringify({
-      ...baseBody,
-      from: allHits.length,
-      size: target - allHits.length,
-    });
-    const response = (await searchQDSL(connection, {
-      ...action,
-      queryParams: action.queryParams ?? undefined,
-      qdsl: pageBody,
-      index: action.index,
-    })) as Record<string, unknown>;
-    const pageHits = extractResponseHits(response).hits;
-    if (pageHits.length === 0) break;
-    allHits.push(...pageHits);
-  }
-
-  const hitsContainer = firstResponse['hits'] as Record<string, unknown>;
-  return { ...firstResponse, hits: { ...hitsContainer, hits: allHits } };
 };
 
 const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position: monaco.Range) => {
