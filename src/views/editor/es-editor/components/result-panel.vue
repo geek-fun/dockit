@@ -5,7 +5,8 @@
       :columns="displayColumns"
       :data="docRows"
       :raw-value="resultValue"
-      :total="docRows.length"
+      :total="hitsTotal ?? docRows.length"
+      :fetched-count="docRows.length"
       :loading="loading"
       :pagination="{
         mode: 'client',
@@ -229,6 +230,7 @@ import {
   buildDocRows,
   buildInsertTemplateValue,
   extractDocumentId,
+  extractHitsTotal,
   resolveEsResultShape,
 } from '../utils/es-result';
 
@@ -267,6 +269,11 @@ const dispose = () => {};
 defineExpose({ display, dispose });
 
 const resultValue = computed(() => resultState.value?.value);
+const hitsTotal = computed(() => {
+  const value = resultValue.value;
+  if (!value || typeof value !== 'object') return undefined;
+  return extractHitsTotal((value as Record<string, unknown>)['hits']);
+});
 const format = computed(() => resultState.value?.format);
 const shape = computed(() =>
   resultState.value ? resolveEsResultShape(resultState.value.value) : undefined,

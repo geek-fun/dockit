@@ -266,7 +266,10 @@
         <div v-if="showPagination && !loading" class="result-pagination">
           <div class="pagination-right">
             <span class="text-xs text-muted-foreground whitespace-nowrap">
-              {{ total ?? displayData.length }} documents
+              <template v-if="props.fetchedCount !== undefined && total !== props.fetchedCount">
+                {{ props.fetchedCount }} of {{ total }} documents
+              </template>
+              <template v-else>{{ total ?? displayData.length }} documents</template>
             </span>
 
             <div class="pagination-divider" />
@@ -377,6 +380,7 @@ const props = withDefaults(
     activeView?: ViewMode;
     persistViewKey?: string;
     rawValue?: unknown;
+    fetchedCount?: number;
     emptyText?: string;
     rowKey?: string | ((row: Record<string, unknown>) => string);
     closable?: boolean;
@@ -394,6 +398,7 @@ const props = withDefaults(
     activeView: 'table',
     persistViewKey: undefined,
     rawValue: undefined,
+    fetchedCount: undefined,
     emptyText: 'No data',
     rowKey: undefined,
     closable: false,
