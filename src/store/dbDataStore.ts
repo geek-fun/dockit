@@ -9,7 +9,6 @@ const resetPagination = {
   pageSize: 10,
   pageCount: 1,
   showSizePicker: true,
-  pageSizes: [10, 25, 50, 100, 200, 300],
 };
 
 type DynamoInput = {
@@ -56,7 +55,6 @@ export const useDbDataStore = defineStore('dbDataStore', {
           pageSize: number;
           pageCount: number;
           showSizePicker: boolean;
-          pageSizes: Array<number>;
         };
         queryInput?: DynamoInput;
         queryBody: string;

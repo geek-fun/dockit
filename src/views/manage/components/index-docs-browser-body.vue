@@ -275,7 +275,12 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import JsonValueDialog from '@/components/json-value-dialog.vue';
 import IndexDocsColumnFilter from './index-docs-column-filter.vue';
-import { ConfirmDeleteDialog, JsonDocumentDialog, ResultPanel } from '@/components/result';
+import {
+  ConfirmDeleteDialog,
+  JsonDocumentDialog,
+  PAGE_SIZE_OPTIONS,
+  ResultPanel,
+} from '@/components/result';
 import type { ColumnDef, PaginationConfig } from '@/components/result';
 import { CustomError, jsonify } from '@/common';
 import {
@@ -323,8 +328,7 @@ const lang = useLang();
 const message = useMessageService();
 const { copyResult } = useResultExport();
 
-const pageSizeOptions = [25, 50, 100] as const;
-const pageSize = ref<(typeof pageSizeOptions)[number]>(25);
+const pageSize = ref<(typeof PAGE_SIZE_OPTIONS)[number]>(25);
 const loading = ref(false);
 const errorMessage = ref('');
 const hits = ref<IndexDocumentHit[]>([]);
@@ -431,7 +435,6 @@ const resultPagination = computed<PaginationConfig>(() => ({
   hasNext: hasNextPage.value,
   total: total.value,
   pageSize: pageSize.value,
-  pageSizeOptions: [...pageSizeOptions],
 }));
 
 const isComplexValue = (value: unknown): boolean => {
@@ -678,8 +681,8 @@ const clearFilters = () => {
 };
 
 const handleResultPageSize = (value: number) => {
-  if (!pageSizeOptions.includes(value as (typeof pageSizeOptions)[number])) return;
-  pageSize.value = value as (typeof pageSizeOptions)[number];
+  if (!PAGE_SIZE_OPTIONS.includes(value as (typeof PAGE_SIZE_OPTIONS)[number])) return;
+  pageSize.value = value as (typeof PAGE_SIZE_OPTIONS)[number];
   void reload();
 };
 

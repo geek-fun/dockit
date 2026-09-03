@@ -167,7 +167,6 @@
           page: queryPagination.page,
           pageSize: queryPagination.pageSize,
           hasNext: !!dynamoData.queryData.lastEvaluatedKeys[queryPagination.page],
-          pageSizeOptions: queryPagination.pageSizes,
         }"
         :closable="true"
         @update:page="changePage"

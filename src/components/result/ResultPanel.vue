@@ -386,7 +386,7 @@ import TreeNode from './TreeNode.vue';
 import { usePagination } from './composables/usePagination';
 import { dataTypeClass } from './columnTypes';
 import { useResultExport, type ResultExportFormat } from './composables/useResultExport';
-import type { ColumnDef, ViewMode, PaginationConfig } from './types';
+import { PAGE_SIZE_OPTIONS, type ColumnDef, type ViewMode, type PaginationConfig } from './types';
 
 const props = withDefaults(
   defineProps<{
@@ -479,7 +479,7 @@ const paginationDisabled = computed(
 );
 const hasPages = computed(() => visiblePages.value.length > 0);
 const showPagination = computed(() => props.pagination !== undefined);
-const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [25, 50, 100]);
+const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [...PAGE_SIZE_OPTIONS]);
 
 const { copyResult, exportResult } = useResultExport();
 const handleCopy = (format: ResultExportFormat) => copyResult(props.data, format);
