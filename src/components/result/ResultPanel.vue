@@ -274,7 +274,7 @@
 
         <JsonView v-if="internalView === 'json'" :value="props.rawValue ?? displayData" />
 
-        <div v-if="showPagination && !loading && internalView !== 'json'" class="result-pagination">
+        <div v-if="showPagination && !loading" class="result-pagination">
           <span v-if="metaSummary" class="meta-summary" :title="metaSummary">
             {{ metaSummary }}
           </span>
@@ -288,7 +288,11 @@
 
             <div class="pagination-divider" />
 
-            <Select :model-value="String(pageSize)" @update:model-value="handlePageSizeChange">
+            <Select
+              :model-value="String(pageSize)"
+              :disabled="paginationDisabled"
+              @update:model-value="handlePageSizeChange"
+            >
               <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
@@ -303,7 +307,7 @@
                 variant="ghost"
                 size="icon"
                 class="h-7 w-7"
-                :disabled="!canGoPrev"
+                :disabled="paginationDisabled || !canGoPrev"
                 @click="handleFirstPage"
               >
                 <span class="i-carbon-skip-back h-3.5 w-3.5" />
@@ -312,7 +316,7 @@
                 variant="ghost"
                 size="icon"
                 class="h-7 w-7"
-                :disabled="!canGoPrev"
+                :disabled="paginationDisabled || !canGoPrev"
                 @click="handlePrevPage"
               >
                 <span class="i-carbon-chevron-left h-3.5 w-3.5" />
@@ -333,6 +337,7 @@
                   size="sm"
                   class="h-7 min-w-[28px] text-xs px-1"
                   :class="{ 'border-primary text-primary': n === page }"
+                  :disabled="paginationDisabled"
                   @click="handleGoToPage(n)"
                 >
                   {{ n }}
@@ -342,7 +347,7 @@
                 variant="ghost"
                 size="icon"
                 class="h-7 w-7"
-                :disabled="!canGoNext"
+                :disabled="paginationDisabled || !canGoNext"
                 @click="handleNextPage"
               >
                 <span class="i-carbon-chevron-right h-3.5 w-3.5" />
@@ -467,6 +472,11 @@ const {
 } = usePagination(paginationConfig);
 
 const isCursor = computed(() => paginationMode.value === 'cursor');
+// Client-mode slicing cannot affect the raw-response JSON view, so its controls
+// are disabled there; cursor/offset modes re-fetch from the server and stay live.
+const paginationDisabled = computed(
+  () => paginationMode.value === 'client' && internalView.value === 'json',
+);
 const hasPages = computed(() => visiblePages.value.length > 0);
 const showPagination = computed(() => props.pagination !== undefined);
 const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [25, 50, 100]);
