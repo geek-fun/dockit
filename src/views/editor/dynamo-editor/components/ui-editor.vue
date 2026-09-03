@@ -175,20 +175,35 @@
       >
         <template #cell="{ column, row }">
           <template v-if="column.key === 'actions'">
-            <div class="flex gap-2">
-              <Button size="icon" variant="ghost" @click.stop="handleEdit(row)">
-                <span class="i-carbon-edit h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" @click.stop="handleDeleteClick(row)">
-                <span class="i-carbon-trash-can h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" @click.stop="handleCopyRow(row, 'json')">
-                <span class="i-carbon-json h-4 w-4" />
-              </Button>
-              <Button size="icon" variant="ghost" @click.stop="handleCopyRow(row, 'csv')">
-                <span class="i-carbon-csv h-4 w-4" />
-              </Button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-7 w-7" @click.stop>
+                  <span class="i-carbon-overflow-menu-horizontal h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" class="w-36">
+                <DropdownMenuItem @click="handleEdit(row)">
+                  <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.dynamo.editItem') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleCopyRow(row, 'json')">
+                  <span class="i-carbon-json h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.copyJson') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem @click="handleCopyRow(row, 'csv')">
+                  <span class="i-carbon-csv h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.copyCsv') }}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  class="text-destructive focus:text-destructive"
+                  @click="handleDeleteClick(row)"
+                >
+                  <span class="i-carbon-trash-can h-3.5 w-3.5 mr-2" />
+                  {{ $t('editor.dynamo.deleteItem') }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </template>
           <span v-else>{{ formatCellValue(row[column.key]) }}</span>
         </template>
@@ -243,6 +258,13 @@ import { SearchableSelect } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2 } from 'lucide-vue-next';
 import {
@@ -565,7 +587,7 @@ const displayColumns = computed<ColumnDef[]>(() => {
     flattened.push({
       key: 'actions',
       title: lang.t('editor.dynamo.actions'),
-      width: 150,
+      width: 60,
       align: 'center',
       ellipsis: false,
       sticky: 'right',
