@@ -204,7 +204,10 @@
                       ...stickyLeftStyle(col, colIndex),
                     }"
                   >
-                    <slot name="columnHeader" :column="col">{{ col.title }}</slot>
+                    <slot name="columnHeader" :column="col">
+                      {{ col.title }}
+                      <span v-if="col.dataType" class="column-data-type">{{ col.dataType }}</span>
+                    </slot>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -691,6 +694,13 @@ watch(
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 200px;
+}
+.column-data-type {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
 }
 .tree-scroll-area {
   flex: 1;

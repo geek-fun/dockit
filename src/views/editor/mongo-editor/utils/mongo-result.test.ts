@@ -79,8 +79,8 @@ describe('deriveMongoColumns', () => {
   it('collects keys in insertion order, unsorted', () => {
     const columns = deriveMongoColumns([{ _id: 'x', name: 'y' }], false, 'Actions');
     expect(columns).toEqual([
-      { key: '_id', title: '_id' },
-      { key: 'name', title: 'name' },
+      { key: '_id', title: '_id', dataType: 'string' },
+      { key: 'name', title: 'name', dataType: 'string' },
     ]);
   });
 

@@ -1,4 +1,5 @@
 import type { ColumnDef } from '@/components/result';
+import { inferColumnTypes } from '@/components/result/columnTypes';
 
 export type MongoResultState = {
   documents: Record<string, unknown>[];
@@ -91,7 +92,12 @@ export const deriveMongoColumns = (
       keys.add(key);
     }
   }
-  const columns: ColumnDef[] = Array.from(keys).map(key => ({ key, title: key }));
+  const typeHints = inferColumnTypes(documents.slice(0, 20));
+  const columns: ColumnDef[] = Array.from(keys).map(key => ({
+    key,
+    title: key,
+    dataType: typeHints[key],
+  }));
   if (withActions) {
     columns.push({
       key: 'actions',

@@ -266,6 +266,7 @@ import { useLang } from '../../../../lang';
 import EditItem from './edit-item.vue';
 import DeleteConfirmModal from './delete-confirm-modal.vue';
 import { ResultPanel } from '@/components/result';
+import { inferColumnTypes } from '@/components/result/columnTypes';
 import type { ColumnDef } from '@/components/result';
 import { Empty } from '@/components/ui/empty';
 import {
@@ -557,7 +558,14 @@ const handleDeleteClick = (row: Record<string, unknown>) => {
 const queryPagination = computed(() => dynamoData.value.queryData.pagination);
 
 const displayColumns = computed<ColumnDef[]>(() => {
-  const flattened = flattenDynamoColumns(dynamoData.value.queryData.columns);
+  const rows = dynamoData.value.queryData.data ?? [];
+  const typeHints = inferColumnTypes(rows);
+  const flattened: ColumnDef[] = flattenDynamoColumns(dynamoData.value.queryData.columns).map(
+    col => ({
+      ...col,
+      dataType: typeHints[col.key],
+    }),
+  );
   if (flattened.length > 0) {
     flattened.push({ key: 'actions', title: lang.t('editor.dynamo.actions'), width: 100 });
   }

@@ -19,4 +19,6 @@ export type ColumnDef = {
   ellipsis?: boolean;
   className?: string;
   sticky?: 'left' | 'right';
+  /** Engine-provided data type shown as a hint in the column header. */
+  dataType?: string;
 };

@@ -4,6 +4,7 @@ export type EsResultShape = 'docs' | 'json' | 'text';
 
 type EsSearchHit = {
   _id?: string;
+  _index?: string;
   _source?: Record<string, unknown>;
   fields?: Record<string, unknown>;
 };
@@ -60,13 +61,20 @@ export const resolveEsResultShape = (result: unknown): EsResultShape => {
  * field of the same name.
  */
 export const buildDocRows = (hits: unknown[]): Array<Record<string, unknown>> =>
-  hits.map((hit, index) => ({
-    ...(hitSource(hit) ?? {}),
-    _id:
-      typeof hit === 'object' && hit !== null
-        ? ((hit as EsSearchHit)._id ?? String(index))
-        : String(index),
-  }));
+  hits.map((hit, index) => {
+    const row: Record<string, unknown> = {
+      ...(hitSource(hit) ?? {}),
+      _id:
+        typeof hit === 'object' && hit !== null
+          ? ((hit as EsSearchHit)._id ?? String(index))
+          : String(index),
+    };
+    if (typeof hit === 'object' && hit !== null) {
+      const hitIndex = (hit as EsSearchHit)._index;
+      if (hitIndex !== undefined) row['_index'] = hitIndex;
+    }
+    return row;
+  });
 
 /**
  * Derive table columns from search hits: sticky `_id` column first, then the
@@ -78,19 +86,25 @@ export const buildDocColumns = (
   hits: unknown[],
   withActions = false,
   actionsTitle = '',
+  fieldTypes: Record<string, string> = {},
 ): ColumnDef[] => {
   const keys = new Set<string>();
+  const hasIndex = hits.some(
+    hit => typeof hit === 'object' && hit !== null && (hit as EsSearchHit)._index !== undefined,
+  );
+
   for (const hit of hits) {
     for (const key of Object.keys(hitSource(hit) ?? {})) keys.add(key);
   }
 
-  const columns: ColumnDef[] = [
-    { key: '_id', title: '_id', sticky: 'left', width: 140, ellipsis: true },
-  ];
+  const columns: ColumnDef[] = [{ key: '_id', title: '_id', width: 140, ellipsis: true }];
+  if (hasIndex) {
+    columns.push({ key: '_index', title: '_index', width: 140, ellipsis: true });
+  }
   columns.push(
     ...Array.from(keys)
       .sort((a, b) => a.localeCompare(b))
-      .map(key => ({ key, title: key, ellipsis: true })),
+      .map(key => ({ key, title: key, ellipsis: true, dataType: fieldTypes[key] })),
   );
   if (withActions) {
     columns.push({
