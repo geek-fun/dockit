@@ -2,8 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, mergeConfig } from 'vite';
 import baseConfig from '../../vite.config';
 
-const stub = (name: string) =>
-  fileURLToPath(new URL(`./stubs/${name}`, import.meta.url));
+const stub = (name: string) => fileURLToPath(new URL(`./stubs/${name}`, import.meta.url));
 
 export default mergeConfig(
   baseConfig,
