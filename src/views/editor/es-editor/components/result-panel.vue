@@ -296,19 +296,36 @@ const searchHits = computed<unknown[]>(() => {
 const docRows = computed(() => buildDocRows(searchHits.value));
 const fieldTypes = ref<Record<string, string>>({});
 
+// Indices whose mapping request failed (e.g. 403) — skip repeat requests for
+// the rest of the session instead of hammering a denied endpoint per query.
+const mappingDeniedIndices = new Set<string>();
+
+const fetchMappingSafe = async (index: string): Promise<unknown | undefined> => {
+  if (!props.connection || mappingDeniedIndices.has(index)) return undefined;
+  try {
+    const mapping: unknown = await esApi.getIndexMapping(props.connection, index);
+    const errBody = mapping as { status?: number } | undefined | null;
+    if (errBody && typeof errBody.status === 'number' && errBody.status >= 400) {
+      mappingDeniedIndices.add(index);
+      return undefined;
+    }
+    mappingDeniedIndices.delete(index);
+    return mapping;
+  } catch {
+    mappingDeniedIndices.add(index);
+    return undefined;
+  }
+};
+
 watch(
   [resultValue, () => props.index],
   async ([, requestedIndex]) => {
     fieldTypes.value = {};
     if (shape.value !== 'docs' || !props.connection || !requestedIndex) return;
-    try {
-      const mapping = await esApi.getIndexMapping(props.connection, requestedIndex);
-      if (props.index !== requestedIndex) return;
-      const fields = extractDocsBrowseFields(mapping, requestedIndex);
-      fieldTypes.value = Object.fromEntries(fields.map(f => [f.name, f.kind]));
-    } catch {
-      fieldTypes.value = {};
-    }
+    const mapping = await fetchMappingSafe(requestedIndex);
+    if (!mapping || props.index !== requestedIndex) return;
+    const fields = extractDocsBrowseFields(mapping, requestedIndex);
+    fieldTypes.value = Object.fromEntries(fields.map(f => [f.name, f.kind]));
   },
   { immediate: true },
 );
@@ -367,7 +384,7 @@ const insertTemplateLoading = ref(false);
 
 const buildInsertTemplate = async (): Promise<string | undefined> => {
   if (!props.connection || !props.index) return undefined;
-  const mapping = await esApi.getIndexMapping(props.connection, props.index).catch(() => undefined);
+  const mapping = await fetchMappingSafe(props.index);
   const template = buildInsertTemplateValue(mapping, docRows.value[0]);
   return template ? jsonify.stringify(template, null, 2) : undefined;
 };
