@@ -274,7 +274,7 @@
 
         <JsonView v-if="internalView === 'json'" :value="props.rawValue ?? displayData" />
 
-        <div v-if="showPagination && !loading" class="result-pagination">
+        <div v-if="showPagination && !loading && internalView !== 'json'" class="result-pagination">
           <span v-if="metaSummary" class="meta-summary" :title="metaSummary">
             {{ metaSummary }}
           </span>
@@ -772,6 +772,7 @@ watch(
 .meta-summary {
   margin-right: auto;
   min-width: 0;
+  padding-left: 0.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
