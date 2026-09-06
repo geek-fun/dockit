@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-09-06
+
+### Added
+
+- **AI chat: summarize tabular results as markdown tables** — multi-row results (index/event listings) now render as a summary table, one row per record, alongside the raw tool output
+
+### Fixed
+
+- **AI chat: scroll newly appended message into view** — a sent message could stay out of view until the next tool call; scrolling now uses the Virtualizer API with a settle retry
+- **AI chat: register `es__*` tools on OpenSearch/EasySearch connections** — agent sessions attached to those connections previously received no `es__*` tools and could not query indices
+- **AI chat: fix garbled CJK text in streaming responses** — upgrade data-studio-agent to v0.1.8 to fix per-chunk UTF-8 decoding that corrupted CJK characters split across network chunks
+
 ## [1.4.4] - 2026-09-03
 
 ### Added
