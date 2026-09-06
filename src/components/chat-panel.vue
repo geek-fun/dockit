@@ -232,6 +232,7 @@ const modelVerified = ref<boolean | null>(null);
 const stickToBottom = ref(true);
 let lastScrollTop = 0;
 let statusDoneTimer: ReturnType<typeof setTimeout> | undefined;
+let appendScrollTimer: ReturnType<typeof setTimeout> | undefined;
 
 const getViewport = (): HTMLElement | null => scrollbarRef.value?.viewportElement ?? null;
 
@@ -247,20 +248,6 @@ const handleViewportScroll = () => {
 
 let scrollRafId = 0;
 let mountRetryTimer: ReturnType<typeof setTimeout> | undefined;
-
-// Always-scroll variant: cancels any pending rAF and re-queues.
-// Used for new messages and user actions where the DOM layout changes
-// significantly and the latest state must always win.
-const scrollToBottomForce = () => {
-  if (!stickToBottom.value) return;
-  if (scrollRafId) cancelAnimationFrame(scrollRafId);
-  scrollRafId = requestAnimationFrame(() => {
-    scrollRafId = 0;
-    const el = getViewport();
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  });
-};
 
 // Batched variant: queues only if no rAF is pending. Used during streaming
 // where content grows incrementally — the pending rAF will already capture
@@ -301,11 +288,19 @@ const forceScrollToBottom = () => {
 // history must not be yanked to the bottom by background length changes.
 // Length decreases (compaction trim / orphaned-streaming-message removal)
 // must not re-stick either — shouldRestickOnLengthChange returns false.
+// Scroll via the Virtualizer API (like onMounted): virtua measures an
+// appended item asynchronously, so DOM scrollHeight is stale on the first
+// frame and a DOM scroll would land short of the new message.
 watch(
   () => props.messages.length,
   (n, old) => {
     if (shouldRestickOnLengthChange(n, old ?? 0)) stickToBottom.value = true;
-    requestAnimationFrame(() => scrollToBottomForce());
+    if (!stickToBottom.value) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollToLastMessage());
+    });
+    clearTimeout(appendScrollTimer);
+    appendScrollTimer = setTimeout(() => scrollToLastMessage(), 300);
   },
 );
 
@@ -470,6 +465,7 @@ onBeforeUnmount(() => {
   if (scrollRafId) cancelAnimationFrame(scrollRafId);
   clearTimeout(mountRetryTimer);
   clearTimeout(statusDoneTimer);
+  clearTimeout(appendScrollTimer);
 });
 </script>
 

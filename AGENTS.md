@@ -153,7 +153,7 @@ The `ChatPanel` component (`src/components/chat-panel.vue`) implements a specifi
 | Scenario | Expected Behavior | Implementation |
 |---|---|---|
 | **Panel opens** | Scroll to bottom immediately | `onMounted`: `stickToBottom = true` + double `rAF` after `nextTick` → `scrollToLastMessage()` (Virtualizer `scrollToIndex` with `align: 'end'`) + 300ms `setTimeout` retry (catches Virtualizer layout settling) |
-| **New message arrives** | Auto-scroll if user is near bottom | `watch(messages.length)` → `shouldRestickOnLengthChange(n, old)` re-sticks ONLY on append (`n > old`) → rAF-based `scrollToBottomForce()` (DOM scroll). Length decreases (compaction trim, orphaned-streaming-message removal) do NOT re-stick |
+| **New message arrives** | Auto-scroll if user is near bottom | `watch(messages.length)` → `shouldRestickOnLengthChange(n, old)` re-sticks ONLY on append (`n > old`) → double-`rAF` `scrollToLastMessage()` (Virtualizer API) + 300ms retry (`appendScrollTimer`, cleared in `onBeforeUnmount`). Length decreases (compaction trim, orphaned-streaming-message removal) do NOT re-stick |
 | **Content streaming** | Auto-scroll if user is near bottom | `watch(computeStreamingSignature(last message))` → `stickToBottom` guard → rAF-batched `scrollToBottomBatched()` (DOM scroll). Signature covers content len, thinking len, message status, and per-tool-call state (status, result len, requiresConfirmation) so tool results and confirmation cards also scroll |
 | **User scrolls up** | Freeze auto-scroll — stay where they are | `handleViewportScroll` → `decideStickOnScroll()` sets `stickToBottom = false` ONLY on genuine upward scroll (`scrollTop < lastScrollTop - 2` AND not near bottom). virtua programmatic scroll corrections (item-add pinning, 160px-estimate→measured adjustments) produce stationary/downward/micro-upward movement → `'keep'`, so they never falsely release the stick |
 | **User scrolls back to bottom** | Resume auto-scrolling | `decideStickOnScroll()` returns `'stick'` when distance ≤ 32px (`isNearBottom`), re-sticking regardless of prior state |
@@ -173,10 +173,10 @@ The `ChatPanel` component (`src/components/chat-panel.vue`) implements a specifi
 
 **When modifying this behavior:**
 - Never remove the scroll event listener (`'scroll'` on viewport element) — it's the only mechanism that detects user scroll-up
-- Never remove the `stickToBottom` guard in `scrollToBottomForce()` and `scrollToBottomBatched()` — without it, the panel would jump to bottom while user is reading history
+- Never remove the `stickToBottom` guard in `scrollToBottomBatched()` — without it, the panel would jump to bottom while user is reading history
 - Always call `forceScrollToBottom()` before `emit('send', ...)` in send/continue handlers — this ensures the user's action overrides any scroll-up state
-- `forceScrollToBottom()` and `onMounted` use `scrollToLastMessage()` (Virtualizer `scrollToIndex` API) for scroll-to-bottom — do NOT revert to DOM `scrollTop = scrollHeight` for mount/force-scroll. The Virtualizer computes `scrollHeight` asynchronously and DOM scroll is unreliable before item sizes are measured.
-- Streaming scrolls (`scrollToBottomForce`, `scrollToBottomBatched`) use DOM `scrollTop = scrollHeight` — this works during streaming because virtua has already rendered the items and updates `scrollHeight` incrementally
+- `forceScrollToBottom()`, `onMounted` and the append watcher use `scrollToLastMessage()` (Virtualizer `scrollToIndex` API) for scroll-to-bottom — do NOT revert to DOM `scrollTop = scrollHeight` for mount/force/append scroll. The Virtualizer computes `scrollHeight` asynchronously and DOM scroll is unreliable before item sizes are measured (an appended message scrolled by DOM `scrollHeight` lands short of the new message).
+- Streaming scroll (`scrollToBottomBatched`) uses DOM `scrollTop = scrollHeight` — this works during streaming because virtua has already rendered the items and updates `scrollHeight` incrementally
 - Keep the pure decision functions in `src/common/scrollStickiness.ts` — do not re-inline threshold/decision logic into the component (it would lose unit-test coverage)
 
 ### Known Failure Modes (from real bugs)
