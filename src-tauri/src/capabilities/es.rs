@@ -676,7 +676,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 input_schema: $schema,
                 risk_level: $risk,
                 required_permission: $perm,
-                source_kind: SourceKind::Database("ELASTICSEARCH"),
+                source_kind: SourceKind::SearchEngine,
                 tags: $tags,
                 parallel_ok: $parallel_ok,
             });
