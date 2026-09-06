@@ -229,6 +229,28 @@ mod tests {
     }
 
     #[test]
+    fn test_es_capabilities_match_es_family_sources() {
+        // Local registry (no global OnceLock races): es__* capabilities register
+        // under SourceKind::SearchEngine and must surface for every ES-family type.
+        let mut reg = data_studio_agent::capabilities::registry::CapabilityRegistry::new();
+        crate::capabilities::es::register_all(&mut reg);
+
+        for db_type in ["ELASTICSEARCH", "OPENSEARCH", "EASYSEARCH"] {
+            let caps = reg.matching_sources(&[db_type.to_string()]);
+            assert!(
+                caps.iter().any(|c| c.name == "es__search"),
+                "{db_type} should expose es__search"
+            );
+        }
+
+        let mongo = reg.matching_sources(&["MONGODB".to_string()]);
+        assert!(
+            !mongo.iter().any(|c| c.name == "es__search"),
+            "MONGODB should not expose es__search"
+        );
+    }
+
+    #[test]
     fn test_to_openai_tool_minimal_fields() {
         let cap = Capability {
             name: "minimal",
