@@ -171,7 +171,8 @@ const buildSystemPrompt = ({
       'Output format:',
       '- Respond in markdown format.',
       '- No emojis.',
-      '- Wrap queries, API requests, and tool results in fenced code blocks with the appropriate language tag (e.g. ```json). Do NOT convert raw query results into markdown tables — preserve their original format.',
+      '- Wrap queries, API requests, and tool results in fenced code blocks with the appropriate language tag (e.g. ```json).',
+      '- For multi-row tabular results (indices, events, records), also summarize them into a markdown table — one row per record, key fields as columns, never inside a code fence.',
       '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
     ].join('\n');
   }
@@ -222,7 +223,8 @@ const buildSystemPrompt = ({
     '- Respond in markdown format.',
     '- No emojis.',
     '- Do NOT use XML tags or schema formatting (no `<thinking>`, `<assistant>`, `<antThinking>`, `</answer>`, etc.).',
-    '- Wrap queries, API requests, and tool results in fenced code blocks with the appropriate language tag (e.g. ```json). Do NOT convert raw query results into markdown tables — preserve their original format.',
+    '- Wrap queries, API requests, and tool results in fenced code blocks with the appropriate language tag (e.g. ```json).',
+    '- For multi-row tabular results (indices, events, records), also summarize them into a markdown table — one row per record, key fields as columns, never inside a code fence.',
     '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
     '- Keep responses focused. Do not offer unsolicited next-step suggestions unless the result is ambiguous.',
   ].join('\n');
