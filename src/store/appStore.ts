@@ -523,6 +523,7 @@ export const useAppStore = defineStore('app', {
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
     llmSettings: LlmSettings;
     editorConfig: EditorConfig;
+    esPanelDirection: 'horizontal' | 'vertical';
     historyConfig: HistoryConfig;
   } => ({
     themeType: ThemeType.AUTO,
@@ -538,6 +539,7 @@ export const useAppStore = defineStore('app', {
       tabSize: 2,
       insertSpaces: true,
     },
+    esPanelDirection: 'horizontal',
     historyConfig: {
       historyCap: HISTORY_CAP_DEFAULT,
     },
@@ -549,6 +551,7 @@ export const useAppStore = defineStore('app', {
       'connectPanel',
       'uiThemeType',
       'editorConfig',
+      'esPanelDirection',
       'historyConfig',
     ],
   },
@@ -609,6 +612,9 @@ export const useAppStore = defineStore('app', {
     },
     setEditorConfig(config: Partial<EditorConfig>) {
       this.editorConfig = { ...this.editorConfig, ...config };
+    },
+    setEsPanelDirection(direction: 'horizontal' | 'vertical') {
+      this.esPanelDirection = direction;
     },
     setHistoryConfig(config: Partial<HistoryConfig>) {
       const cap = config.historyCap ?? this.historyConfig.historyCap;
