@@ -152,6 +152,9 @@
             </Tooltip>
           </TooltipProvider>
 
+          <div v-if="$slots['header-actions']" class="header-divider" />
+          <slot name="header-actions" />
+
           <div v-if="closable" class="header-divider" />
           <TooltipProvider v-if="closable">
             <Tooltip>
