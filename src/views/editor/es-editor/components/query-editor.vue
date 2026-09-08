@@ -1,5 +1,5 @@
 ﻿<template>
-  <SplitPane v-model:size="queryEditorSize" direction="horizontal" class="editor">
+  <SplitPane v-model:size="queryEditorSize" :direction="esPanelDirection" class="editor">
     <template #1>
       <div class="query-editor-container">
         <div id="query-editor" ref="queryEditorRef" />
@@ -35,7 +35,9 @@
         :connection="activeConnection as SearchConnection"
         :index="lastExecutedIndex"
         :loading="resultLoading"
+        :panel-direction="esPanelDirection"
         @refresh="handleRefresh"
+        @toggle-direction="handleTogglePanelDirection"
       />
     </template>
   </SplitPane>
@@ -93,7 +95,7 @@ const { activePanel, defaultSnippet, activeConnection, activeSearchIndexOption }
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl, fetchIndices } = connectionStore;
 const { getEditorTheme, getEditorOptions } = appStore;
-const { themeType, editorConfig } = storeToRefs(appStore);
+const { themeType, editorConfig, esPanelDirection } = storeToRefs(appStore);
 
 const historyStore = useHistoryStore();
 
@@ -282,6 +284,10 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
 const handleRefresh = () => {
   if (!lastExecutedPosition.value) return;
   void executeQueryAction(lastExecutedPosition.value);
+};
+
+const handleTogglePanelDirection = () => {
+  appStore.setEsPanelDirection(esPanelDirection.value === 'horizontal' ? 'vertical' : 'horizontal');
 };
 
 const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position: monaco.Range) => {
