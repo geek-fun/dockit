@@ -1145,6 +1145,8 @@ export const zhCN = {
         autoIndent: '格式化缩进',
         copyAsCurl: '复制 cURL',
       },
+      panelToBottom: '结果面板移至底部',
+      panelToRight: '结果面板移至右侧',
     },
     dynamo: {
       uiQuery: '查询 UI',
