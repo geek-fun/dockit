@@ -42,6 +42,18 @@
           </Tooltip>
         </TooltipProvider>
       </template>
+      <template #header-actions>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('toggle-direction')">
+                <span :class="panelToggleIconClass" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{ panelToggleTooltip }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </template>
       <template #cell="{ column, row }">
         <template v-if="column.key === 'actions' && connection">
           <DropdownMenu>
@@ -165,6 +177,17 @@
             <TooltipContent>Refresh</TooltipContent>
           </Tooltip>
         </TooltipProvider>
+        <div class="header-divider" />
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger as-child>
+              <Button variant="ghost" size="icon" class="h-7 w-7" @click="emit('toggle-direction')">
+                <span :class="panelToggleIconClass" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{{ panelToggleTooltip }}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
       <JsonView
         v-if="shape === 'json' || format === 'yaml'"
@@ -245,16 +268,19 @@ const props = withDefaults(
     connection?: SearchConnection;
     index?: string;
     loading?: boolean;
+    panelDirection?: 'horizontal' | 'vertical';
   }>(),
   {
     connection: undefined,
     index: undefined,
     loading: false,
+    panelDirection: 'horizontal',
   },
 );
 
 const emit = defineEmits<{
   refresh: [];
+  'toggle-direction': [];
 }>();
 
 const lang = useLang();
@@ -262,6 +288,19 @@ const message = useMessageService();
 const { copyResult, exportResult } = useResultExport();
 const handleCopy = (format: ResultExportFormat) => copyResult(resultState.value?.value, format);
 const handleExport = (format: ResultExportFormat) => exportResult(resultState.value?.value, format);
+
+// Icon/tooltip advertise the layout the button switches TO: when the panel sits
+// on the right (horizontal), offer moving it to the bottom, and vice versa.
+const panelToggleIconClass = computed(() =>
+  props.panelDirection === 'vertical'
+    ? 'i-lucide-panel-right h-3.5 w-3.5'
+    : 'i-lucide-panel-bottom h-3.5 w-3.5',
+);
+const panelToggleTooltip = computed(() =>
+  props.panelDirection === 'vertical'
+    ? lang.t('editor.es.panelToRight')
+    : lang.t('editor.es.panelToBottom'),
+);
 
 // Keeps the legacy DisplayEditor contract: parent calls display(content, format)
 const resultState = ref<{ value: unknown; format?: string } | null>(null);
