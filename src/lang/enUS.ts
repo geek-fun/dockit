@@ -1183,6 +1183,8 @@ export const enUS = {
         autoIndent: 'Auto Indent',
         copyAsCurl: 'Copy as cURL',
       },
+      panelToBottom: 'Move result panel to bottom',
+      panelToRight: 'Move result panel to right',
     },
     dynamo: {
       uiQuery: 'Query UI',
