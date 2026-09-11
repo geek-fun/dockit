@@ -4,6 +4,7 @@ export * from './fetchApi';
 export * from './chatBotApi';
 export * from './dynamoApi.ts';
 export * from './esApi.ts';
+export * from './authService';
 export * from './esDocsBrowse.ts';
 export * from './mongoApi.ts';
 export * from './agentApi';
