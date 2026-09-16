@@ -175,6 +175,13 @@ pub async fn mongo_test_connection(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
+    if ssh_enabled {
+        // Gate before any tunnel is established, not after.
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "SSH tunnel",
+        )?;
+    }
     let endpoint =
         resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let tp = tunnel_port(ssh_enabled, &endpoint.host, endpoint.port);
@@ -999,6 +1006,13 @@ pub async fn mongo_execute_query(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
+    if ssh_enabled {
+        // Gate before any tunnel is established, not after.
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "SSH tunnel",
+        )?;
+    }
     let endpoint =
         resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let tp = tunnel_port(ssh_enabled, &endpoint.host, endpoint.port);

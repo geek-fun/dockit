@@ -549,6 +549,18 @@ pub async fn dynamo_test_connection(
     }
 
     let (remote_host, remote_port) = crate::common::ssh_bridge::extract_remote_target(&config);
+    let ssh_enabled = ssh_tunnel
+        .as_ref()
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if ssh_enabled {
+        // Gate before any tunnel is established, not after.
+        crate::entitlement::ensure_local_ultimate(
+            app.state::<crate::entitlement::EntitlementState>().inner(),
+            "SSH tunnel",
+        )?;
+    }
     let endpoint_is_http = config
         .get("endpointUrl")
         .and_then(|v| v.as_str())
