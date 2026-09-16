@@ -654,4 +654,30 @@ mod tests {
         ));
         assert!(!force_port_forward_for(&json!({})));
     }
+    #[test]
+    fn extract_remote_target_prefers_host_port_and_parses_endpoint_url() {
+        let config = serde_json::json!({ "host": "es.example.com", "port": 9200 });
+        assert_eq!(
+            extract_remote_target(&config),
+            ("es.example.com".to_string(), 9200)
+        );
+
+        let from_url = serde_json::json!({ "endpointUrl": "https://search.aws.io:8443" });
+        assert_eq!(
+            extract_remote_target(&from_url),
+            ("search.aws.io".to_string(), 8443)
+        );
+    }
+
+    #[test]
+    fn extract_remote_target_defaults_for_missing_or_invalid_config() {
+        assert_eq!(
+            extract_remote_target(&serde_json::Value::Null),
+            ("localhost".to_string(), 443)
+        );
+        assert_eq!(
+            extract_remote_target(&serde_json::json!({ "endpointUrl": "not a url" })),
+            ("localhost".to_string(), 443)
+        );
+    }
 }

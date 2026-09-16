@@ -427,6 +427,37 @@ mod tests {
     }
 
     #[test]
+    fn install_id_persists_across_calls() {
+        let dir = std::env::temp_dir().join(format!(
+            "dockit-install-id-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+
+        let first = load_or_create_install_id(&dir);
+        let second = load_or_create_install_id(&dir);
+        assert_eq!(first, second, "the id must be stable for the install");
+        assert!(dir.join(INSTALL_ID_FILE).exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn install_id_recreates_from_an_empty_file() {
+        let dir = std::env::temp_dir().join(format!(
+            "dockit-install-id-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        std::fs::write(dir.join(INSTALL_ID_FILE), "  \n").expect("blank file");
+
+        let id = load_or_create_install_id(&dir);
+        assert!(!id.is_empty());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn missing_sources_still_yield_a_stable_identity() {
         let bare = RawIdentity {
             primary: None,

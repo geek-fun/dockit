@@ -74,10 +74,7 @@ pub async fn rotate_session(
         .map_err(|e| format!("invalid refresh payload: {e}"))?;
 
     let code = raw.get("code").and_then(|v| v.as_u64()).unwrap_or(0);
-    let server_rejected = status == reqwest::StatusCode::UNAUTHORIZED
-        || status == reqwest::StatusCode::FORBIDDEN
-        || (status.is_success() && code != 2000);
-    if server_rejected {
+    if is_server_rejected(status, code) {
         let message = raw
             .get("messages")
             .and_then(|m| m.get(0))
@@ -91,6 +88,15 @@ pub async fn rotate_session(
     let session: RefreshedSession =
         serde_json::from_value(data).map_err(|e| format!("invalid refresh result: {e}"))?;
     Ok(session)
+}
+
+/// Deliberate server rejection (drop the lease) vs transient failure (keep
+/// it): auth statuses always reject; a success-status envelope with a
+/// non-success code rejects too; 5xx and unparsable bodies are transient.
+fn is_server_rejected(status: reqwest::StatusCode, envelope_code: u64) -> bool {
+    status == reqwest::StatusCode::UNAUTHORIZED
+        || status == reqwest::StatusCode::FORBIDDEN
+        || (status.is_success() && envelope_code != 2000)
 }
 
 #[cfg(test)]
@@ -114,5 +120,18 @@ mod tests {
         let raw = session_rejected_error("lease expired");
         assert!(raw.contains(SESSION_REJECTED_ERROR_TYPE));
         assert!(raw.contains("lease expired"));
+    }
+
+    #[test]
+    fn refresh_rejection_classification() {
+        use reqwest::StatusCode;
+
+        assert!(is_server_rejected(StatusCode::UNAUTHORIZED, 0));
+        assert!(is_server_rejected(StatusCode::FORBIDDEN, 2000));
+        assert!(is_server_rejected(StatusCode::OK, 4010));
+        // 5xx is transient — the lease stays
+        assert!(!is_server_rejected(StatusCode::INTERNAL_SERVER_ERROR, 2000));
+        assert!(!is_server_rejected(StatusCode::BAD_GATEWAY, 5000));
+        assert!(!is_server_rejected(StatusCode::OK, 2000));
     }
 }

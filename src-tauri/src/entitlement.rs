@@ -322,6 +322,15 @@ async fn fetch_subscriptions(token: &str) -> Result<SubscriptionCache, Subscript
         .json()
         .await
         .map_err(|e| SubscriptionsError::Other(format!("invalid subscriptions payload: {e}")))?;
+    Ok(parse_subscriptions_payload(&payload, now_unix_ms()))
+}
+
+/// Map a `/api/v1/subscriptions` body onto the persisted cache shape — pure
+/// so the server contract stays unit-testable without HTTP.
+fn parse_subscriptions_payload(
+    payload: &serde_json::Value,
+    fetched_at_ms: i64,
+) -> SubscriptionCache {
     let field = |name: &str| {
         payload
             .get(name)
@@ -329,8 +338,8 @@ async fn fetch_subscriptions(token: &str) -> Result<SubscriptionCache, Subscript
             .filter(|v| !v.is_empty())
             .map(str::to_string)
     };
-    Ok(SubscriptionCache {
-        fetched_at_ms: now_unix_ms(),
+    SubscriptionCache {
+        fetched_at_ms,
         ultimate_expires_at: field("ultimateExpiresAt"),
         version_lock_horizon: field("versionLockHorizon"),
         cancel_scheduled_at: payload
@@ -339,7 +348,7 @@ async fn fetch_subscriptions(token: &str) -> Result<SubscriptionCache, Subscript
             .and_then(|v| v.as_str())
             .filter(|v| !v.is_empty())
             .map(str::to_string),
-    })
+    }
 }
 
 /// Refresh entitlements from the server. Network/5xx failures degrade to the
@@ -507,5 +516,103 @@ mod tests {
         let raw = entitlement_required_error("AI");
         assert!(raw.contains(ENTITLEMENT_ERROR_TYPE));
         assert!(raw.contains("AI"));
+    }
+
+    fn temp_dir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "dockit-entitlement-test-{tag}-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    #[test]
+    fn subscriptions_payload_maps_all_server_fields() {
+        let payload = json!({
+            "ultimateExpiresAt": "2027-01-01T00:00:00.000Z",
+            "versionLockHorizon": "2027-06-01T00:00:00.000Z",
+            "subscription": { "cancelScheduledAt": "2026-12-01T00:00:00.000Z" },
+        });
+        let parsed = parse_subscriptions_payload(&payload, 7);
+        assert_eq!(parsed.fetched_at_ms, 7);
+        assert_eq!(
+            parsed.ultimate_expires_at.as_deref(),
+            Some("2027-01-01T00:00:00.000Z")
+        );
+        assert_eq!(
+            parsed.version_lock_horizon.as_deref(),
+            Some("2027-06-01T00:00:00.000Z")
+        );
+        assert_eq!(
+            parsed.cancel_scheduled_at.as_deref(),
+            Some("2026-12-01T00:00:00.000Z")
+        );
+    }
+
+    #[test]
+    fn subscriptions_payload_treats_missing_and_blank_fields_as_absent() {
+        let parsed =
+            parse_subscriptions_payload(&json!({ "ultimateExpiresAt": "", "subscription": {} }), 0);
+        assert_eq!(parsed.ultimate_expires_at, None);
+        assert_eq!(parsed.version_lock_horizon, None);
+        assert_eq!(parsed.cancel_scheduled_at, None);
+    }
+
+    #[test]
+    fn entitlement_state_persists_across_reload_and_clear_wipes() {
+        let dir = temp_dir("persist");
+        let path = dir.join("cache.json");
+        let state = EntitlementState::load(Some(path.clone()));
+        assert!(!state.local_entitled());
+
+        state.set_cache(
+            cache(
+                Some("2999-01-01T00:00:00.000Z"),
+                Some("2020-01-01T00:00:00.000Z"),
+            )
+            .unwrap(),
+        );
+        assert!(state.local_entitled());
+        assert!(
+            path.exists(),
+            "cache must be persisted for offline restarts"
+        );
+
+        let reloaded = EntitlementState::load(Some(path.clone()));
+        assert!(reloaded.local_entitled(), "cache survives a restart");
+
+        reloaded.clear();
+        assert!(!reloaded.local_entitled());
+        assert!(!path.exists(), "logout must remove the persisted cache");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refresh_throttles_only_after_a_success() {
+        let fresh = EntitlementState::load(None);
+        assert!(
+            !fresh.refresh_throttled(),
+            "first refresh is never throttled"
+        );
+
+        let state = EntitlementState::load(None);
+        state.set_cache(cache(None, None).unwrap());
+        assert!(
+            state.refresh_throttled(),
+            "a success starts the throttle window"
+        );
+    }
+
+    #[test]
+    fn local_gate_fails_closed_and_opens_with_entitlement() {
+        let state = EntitlementState::load(None);
+        assert_eq!(
+            ensure_local_ultimate(&state, "AI"),
+            Err(entitlement_required_error("AI"))
+        );
+
+        state.set_cache(cache(Some("2999-01-01T00:00:00.000Z"), None).unwrap());
+        assert!(ensure_local_ultimate(&state, "AI").is_ok());
     }
 }
