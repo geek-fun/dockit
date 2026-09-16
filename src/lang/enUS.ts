@@ -1451,6 +1451,7 @@ export const enUS = {
       loginLink: 'Log in with Geekfun',
       refresh: 'Refresh',
       logout: 'Log out',
+      manage: 'Manage subscription',
     },
   },
   login: {

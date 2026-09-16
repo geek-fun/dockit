@@ -41,11 +41,23 @@ let unlistenSessionRefresh: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
-type AuthPayload = { token: string; username?: string | null; email?: string | null };
+type AuthPayload = {
+  token: string;
+  username?: string | null;
+  email?: string | null;
+  userId?: string | null;
+  avatar?: string | null;
+};
 
 // Idempotent: events and the cold-start pull may both deliver the same link.
 const handleAuth = (payload: AuthPayload) => {
-  userStore.setAuth(payload.token, payload.username ?? '', payload.email ?? '');
+  userStore.setAuth(
+    payload.token,
+    payload.username ?? '',
+    payload.email ?? '',
+    payload.userId ?? '',
+    payload.avatar ?? '',
+  );
   entitlementStore.refreshEntitlement(true);
   // geekfun#59: the deep-linked token comes from a web login with no
   // device attached — register/verify this machine right away.

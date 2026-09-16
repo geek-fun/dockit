@@ -45,6 +45,10 @@ export const openRegisterUrl = async (): Promise<void> => {
   await open(registerUrl);
 };
 
+export const openConsoleUrl = async (): Promise<void> => {
+  await open(`${getGeekfunUrl()}/home`);
+};
+
 export const parseDeepLinkUrl = (url: string): AuthCallbackData | null => {
   try {
     const parsedUrl = new URL(url);
@@ -77,5 +81,6 @@ export const parseDeepLinkUrl = (url: string): AuthCallbackData | null => {
 export const authService = {
   openLoginUrl,
   openRegisterUrl,
+  openConsoleUrl,
   parseDeepLinkUrl,
 };
