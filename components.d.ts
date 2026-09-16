@@ -46,6 +46,7 @@ declare module 'vue' {
     ContextMenuLabel: typeof import('./src/components/ui/context-menu/ContextMenuLabel.vue')['default']
     ContextMenuSeparator: typeof import('./src/components/ui/context-menu/ContextMenuSeparator.vue')['default']
     ContextMenuTrigger: typeof import('./src/components/ui/context-menu/ContextMenuTrigger.vue')['default']
+    DeviceReplaceDialog: typeof import('./src/components/DeviceReplaceDialog.vue')['default']
     Dialog: typeof import('./src/components/ui/dialog/Dialog.vue')['default']
     DialogClose: typeof import('./src/components/ui/dialog/DialogClose.vue')['default']
     DialogContent: typeof import('./src/components/ui/dialog/DialogContent.vue')['default']
@@ -84,6 +85,7 @@ declare module 'vue' {
     LoadingBar: typeof import('./src/components/ui/loading-bar/LoadingBar.vue')['default']
     MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']
     ModelPicker: typeof import('./src/components/model-picker.vue')['default']
+    PaidGate: typeof import('./src/components/upgrade/PaidGate.vue')['default']
     PathBreadcrumb: typeof import('./src/components/path-breadcrumb.vue')['default']
     Popover: typeof import('./src/components/ui/popover/Popover.vue')['default']
     PopoverContent: typeof import('./src/components/ui/popover/PopoverContent.vue')['default']
@@ -134,6 +136,7 @@ declare module 'vue' {
     TooltipTrigger: typeof import('./src/components/ui/tooltip/TooltipTrigger.vue')['default']
     TreeNode: typeof import('./src/components/result/TreeNode.vue')['default']
     UnoIcon: typeof import('./src/components/ui/icon/UnoIcon.vue')['default']
+    UpgradeDialog: typeof import('./src/components/upgrade/UpgradeDialog.vue')['default']
     VersionDetect: typeof import('./src/components/VersionDetect.vue')['default']
   }
 }

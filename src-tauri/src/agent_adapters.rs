@@ -78,6 +78,10 @@ pub async fn run_agent_loop(
     settings: Value,
     app: AppHandle,
 ) -> Result<(), String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AI",
+    )?;
     let db_state: State<storage::db::AgentDb> = app.state::<storage::db::AgentDb>();
     let store = storage::session_store::SqliteSessionStore::new(db_state.inner().clone());
     let emitter = TauriEmitter(app.clone());
@@ -187,6 +191,10 @@ pub async fn compact_agent_session(
     settings: Value,
     app: AppHandle,
 ) -> Result<Value, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AI",
+    )?;
     let db_state: State<storage::db::AgentDb> = app.state::<storage::db::AgentDb>();
     let store = storage::session_store::SqliteSessionStore::new(db_state.inner().clone());
     let emitter = TauriEmitter(app.clone());
@@ -221,6 +229,11 @@ pub async fn run_agent_step(
     api_key: String,
     base_url: Option<String>,
 ) -> Result<String, String> {
+    use tauri::Manager;
+    crate::entitlement::ensure_local_ultimate(
+        &window.state::<crate::entitlement::EntitlementState>(),
+        "AI",
+    )?;
     let result = lib::harness::run_agent_step(
         provider, model, messages, tools, http_proxy, proxy_mode, api_key, base_url,
     )
@@ -235,6 +248,7 @@ pub async fn run_agent_step(
 
 #[tauri::command]
 pub async fn validate_llm_config(
+    app: AppHandle,
     provider: String,
     api_key: String,
     model: String,
@@ -242,18 +256,27 @@ pub async fn validate_llm_config(
     proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AI",
+    )?;
     lib::harness::validate_llm_config(provider, api_key, model, http_proxy, proxy_mode, base_url)
         .await
 }
 
 #[tauri::command]
 pub async fn list_llm_models(
+    app: AppHandle,
     provider: String,
     api_key: String,
     http_proxy: Option<String>,
     proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<Vec<String>, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AI",
+    )?;
     lib::harness::list_llm_models(provider, api_key, http_proxy, proxy_mode, base_url).await
 }
 

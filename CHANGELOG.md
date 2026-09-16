@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Entitlements & version-lock subscription model (geekfun#56)** — client-side implementation of the Ultimate entitlement contract: the two server-computed fields `ultimateExpiresAt` + `versionLockHorizon` are consumed via a new Rust entitlement module (persisted cache, offline tolerance, failure degradation, 5-minute refresh throttle, `app.releaseDate <= versionLockHorizon` unlock check). Rust command gates return `ENTITLEMENT_REQUIRED` for AI (agent loop/step, compaction, LLM validation), MongoDB import/export, SSH profile management and tunnel usage, explicit HTTP/SOCKS proxying, AWS Profile/SSO/AssumeRole authentication, and the MCP bridge (config save + auto-start). The frontend adds an entitlement store, paid-feature gates with upgrade guidance on Data Studio, cluster management, import/export, AI and MCP settings, SSH sections and AWS auth modes in connect dialogs, plus a Plan & Version section in Settings showing the version-lock state with login and logout (logout clears the local entitlement cache so entitlements never outlive the account session). READMEs now document the Community vs Ultimate feature boundary.
+
+### Fixed
+
+- **Deep-link sign-in on cold start** — a `dockit://auth` link that launches the app no longer drops the token: the payload is parked in a pending-auth slot during startup and the frontend pulls it via `consume_pending_auth` once mounted; running-instance links double-write the same slot, and the single-instance handler now forwards argv through the deep-link plugin so links reach the running app on Linux/Windows as well.
+
 ## [1.4.5] - 2026-09-06
 
 ### Added

@@ -515,6 +515,10 @@ pub async fn save_mcp_config(
     policy: Option<McpPolicy>,
     app: AppHandle,
 ) -> Result<String, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "MCP Server",
+    )?;
     let app_data_dir = app
         .path()
         .app_data_dir()

@@ -61,6 +61,27 @@ DocKit replaces browser consoles like Kibana and AWS Console with a single nativ
   <img src="https://img.shields.io/badge/Website-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
 </a>
 
+## Community vs Ultimate
+
+DocKit follows a single official build with a runtime Community/Ultimate mode (source remains Apache-2.0).
+
+**Community (free forever):** all data sources (Elasticsearch / OpenSearch / DynamoDB / MongoDB / EasySearch), unlimited connections with basic direct authentication (user/password, static access keys), TLS, OS-keychain credential encryption, the full Monaco-powered editors and visual query builders, browsing & inline editing, result-set export (CSV / JSON / Markdown / copy), query history and saved queries, metadata browsing, DynamoDB Local.
+
+**Ultimate ($9.9/mo · $99/yr, 7-day free trial):**
+
+| Feature | Included |
+|---|---|
+| AI — agent, NL2SQL, explain, optimize, one-click fix (bring your own LLM key) | ✅ |
+| Cluster management & monitoring — nodes, shards, indices, templates, allocation | ✅ |
+| Built-in MCP Server | ✅ |
+| Batch / file-level import & export | ✅ |
+| Remote connection enhancements — SSH tunnel, HTTP/SOCKS proxy | ✅ |
+| Cloud credentials — AWS Profile / SSO / IAM | ✅ |
+
+**Version lock:** every release published during an active subscription stays unlocked forever — offline, even after the subscription ends. The 7-day trial unlocks everything during the trial but does not grant version-lock rights. Cloud services (e.g. sync) require an active subscription.
+
+See [pricing](https://www.geekfun.club/pricing) for details.
+
 ## Key Features
 
 ### Agentic Data Studio

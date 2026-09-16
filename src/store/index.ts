@@ -1,4 +1,6 @@
 export * from './appStore';
+export * from './deviceStore';
+export * from './entitlementStore';
 export * from './userStore';
 export * from './connectionStore';
 export * from './fileStore.ts';

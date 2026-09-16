@@ -264,10 +264,14 @@ jobs:
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
 
+      - name: Stamp release date
+        run: echo "APP_RELEASE_DATE=$(date -u +%F)" >> $GITHUB_ENV
+
       - name: Build and Upload Artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APP_RELEASE_DATE: ${{ env.APP_RELEASE_DATE }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}

@@ -44,10 +44,14 @@
             <editor-setting />
           </TabsContent>
           <TabsContent value="AI" class="m-0">
-            <aigc />
+            <PaidGate feature="ai">
+              <aigc />
+            </PaidGate>
           </TabsContent>
           <TabsContent value="MCP" class="m-0">
-            <mcp-bridge />
+            <PaidGate feature="mcp_bridge">
+              <mcp-bridge />
+            </PaidGate>
           </TabsContent>
           <TabsContent value="About" class="m-0">
             <about-us />
@@ -64,6 +68,7 @@ import EditorSetting from './components/editor.vue';
 import Aigc from './components/aigc.vue';
 import AboutUs from './components/about-us.vue';
 import McpBridge from './components/mcp-bridge.vue';
+import { PaidGate } from '@/components/upgrade';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 </script>
 

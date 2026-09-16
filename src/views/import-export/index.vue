@@ -1,65 +1,68 @@
 <template>
-  <main class="import-export-container">
-    <!-- Content Layout -->
-    <div class="content-layout">
-      <!-- Left: Steps Column -->
-      <div class="steps-column">
-        <!-- Segmented Control Switch (fixed) -->
-        <div class="mode-switch-wrapper">
-          <div class="segmented-control">
-            <label :class="['segment-label', { active: activeMode === 'import' }]">
-              <span class="segment-text">{{ $t('importExport.import') }}</span>
-              <input
-                v-model="activeMode"
-                class="segment-input"
-                name="mode"
-                type="radio"
-                value="import"
-              />
-            </label>
-            <label :class="['segment-label', { active: activeMode === 'export' }]">
-              <span class="segment-text">{{ $t('importExport.export') }}</span>
-              <input
-                v-model="activeMode"
-                class="segment-input"
-                name="mode"
-                type="radio"
-                value="export"
-              />
-            </label>
+  <PaidGate feature="import_export" class="h-full w-full">
+    <main class="import-export-container">
+      <!-- Content Layout -->
+      <div class="content-layout">
+        <!-- Left: Steps Column -->
+        <div class="steps-column">
+          <!-- Segmented Control Switch (fixed) -->
+          <div class="mode-switch-wrapper">
+            <div class="segmented-control">
+              <label :class="['segment-label', { active: activeMode === 'import' }]">
+                <span class="segment-text">{{ $t('importExport.import') }}</span>
+                <input
+                  v-model="activeMode"
+                  class="segment-input"
+                  name="mode"
+                  type="radio"
+                  value="import"
+                />
+              </label>
+              <label :class="['segment-label', { active: activeMode === 'export' }]">
+                <span class="segment-text">{{ $t('importExport.export') }}</span>
+                <input
+                  v-model="activeMode"
+                  class="segment-input"
+                  name="mode"
+                  type="radio"
+                  value="export"
+                />
+              </label>
+            </div>
+          </div>
+
+          <!-- Steps Content (scrollable) -->
+          <div class="steps-content">
+            <!-- Export Steps -->
+            <template v-if="activeMode === 'export'">
+              <ExportSourceScope />
+              <ExportSchemaStructure />
+              <ExportTargetOutput />
+            </template>
+
+            <!-- Import Steps -->
+            <template v-else>
+              <ImportTargetOutput />
+              <ImportSourceScope />
+              <ImportSchemaStructure />
+            </template>
           </div>
         </div>
 
-        <!-- Steps Content (scrollable) -->
-        <div class="steps-content">
-          <!-- Export Steps -->
-          <template v-if="activeMode === 'export'">
-            <ExportSourceScope />
-            <ExportSchemaStructure />
-            <ExportTargetOutput />
-          </template>
-
-          <!-- Import Steps -->
-          <template v-else>
-            <ImportTargetOutput />
-            <ImportSourceScope />
-            <ImportSchemaStructure />
-          </template>
+        <!-- Right: Execution Panel -->
+        <div class="execution-container">
+          <ExportExecutionPanel v-if="activeMode === 'export'" />
+          <ImportExecutionPanel v-else />
         </div>
       </div>
-
-      <!-- Right: Execution Panel -->
-      <div class="execution-container">
-        <ExportExecutionPanel v-if="activeMode === 'export'" />
-        <ImportExecutionPanel v-else />
-      </div>
-    </div>
-  </main>
+    </main>
+  </PaidGate>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useImportExportStore } from '../../store';
+import { PaidGate } from '@/components/upgrade';
 import ExportSourceScope from './components/export-source-scope.vue';
 import ExportSchemaStructure from './components/export-schema-structure.vue';
 import ExportTargetOutput from './components/export-target-output.vue';
