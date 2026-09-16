@@ -11,13 +11,17 @@ pub mod agent_adapters;
 pub mod capabilities;
 pub mod common;
 pub mod db;
+pub mod device_activation;
+pub mod device_identity;
 pub mod dynamo;
 pub mod dynamo_client;
+pub mod entitlement;
 pub mod fetch_client;
 pub mod file_api;
 pub mod mcp_bridge;
 pub mod menu;
 pub mod mongo_client;
+pub mod session;
 pub mod ssh;
 
 use agent::executor::DocKitToolExecutor;
@@ -85,6 +89,28 @@ fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
     })
 }
 
+/// Deep links that arrive before the frontend has mounted cannot be delivered
+/// via events (Tauri events are not queued) — they are parked here and the
+/// frontend pulls them via `consume_pending_auth` once its listeners are up.
+#[derive(Default)]
+struct PendingAuthState(std::sync::Mutex<Option<AuthPayload>>);
+
+impl PendingAuthState {
+    fn store(&self, payload: AuthPayload) {
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(payload);
+    }
+
+    /// Take-and-clear so a delivered token can never be replayed.
+    fn consume(&self) -> Option<AuthPayload> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).take()
+    }
+}
+
+#[tauri::command]
+fn consume_pending_auth(state: tauri::State<'_, PendingAuthState>) -> Option<AuthPayload> {
+    state.consume()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
@@ -98,10 +124,11 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_system_info::init())
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if args.len() > 1 {
-                let deep_link = &args[1];
-                let _ = app.emit("deep-link-received", deep_link);
-            }
+            // Forward argv through the deep-link plugin: it filters for the
+            // configured schemes and emits `deep-link://new-url` on the
+            // running instance (the only path that works on Linux/Windows).
+            use tauri_plugin_deep_link::DeepLinkExt;
+            app.deep_link().handle_cli_arguments(args.iter());
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
@@ -161,6 +188,11 @@ pub fn run() {
             crate::ssh::commands::test_ssh_connection,
             crate::ssh::commands::list_ssh_config_hosts,
             crate::common::http_client::detect_system_proxy,
+            crate::consume_pending_auth,
+            crate::entitlement::refresh_entitlement,
+            crate::entitlement::get_entitlement,
+            crate::entitlement::clear_entitlement,
+            crate::device_activation::activate_device,
             crate::mcp_bridge::get_mcp_status,
             crate::mcp_bridge::save_mcp_config,
         ])
@@ -182,6 +214,14 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
+            let entitlement_state = crate::entitlement::EntitlementState::load(Some(
+                app_data_dir.join("entitlement-cache.json"),
+            ));
+            app.manage(entitlement_state);
+            app.manage(crate::device_activation::DeviceIdentityState::load(
+                app_data_dir.clone(),
+            ));
+            app.manage(crate::session::SessionState::default());
             let db_path = app_data_dir.join("agent.sqlite");
             let agent_db = storage::db::open(&db_path)?;
             storage::db::migrate(&agent_db)?;
@@ -210,7 +250,10 @@ pub fn run() {
                     .map_err(|e| format!("{}", e))?
                     .to_path_buf();
                 let config = crate::mcp_bridge::McpConfig::load(&app_data_dir);
-                if config.auto_start {
+                let mcp_entitled = app
+                    .state::<crate::entitlement::EntitlementState>()
+                    .local_entitled();
+                if config.auto_start && mcp_entitled {
                     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
                     let server_handle: tauri::State<'_, crate::mcp_bridge::McpServerHandle> =
                         app.state();
@@ -238,23 +281,31 @@ pub fn run() {
 
             use tauri::{Emitter, Listener};
 
+            app.manage(PendingAuthState::default());
+
+            // Handle deep links received while the app is already running.
+            // Double-write: the event reaches a loaded frontend, the pending
+            // slot covers the window before its listeners exist.
             let app_handle = app.handle().clone();
             app.listen("deep-link://new-url", move |event: tauri::Event| {
                 if let Ok(urls) = serde_json::from_str::<Vec<String>>(event.payload()) {
                     for url in &urls {
                         if let Some(payload) = parse_auth_from_url(url) {
-                            let _ = app_handle.emit("dockit://auth", payload.clone());
+                            app_handle.state::<PendingAuthState>().store(payload.clone());
+                            let _ = app_handle.emit("dockit://auth", payload);
                         }
                     }
                 }
             });
 
+            // Cold start: the URL arrived via argv before any frontend
+            // listener could exist — park it for the pull above.
             use tauri_plugin_deep_link::DeepLinkExt;
+            let pending = app.state::<PendingAuthState>();
             if let Ok(Some(urls)) = app.deep_link().get_current() {
-                let app_handle = app.handle().clone();
                 for url in &urls {
                     if let Some(payload) = parse_auth_from_url(url.as_str()) {
-                        let _ = app_handle.emit("dockit://auth", payload);
+                        pending.store(payload);
                     }
                 }
             }

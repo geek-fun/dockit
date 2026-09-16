@@ -1,5 +1,8 @@
 <template>
   <div class="basic-setting space-y-8">
+    <!-- Plan Section -->
+    <PlanSection />
+
     <!-- Theme Section -->
     <div class="space-y-4">
       <div>
@@ -103,6 +106,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { InputNumber } from '@/components/ui/input-number';
+import PlanSection from './plan-section.vue';
 
 const appStore = useAppStore();
 const { setThemeType, setHistoryConfig } = appStore;

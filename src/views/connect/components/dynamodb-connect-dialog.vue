@@ -73,6 +73,17 @@
               </TabsList>
             </Tabs>
           </FormItem>
+          <Alert
+            v-if="!entitlementStore.isLocalUltimate && isPaidConnectionMode"
+            variant="info"
+            class="mb-4 cursor-pointer"
+            role="button"
+            tabindex="0"
+            @click="openUpgradeDialog('aws_profile')"
+            @keydown.enter="openUpgradeDialog('aws_profile')"
+          >
+            <AlertDescription>{{ $t('connection.awsUltimateOnly') }}</AlertDescription>
+          </Alert>
           <div class="connection-mode-content space-y-4 pt-4">
             <!-- ── Local ── -->
             <template v-if="connectionMode === 'local'">
@@ -159,7 +170,7 @@
               </template>
 
               <!-- Profile field -->
-              <template v-if="connectionMode === 'profile'">
+              <template v-if="connectionMode === 'profile' && entitlementStore.isLocalUltimate">
                 <FormItem :label="$t('connection.profileName')" required>
                   <Select
                     :model-value="
@@ -215,7 +226,7 @@
               </template>
 
               <!-- SSO fields -->
-              <template v-if="connectionMode === 'sso'">
+              <template v-if="connectionMode === 'sso' && entitlementStore.isLocalUltimate">
                 <FormItem :label="$t('connection.ssoStartUrl')" required>
                   <Input
                     v-model="ssoStartUrl"
@@ -304,7 +315,7 @@
               </template>
 
               <!-- AssumeRole fields -->
-              <template v-if="connectionMode === 'assumeRole'">
+              <template v-if="connectionMode === 'assumeRole' && entitlementStore.isLocalUltimate">
                 <FormItem :label="$t('connection.assumeRoleSourceProfile')" required>
                   <Select
                     :model-value="assumeRoleSourceProfile"
@@ -607,7 +618,8 @@ import {
   type SshConnectionConfig,
   applyTableFilter,
 } from '../../../store';
-import { useSshProfileStore } from '../../../store';
+import { useSshProfileStore, useEntitlementStore } from '../../../store';
+import { openUpgradeDialog } from '@/components/upgrade';
 import { ApiClientError } from '../../../datasources/ApiClients';
 import { dynamoApi } from '../../../datasources/dynamoApi';
 import { useFormValidation, useDialogResult } from '@/composables';
@@ -639,7 +651,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 
 const connectionStore = useConnectionStore();
+const entitlementStore = useEntitlementStore();
 const lang = useLang();
+const isPaidConnectionMode = computed(() =>
+  ['profile', 'sso', 'assumeRole'].includes(connectionMode.value),
+);
 
 const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
@@ -1157,8 +1173,10 @@ const showMedal = (con: DynamoDBConnection | null) => {
     resetAssumeRoleState();
   }
   availableProfiles.value = [];
-  fetchProfiles();
-  fetchProfilesWithRoles();
+  if (entitlementStore.isLocalUltimate) {
+    fetchProfiles();
+    fetchProfilesWithRoles();
+  }
   resetValidation();
 };
 

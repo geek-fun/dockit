@@ -134,12 +134,28 @@ pub async fn fetch_api(
     url: String,
     options: FetchApiOptions,
     ssh_tunnel: Option<Value>,
+    entitlement: tauri::State<'_, crate::entitlement::EntitlementState>,
 ) -> Result<String, String> {
     let (final_url, tunnel) = if let Some(ref ssh_config) = ssh_tunnel {
+        // Gate before any tunnel is established, not after.
+        if ssh_config.get("enabled").and_then(|v| v.as_bool()) == Some(true) {
+            crate::entitlement::ensure_local_ultimate(&entitlement, "SSH tunnel")?;
+        }
         resolve_url_via_ssh(&app, &url, ssh_config).await?
     } else {
         (url, None)
     };
+    if tunnel.is_some() {
+        crate::entitlement::ensure_local_ultimate(&entitlement, "SSH tunnel")?;
+    }
+    if options
+        .agent
+        .http_proxy
+        .as_deref()
+        .is_some_and(|proxy| !proxy.is_empty())
+    {
+        crate::entitlement::ensure_local_ultimate(&entitlement, "HTTP/SOCKS proxy")?;
+    }
 
     fetch_raw(&final_url, &options, tunnel, None).await
 }

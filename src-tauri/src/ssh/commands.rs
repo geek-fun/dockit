@@ -4,7 +4,7 @@ use crate::ssh::config::{SshProfile, SshTunnelConfig};
 use crate::ssh::ssh_config::read_ssh_config;
 use crate::ssh::TunnelManager;
 use serde::Serialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_store::StoreExt;
 use uuid::Uuid;
 
@@ -32,6 +32,10 @@ pub async fn list_ssh_profiles(app: AppHandle) -> Result<Vec<SshProfile>, String
 /// Returns the profile ID.
 #[tauri::command]
 pub async fn save_ssh_profile(app: AppHandle, profile: SshProfile) -> Result<SshProfile, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "SSH tunnel",
+    )?;
     let store = app
         .store(".store.dat")
         .map_err(|e| format!("Failed to open store: {}", e))?;
@@ -108,10 +112,20 @@ pub struct TestSshResult {
 
 #[tauri::command]
 pub async fn test_ssh_connection(
+    app: tauri::AppHandle,
     config: SshTunnelConfig,
     remote_host: String,
     remote_port: u16,
 ) -> TestSshResult {
+    if let Err(raw) = crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "SSH tunnel",
+    ) {
+        return TestSshResult {
+            success: false,
+            message: raw,
+        };
+    }
     let tunnels = TunnelManager::new();
     let connection_key = format!("test-{}", Uuid::new_v4());
 

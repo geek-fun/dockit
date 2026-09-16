@@ -168,6 +168,21 @@ pub async fn dynamo_api(
     } else {
         None
     };
+    if tunnel_port.is_some() {
+        crate::entitlement::ensure_local_ultimate(
+            app.state::<crate::entitlement::EntitlementState>().inner(),
+            "SSH tunnel",
+        )?;
+    }
+    match &credentials.auth {
+        DynamoAuth::Profile { .. } | DynamoAuth::Sso { .. } | DynamoAuth::AssumeRole { .. } => {
+            crate::entitlement::ensure_local_ultimate(
+                app.state::<crate::entitlement::EntitlementState>().inner(),
+                "AWS Profile / SSO",
+            )?
+        }
+        DynamoAuth::AccessKey { .. } => {}
+    }
     let config = build_config_builder(&credentials, tunnel_port).load().await;
 
     let client = Client::new(&config);
@@ -502,6 +517,12 @@ pub async fn dynamo_test_connection(
     }
     if let Some(auth) = config.get("auth").and_then(|v| v.as_object()) {
         if let Some(kind) = auth.get("kind").and_then(|v| v.as_str()) {
+            if matches!(kind, "profile" | "sso" | "assumeRole") {
+                crate::entitlement::ensure_local_ultimate(
+                    app.state::<crate::entitlement::EntitlementState>().inner(),
+                    "AWS Profile / SSO",
+                )?;
+            }
             normalized.insert("authKind".to_string(), serde_json::json!(kind));
             match kind {
                 "accessKey" | "sso" | "assumeRole" => {
@@ -528,6 +549,18 @@ pub async fn dynamo_test_connection(
     }
 
     let (remote_host, remote_port) = crate::common::ssh_bridge::extract_remote_target(&config);
+    let ssh_enabled = ssh_tunnel
+        .as_ref()
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if ssh_enabled {
+        // Gate before any tunnel is established, not after.
+        crate::entitlement::ensure_local_ultimate(
+            app.state::<crate::entitlement::EntitlementState>().inner(),
+            "SSH tunnel",
+        )?;
+    }
     let endpoint_is_http = config
         .get("endpointUrl")
         .and_then(|v| v.as_str())
@@ -541,6 +574,12 @@ pub async fn dynamo_test_connection(
         endpoint_is_http,
     )
     .await?;
+    if tunnel.host == "127.0.0.1" || tunnel.socks5_port.is_some() {
+        crate::entitlement::ensure_local_ultimate(
+            app.state::<crate::entitlement::EntitlementState>().inner(),
+            "SSH tunnel",
+        )?;
+    }
     if let Some(socks5_port) = tunnel.socks5_port {
         // Socks5/CONNECT mode (dual-protocol tunnel): the AWS SDK supports
         // HTTP CONNECT proxies, so route through the tunnel with the real
@@ -596,12 +635,17 @@ pub struct CredentialsResponse {
 
 #[tauri::command]
 pub async fn aws_assume_role(
+    app: tauri::AppHandle,
     source_profile_name: String,
     role_arn: String,
     external_id: Option<String>,
     mfa_serial: Option<String>,
     mfa_token: Option<String>,
 ) -> Result<CredentialsResponse, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS Profile / SSO",
+    )?;
     let profile_provider = ProfileFileCredentialsProvider::builder()
         .profile_name(&source_profile_name)
         .build();
@@ -675,9 +719,14 @@ pub struct SsoTokenPollResponse {
 
 #[tauri::command]
 pub async fn aws_sso_start_device_auth(
+    app: tauri::AppHandle,
     start_url: String,
     sso_region: String,
 ) -> Result<SsoDeviceAuthResponse, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS SSO",
+    )?;
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(Region::new(sso_region))
         .load()
@@ -734,11 +783,16 @@ pub async fn aws_sso_start_device_auth(
 
 #[tauri::command]
 pub async fn aws_sso_poll_token(
+    app: tauri::AppHandle,
     sso_region: String,
     client_id: String,
     client_secret: String,
     device_code: String,
 ) -> Result<SsoTokenPollResponse, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS SSO",
+    )?;
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(Region::new(sso_region))
         .load()
@@ -807,11 +861,16 @@ pub async fn aws_sso_poll_token(
 
 #[tauri::command]
 pub async fn aws_sso_get_role_credentials(
+    app: tauri::AppHandle,
     sso_region: String,
     access_token: String,
     account_id: String,
     role_name: String,
 ) -> Result<CredentialsResponse, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS SSO",
+    )?;
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(Region::new(sso_region))
         .load()
@@ -856,7 +915,11 @@ pub async fn aws_sso_get_role_credentials(
 // ── AWS Profile Listing ────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn aws_list_profiles() -> Result<Vec<String>, String> {
+pub async fn aws_list_profiles(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS Profile / SSO",
+    )?;
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .map_err(|_| "Cannot determine home directory".to_string())?;
@@ -911,7 +974,13 @@ pub struct ProfileWithRole {
 }
 
 #[tauri::command]
-pub async fn aws_list_profiles_with_roles() -> Result<Vec<ProfileWithRole>, String> {
+pub async fn aws_list_profiles_with_roles(
+    app: tauri::AppHandle,
+) -> Result<Vec<ProfileWithRole>, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS Profile / SSO",
+    )?;
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .map_err(|_| "Cannot determine home directory".to_string())?;
@@ -996,9 +1065,14 @@ pub struct SsoRole {
 
 #[tauri::command]
 pub async fn aws_sso_list_accounts(
+    app: tauri::AppHandle,
     sso_region: String,
     access_token: String,
 ) -> Result<Vec<SsoAccount>, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS SSO",
+    )?;
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(Region::new(sso_region))
         .load()
@@ -1030,10 +1104,15 @@ pub async fn aws_sso_list_accounts(
 
 #[tauri::command]
 pub async fn aws_sso_list_roles(
+    app: tauri::AppHandle,
     sso_region: String,
     access_token: String,
     account_id: String,
 ) -> Result<Vec<SsoRole>, String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "AWS SSO",
+    )?;
     let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(Region::new(sso_region))
         .load()

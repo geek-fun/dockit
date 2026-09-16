@@ -38,6 +38,15 @@
         <div class="left">{{ $t('login.forget') }}</div>
         <div class="right">{{ $t('login.register') }}</div>
       </div>
+
+      <div class="divider">
+        <span>{{ $t('login.orContinueWith') || 'or continue with' }}</span>
+      </div>
+
+      <Button variant="outline" class="w-full geekfun-login-btn" @click="handleGeekfunLogin">
+        <img src="@/assets/images/geekfun.png" alt="Geekfun" class="geekfun-icon" />
+        {{ $t('login.loginWithGeekfun') || 'Login with Geekfun' }}
+      </Button>
     </div>
   </div>
 </template>
@@ -52,6 +61,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-vue-next';
 import { useFormValidation } from '@/composables';
+import { authService } from '../../datasources/authService';
 
 const userStore = useUserStore();
 const lang = useLang();
@@ -74,6 +84,14 @@ const handleLogin = (e: MouseEvent) => {
   if (fieldErrors.value.name || fieldErrors.value.password) return;
   userStore.setToken('setToken');
   router.push('/');
+};
+
+const handleGeekfunLogin = async () => {
+  try {
+    await authService.openLoginUrl();
+  } catch (error) {
+    console.error('Failed to open Geekfun login:', error);
+  }
 };
 </script>
 
@@ -102,5 +120,38 @@ const handleLogin = (e: MouseEvent) => {
 .opration .right {
   cursor: pointer;
   text-decoration: underline;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.divider span {
+  padding: 0 12px;
+  color: var(--text-muted, #6b7280);
+  font-size: 12px;
+}
+
+.geekfun-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.geekfun-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 </style>

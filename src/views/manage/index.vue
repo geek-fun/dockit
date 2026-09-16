@@ -8,7 +8,9 @@
       @create-mongo-database="handleCreateMongoDatabase"
     />
     <template v-if="connection && isSearchConnection(connection)">
-      <cluster-state class="state-container" :cluster="cluster" />
+      <PaidGate feature="cluster_manage" class="state-container">
+        <cluster-state class="h-full" :cluster="cluster" />
+      </PaidGate>
     </template>
     <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
       <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
@@ -35,6 +37,7 @@ import { useLang } from '../../lang';
 import { CustomError } from '../../common';
 import { useMessageService } from '@/composables';
 import { Empty } from '@/components/ui/empty';
+import { PaidGate } from '@/components/upgrade';
 
 const message = useMessageService();
 const lang = useLang();

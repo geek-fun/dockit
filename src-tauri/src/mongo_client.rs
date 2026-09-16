@@ -4,6 +4,7 @@ use mongodb::bson::{doc, Bson, Document};
 use mongodb::{options::ClientOptions, Client};
 use serde::Deserialize;
 use serde_json::Value;
+use tauri::Manager;
 use url::{form_urlencoded, Url};
 
 #[derive(Debug, Deserialize)]
@@ -174,9 +175,22 @@ pub async fn mongo_test_connection(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
+    if ssh_enabled {
+        // Gate before any tunnel is established, not after.
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "SSH tunnel",
+        )?;
+    }
     let endpoint =
         resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
     let tp = tunnel_port(ssh_enabled, &endpoint.host, endpoint.port);
+    if tp.is_some() || endpoint.socks5_port.is_some() {
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "SSH tunnel",
+        )?;
+    }
     let uri = match build_uri_tunneled(&config, tp) {
         Ok(uri) => uri,
         Err(e) => return Ok(ApiResponse::err(400, e)),
@@ -992,15 +1006,23 @@ pub async fn mongo_execute_query(
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
+    if ssh_enabled {
+        // Gate before any tunnel is established, not after.
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "SSH tunnel",
+        )?;
+    }
     let endpoint =
         resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port, false).await?;
-    let client = match build_client_tunneled(
-        &config,
-        tunnel_port(ssh_enabled, &endpoint.host, endpoint.port),
-        endpoint.socks5_port,
-    )
-    .await
-    {
+    let tp = tunnel_port(ssh_enabled, &endpoint.host, endpoint.port);
+    if tp.is_some() || endpoint.socks5_port.is_some() {
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "SSH tunnel",
+        )?;
+    }
+    let client = match build_client_tunneled(&config, tp, endpoint.socks5_port).await {
         Ok(c) => c,
         Err(e) => {
             return Ok(ApiResponse::err(500, e));
@@ -1068,6 +1090,11 @@ pub async fn mongo_export_documents(
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
+
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "Import/Export",
+    )?;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint =
@@ -1156,6 +1183,11 @@ pub async fn mongo_import_documents(
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
+
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "Import/Export",
+    )?;
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint =

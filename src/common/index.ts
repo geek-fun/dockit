@@ -12,4 +12,5 @@ export * from './retry';
 export * from './scrollStickiness';
 export * from './asyncUtils';
 export * from './featureFlags';
+export * from './entitlement';
 export * from './connectQuery';

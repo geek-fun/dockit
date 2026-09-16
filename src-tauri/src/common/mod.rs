@@ -1,5 +1,6 @@
 pub mod bson;
 pub mod connection_resolver;
+pub mod console;
 pub mod dynamo;
 pub mod dynamodb_utils;
 pub mod es;

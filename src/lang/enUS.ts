@@ -1,4 +1,15 @@
 export const enUS = {
+  device: {
+    replaceTitle: 'Device limit reached',
+    replaceDescription:
+      'Your subscription can stay activated on up to {limit} devices. Pick a device below to replace it with this one — the replaced device loses access immediately.',
+    slotUsage: '{used}/{limit} devices in use',
+    thisDevice: 'This device',
+    lastActive: 'Last active',
+    neverActive: 'Never',
+    replaceConfirm: 'Replace & Activate',
+    replaceFailed: 'Failed to replace the device. Pick another one and try again.',
+  },
   common: {
     cancel: 'Cancel',
     create: 'Create',
@@ -864,6 +875,7 @@ export const enUS = {
     cloudTarget: 'AWS Cloud',
     authAccessKey: 'AWS Access Keys',
     authProfile: 'AWS Profiles',
+    awsUltimateOnly: 'AWS Profile / SSO / AssumeRole are Ultimate features — click to upgrade',
     authSso: 'SSO',
     authAssumeRole: 'Assume Role',
     profileName: 'Profile Name',
@@ -1025,6 +1037,7 @@ export const enUS = {
     },
 
     ssh: {
+      ultimateOnly: 'SSH tunnel is an Ultimate feature — click to upgrade',
       title: 'SSH Tunnel',
       profile: 'SSH Profile',
       profilePlaceholder: 'Select an SSH profile',
@@ -1396,6 +1409,51 @@ export const enUS = {
     upToDate: 'DocKit is up to date',
     checkFailed: 'Failed to check for updates',
   },
+  plan: {
+    pricing: 'Ultimate $9.9/mo · $99/yr · 7-day free trial',
+    state: {
+      ultimate: 'Ultimate',
+      community: 'Community',
+    },
+    features: {
+      ai: 'AI — agent, NL2SQL, explain, optimize and one-click fix. Bring your own LLM key.',
+      cluster_manage:
+        'Cluster management & monitoring — nodes, shards, indices, templates and allocation.',
+      import_export: 'Batch & file-level import/export.',
+      ssh_tunnel: 'SSH tunnel for remote connections.',
+      proxy: 'HTTP / SOCKS proxy for remote connections.',
+      aws_profile: 'AWS Profile / SSO / IAM authentication.',
+      mcp_bridge: 'Built-in MCP Server bridge.',
+    },
+    upgrade: {
+      title: 'Upgrade to Ultimate',
+      description:
+        'Unlock AI, cluster management, import/export, SSH tunnel, AWS SSO and the MCP bridge.',
+      cta: 'Upgrade',
+      refresh: 'Refresh entitlements',
+      versionPermanent: 'Subscribed versions are permanently usable, even offline.',
+      versionLockedOut:
+        'This release requires an active subscription to unlock. Renew to unlock it permanently.',
+    },
+    section: {
+      title: 'Plan & Version',
+      desc: 'Subscription entitlements and version-lock state for this installation.',
+      versionPermanent: 'Current version is permanently usable (covered by your version lock).',
+      subscriptionActive: 'Ultimate is active — all features unlocked while subscribed.',
+      versionLockedOut:
+        'This version ({date}) is not covered by a version lock — showing Community mode.',
+      expiresAt: 'Active until {time}',
+      cancelScheduled:
+        'Subscription is scheduled to end at the close of the current billing period.',
+      checkFailed:
+        'Could not verify entitlements — showing cached state. Check your network and refresh.',
+      notLoggedIn: 'You are not logged in.',
+      loginLink: 'Log in with Geekfun',
+      refresh: 'Refresh',
+      logout: 'Log out',
+      manage: 'Manage subscription',
+    },
+  },
   login: {
     title: 'Log In',
     name: 'User Name',
@@ -1404,6 +1462,8 @@ export const enUS = {
     register: 'No account? Register Now',
     enterName: 'Please enter one user name',
     enterPwd: 'Please enter password',
+    orContinueWith: 'or continue with',
+    loginWithGeekfun: 'Login with Geekfun',
   },
   grammar: {
     // Search APIs
