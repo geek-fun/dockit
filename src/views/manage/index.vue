@@ -1,27 +1,29 @@
 <template>
   <div class="manage-container">
-    <tool-bar
-      type="MANAGE"
-      @refresh-dynamo-manage="handleDynamoRefresh"
-      @create-dynamo-table="handleCreateDynamoTable"
-      @refresh-mongo-manage="handleMongoRefresh"
-      @create-mongo-database="handleCreateMongoDatabase"
-    />
-    <template v-if="connection && isSearchConnection(connection)">
-      <PaidGate feature="cluster_manage" class="state-container">
-        <cluster-state class="h-full" :cluster="cluster" />
-      </PaidGate>
-    </template>
-    <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
-      <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
-    </template>
-    <template v-else-if="connection?.type === DatabaseType.MONGODB">
-      <mongo-cluster-state ref="mongoClusterStateRef" class="cluster-container" />
-      <mongo-collection-manage ref="mongoCollectionManageRef" class="state-container" />
-    </template>
-    <div v-else class="empty-state">
-      <Empty :description="$t('manage.emptyNoConnection')" />
-    </div>
+    <PaidGate feature="cluster_manage" class="h-full w-full">
+      <div class="flex h-full w-full flex-col">
+        <tool-bar
+          type="MANAGE"
+          @refresh-dynamo-manage="handleDynamoRefresh"
+          @create-dynamo-table="handleCreateDynamoTable"
+          @refresh-mongo-manage="handleMongoRefresh"
+          @create-mongo-database="handleCreateMongoDatabase"
+        />
+        <template v-if="connection && isSearchConnection(connection)">
+          <cluster-state class="state-container" :cluster="cluster" />
+        </template>
+        <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
+          <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
+        </template>
+        <template v-else-if="connection?.type === DatabaseType.MONGODB">
+          <mongo-cluster-state ref="mongoClusterStateRef" class="cluster-container" />
+          <mongo-collection-manage ref="mongoCollectionManageRef" class="state-container" />
+        </template>
+        <div v-else class="empty-state">
+          <Empty :description="$t('manage.emptyNoConnection')" />
+        </div>
+      </div>
+    </PaidGate>
   </div>
 </template>
 

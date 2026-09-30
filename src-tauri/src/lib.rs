@@ -54,8 +54,6 @@ use file_api::{get_file_info, read_file_batch};
 use mongo_client::{
     mongo_execute_query, mongo_export_documents, mongo_import_documents, mongo_test_connection,
 };
-use tauri::Emitter;
-
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
     token: String,
@@ -87,6 +85,19 @@ fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
         email,
         avatar,
     })
+}
+
+/// Debug-only: reads a `dockit://auth` link from `DOCKIT_DEV_AUTH_URL` so the
+/// deep-link login can be tested with `tauri dev`, which cannot receive URL
+/// schemes on macOS (schemes are registered per app bundle).
+#[cfg(debug_assertions)]
+fn dev_injected_auth() -> Option<AuthPayload> {
+    let raw = std::env::var("DOCKIT_DEV_AUTH_URL").ok()?;
+    let payload = parse_auth_from_url(&raw);
+    if payload.is_none() {
+        eprintln!("[dockit] DOCKIT_DEV_AUTH_URL is set but is not a valid dockit://auth link");
+    }
+    payload
 }
 
 /// Deep links that arrive before the frontend has mounted cannot be delivered
@@ -282,6 +293,16 @@ pub fn run() {
             use tauri::{Emitter, Listener};
 
             app.manage(PendingAuthState::default());
+
+            // macOS cannot route custom URL schemes to a `tauri dev` binary
+            // (schemes are registered per app bundle), so local testing injects
+            // the auth deep link through the environment instead:
+            //   DOCKIT_DEV_AUTH_URL='dockit://auth?token=…' npm run tauri dev
+            #[cfg(debug_assertions)]
+            if let Some(payload) = dev_injected_auth() {
+                eprintln!("[dockit] auth injected via DOCKIT_DEV_AUTH_URL");
+                app.state::<PendingAuthState>().store(payload);
+            }
 
             // Handle deep links received while the app is already running.
             // Double-write: the event reaches a loaded frontend, the pending

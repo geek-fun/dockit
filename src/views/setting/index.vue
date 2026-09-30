@@ -44,12 +44,12 @@
             <editor-setting />
           </TabsContent>
           <TabsContent value="AI" class="m-0">
-            <PaidGate feature="ai">
+            <PaidGate feature="ai" compact>
               <aigc />
             </PaidGate>
           </TabsContent>
           <TabsContent value="MCP" class="m-0">
-            <PaidGate feature="mcp_bridge">
+            <PaidGate feature="mcp_bridge" compact>
               <mcp-bridge />
             </PaidGate>
           </TabsContent>

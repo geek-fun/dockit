@@ -21,18 +21,39 @@
             <p v-if="entitlementStore.cancelScheduled" class="text-xs text-amber-600">
               {{ $t('plan.section.cancelScheduled') }}
             </p>
-            <p v-if="entitlementStore.hasEntitlementError" class="text-xs text-destructive">
+            <p
+              v-if="entitlementStore.hasEntitlementError && userStore.isLoggedIn"
+              class="text-xs text-destructive"
+            >
               {{ $t('plan.section.checkFailed') }}
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <Button variant="outline" size="sm" :disabled="refreshing" @click="handleRefresh">
+            <Button
+              v-if="userStore.isLoggedIn"
+              variant="outline"
+              size="sm"
+              :disabled="refreshing"
+              @click="handleRefresh"
+            >
               <RefreshCw v-if="refreshing" class="mr-2 h-4 w-4 animate-spin" />
               {{ $t('plan.section.refresh') }}
             </Button>
-            <Button v-if="!entitlementStore.isLocalUltimate" size="sm" @click="handleUpgrade">
+            <Button
+              v-if="userStore.isLoggedIn && !entitlementStore.isLocalUltimate"
+              size="sm"
+              @click="handleUpgrade"
+            >
               {{ $t('plan.upgrade.cta') }}
             </Button>
+            <template v-if="!userStore.isLoggedIn">
+              <Button variant="outline" size="sm" @click="handleUpgrade">
+                {{ $t('plan.upgrade.cta') }}
+              </Button>
+              <Button size="sm" @click="handleStartFree">
+                {{ $t('plan.upgrade.startFree') }}
+              </Button>
+            </template>
             <Button v-if="userStore.isLoggedIn" variant="outline" size="sm" @click="handleLogout">
               {{ $t('plan.section.logout') }}
             </Button>
@@ -46,13 +67,39 @@
         </p>
       </CardContent>
     </Card>
+
+    <Card>
+      <CardContent class="p-0">
+        <div class="compare-grid">
+          <div class="compare-head compare-cell">
+            {{ $t('plan.gate.additive') }}
+          </div>
+          <div class="compare-head compare-cell compare-cell--plan">
+            {{ $t('plan.state.community') }}
+          </div>
+          <div class="compare-head compare-cell compare-cell--plan compare-cell--ultimate">
+            <span>{{ $t('plan.state.ultimate') }}</span>
+            <span class="compare-recommend">{{ $t('plan.gate.recommended') }}</span>
+          </div>
+          <template v-for="row in compareRows" :key="row.key">
+            <div class="compare-cell compare-label">{{ $t(row.key) }}</div>
+            <div class="compare-cell compare-cell--plan">
+              <X class="h-3.5 w-3.5 compare-no" />
+            </div>
+            <div class="compare-cell compare-cell--plan compare-cell--ultimate">
+              <Check class="h-3.5 w-3.5 compare-yes" />
+            </div>
+          </template>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { RefreshCw } from 'lucide-vue-next';
+import { Check, RefreshCw, X } from 'lucide-vue-next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -67,6 +114,17 @@ const deviceStore = useDeviceStore();
 const { view } = storeToRefs(entitlementStore);
 
 const refreshing = ref(false);
+
+const compareRows = [
+  { key: 'plan.compare.ai' },
+  { key: 'plan.compare.cluster' },
+  { key: 'plan.compare.importExport' },
+  { key: 'plan.compare.ssh' },
+  { key: 'plan.compare.proxy' },
+  { key: 'plan.compare.aws' },
+  { key: 'plan.compare.mcp' },
+  { key: 'plan.compare.versionLock' },
+] as const;
 
 const planState = computed(() => (entitlementStore.isLocalUltimate ? 'ultimate' : 'community'));
 
@@ -112,4 +170,61 @@ const handleLogout = async () => {
 const handleGeekfunLogin = async () => {
   await authService.openLoginUrl();
 };
+
+const handleStartFree = async () => {
+  await authService.openRegisterUrl();
+};
 </script>
+
+<style scoped>
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 92px 112px;
+}
+
+.compare-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: hsl(var(--foreground));
+  border-top: 1px solid hsl(var(--border) / 0.7);
+}
+
+.compare-head {
+  border-top: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.compare-head.compare-cell:first-child {
+  font-weight: 500;
+}
+
+.compare-cell--plan {
+  justify-content: center;
+}
+
+.compare-cell--ultimate {
+  background-color: hsl(var(--primary) / 0.05);
+}
+
+.compare-recommend {
+  padding: 0 7px;
+  border-radius: 999px;
+  background-color: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.compare-yes {
+  color: hsl(var(--primary));
+}
+
+.compare-no {
+  color: hsl(var(--muted-foreground) / 0.55);
+}
+</style>

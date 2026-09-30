@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ultimate Gate Visual Harness</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+      }
+      .harness-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 16px;
+        background: rgba(127, 127, 127, 0.12);
+        backdrop-filter: blur(8px);
+        font-size: 13px;
+      }
+      .harness-toolbar button {
+        padding: 4px 10px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .harness-section {
+        height: 660px;
+        border-bottom: 1px dashed #8888;
+        position: relative;
+      }
+      .harness-compact {
+        height: auto;
+        padding: 24px;
+        max-width: 760px;
+      }
+      .harness-label {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        z-index: 50;
+        font-size: 11px;
+        color: #888;
+        letter-spacing: 0.05em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      window.__harnessErrors = [];
+      window.addEventListener('error', (e) =>
+        window.__harnessErrors.push('error: ' + ((e.error && e.error.stack) || e.message)),
+      );
+      window.addEventListener('unhandledrejection', (e) =>
+        window.__harnessErrors.push('rejection: ' + ((e.reason && e.reason.stack) || e.reason)),
+      );
+    </script>
+    <script type="module">
+      import { createApp, h, ref } from 'vue';
+      import { createPinia } from 'pinia';
+      import { createI18n } from 'vue-i18n';
+      import { enUS } from '/src/lang/enUS.ts';
+      import { zhCN } from '/src/lang/zhCN.ts';
+      import PaidGate from '/src/components/upgrade/PaidGate.vue';
+      import UpgradeDialog from '/src/components/upgrade/UpgradeDialog.vue';
+      import { openUpgradeDialog } from '/src/components/upgrade/upgradeDialogService.ts';
+      import { useUserStore } from '/src/store/index.ts';
+      import 'virtual:uno.css';
+      import '/src/assets/styles/index.css';
+
+      const i18n = createI18n({
+        globalInjection: true,
+        locale: 'enUS',
+        legacy: false,
+        messages: { enUS, zhCN },
+      });
+
+      const params = new URLSearchParams(location.search);
+      if (params.get('freeze') === '1') {
+        const style = document.createElement('style');
+        style.textContent =
+          '*, *::before, *::after { animation-play-state: paused !important; transition: none !important; }';
+        document.head.appendChild(style);
+      }
+      const only = params.get('only');
+
+      const pinia = createPinia();
+
+      const Root = {
+        setup() {
+          const theme = ref('light');
+          const locale = ref('enUS');
+          const loggedIn = ref(false);
+          const userStore = useUserStore();
+
+          const toggleTheme = () => {
+            theme.value = theme.value === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('theme', theme.value);
+          };
+          const toggleLocale = () => {
+            locale.value = locale.value === 'enUS' ? 'zhCN' : 'enUS';
+            i18n.global.locale.value = locale.value;
+          };
+          const toggleLogin = () => {
+            loggedIn.value = !loggedIn.value;
+            if (loggedIn.value) {
+              userStore.setAuth('simulated-token', 'dev@dockit.local', 'dev@dockit.local');
+            } else {
+              userStore.resetToken();
+            }
+          };
+
+          const btn = (label, onClick) => h('button', { onClick }, label);
+          const frame = (label, props, height = 660) =>
+            h(
+              'section',
+              {
+                class: height ? 'harness-section' : 'harness-compact',
+                style: height ? `height:${height}px` : '',
+              },
+              [h('span', { class: 'harness-label' }, label), h(PaidGate, props)],
+            );
+
+          const sections = [];
+          if (!only || only === 'ai') sections.push(frame('PaidGate — ai', { feature: 'ai' }));
+          if (!only || only === 'cluster')
+            sections.push(frame('PaidGate — cluster_manage', { feature: 'cluster_manage' }));
+          if (!only || only === 'import')
+            sections.push(frame('PaidGate — import_export', { feature: 'import_export' }));
+          if (!only || only === 'compact')
+            sections.push(frame('PaidGate — compact', { feature: 'ai', compact: true }, 0));
+
+          return () =>
+            h('div', [
+              h('div', { class: 'harness-toolbar' }, [
+                btn(`theme: ${theme.value}`, toggleTheme),
+                btn(`locale: ${locale.value}`, toggleLocale),
+                btn(`logged in: ${loggedIn.value}`, toggleLogin),
+                h('span', { style: 'flex:1' }),
+                btn('dialog: ai', () => openUpgradeDialog('ai')),
+                btn('dialog: ssh', () => openUpgradeDialog('ssh_tunnel')),
+                btn('dialog: no feature', () => openUpgradeDialog()),
+              ]),
+              ...sections,
+              h(UpgradeDialog),
+            ]);
+        },
+      };
+
+      const app = createApp(Root);
+      app.use(pinia);
+      app.use(i18n);
+      app.mount('#app');
+    </script>
+  </body>
+</html>

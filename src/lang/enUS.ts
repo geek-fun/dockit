@@ -1411,6 +1411,76 @@ export const enUS = {
   },
   plan: {
     pricing: 'Ultimate $9.9/mo · $99/yr · 7-day free trial',
+    nav: {
+      manage: 'Manage subscription',
+    },
+    gate: {
+      additive: 'Everything in Community, plus:',
+      lockedChip: 'Unlock with Ultimate',
+      currentFeature: 'This feature',
+      recommended: 'Recommended',
+      trustLine: 'Version lock keeps paid releases yours · Cancel anytime',
+      headline: {
+        ai: 'Ask your data in plain language',
+        cluster_manage: 'Your whole cluster, at a glance',
+        import_export: 'Move data in bulk — fast and safe',
+        ssh_tunnel: 'Reach remote clusters over SSH',
+        proxy: 'Route remote connections through your proxy',
+        aws_profile: 'Sign in with AWS SSO & IAM',
+        mcp_bridge: 'Bring DocKit into your agent stack',
+      },
+      bullets: {
+        nlq: 'Natural-language queries with generated DSL',
+        agent: 'Agentic explain, optimize & one-click fix',
+        monitor: 'Live nodes, shards & indices monitoring',
+        manage: 'Templates, aliases & allocation management',
+        batch: 'File-level import & export for indices',
+        formats: 'Large-scale NDJSON / CSV round-trips',
+        tunnel: 'Encrypted jump-host connections',
+        proxyEgress: 'HTTP / SOCKS egress control',
+        aws: 'Profile / SSO / IAM auth out of the box',
+        mcp: 'Expose cluster tools to any MCP client',
+      },
+      price: {
+        yearly: '$99 / year',
+        save: 'Save 17%',
+        monthly: '$9.9 / month',
+      },
+      trust: {
+        versionLock: 'Versions released while subscribed stay yours, even offline',
+        byok: 'Bring your own LLM key — no token markup',
+        cancel: 'Cancel anytime',
+      },
+      cta: {
+        trial: 'Start 7-day free trial',
+        login: 'Log in',
+      },
+    },
+    poster: {
+      ai: {
+        question: 'Find payment orders that failed in the last 7 days',
+        summary: '3 documents · 12 ms',
+      },
+      cluster: {
+        healthy: 'Healthy',
+        nodes: 'Nodes',
+        shards: 'Shards',
+        indices: 'Indices',
+      },
+      importExport: {
+        summary: '12,400 / 38,000 docs · 3.2 GB',
+      },
+    },
+    compare: {
+      ai: 'AI agent & NL2DSL',
+      cluster: 'Cluster management',
+      importExport: 'Import / export',
+      ssh: 'SSH tunnel',
+      proxy: 'HTTP / SOCKS proxy',
+      aws: 'AWS SSO / IAM',
+      mcp: 'MCP bridge',
+      versionLock: 'Version lock',
+    },
     state: {
       ultimate: 'Ultimate',
       community: 'Community',
@@ -1431,6 +1501,7 @@ export const enUS = {
         'Unlock AI, cluster management, import/export, SSH tunnel, AWS SSO and the MCP bridge.',
       cta: 'Upgrade',
       refresh: 'Refresh entitlements',
+      startFree: 'Start free',
       versionPermanent: 'Subscribed versions are permanently usable, even offline.',
       versionLockedOut:
         'This release requires an active subscription to unlock. Renew to unlock it permanently.',
@@ -1453,17 +1524,6 @@ export const enUS = {
       logout: 'Log out',
       manage: 'Manage subscription',
     },
-  },
-  login: {
-    title: 'Log In',
-    name: 'User Name',
-    password: 'User Password',
-    forget: 'Forgot password?',
-    register: 'No account? Register Now',
-    enterName: 'Please enter one user name',
-    enterPwd: 'Please enter password',
-    orContinueWith: 'or continue with',
-    loginWithGeekfun: 'Login with Geekfun',
   },
   grammar: {
     // Search APIs
