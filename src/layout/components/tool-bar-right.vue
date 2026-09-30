@@ -24,7 +24,6 @@
         </div>
       </the-aside-icon>
     </TooltipProvider>
-    <user-chip />
   </div>
 </template>
 
@@ -34,7 +33,6 @@ import { ref } from 'vue';
 import TheAsideIcon from './the-aside-icon.vue';
 import ChatbotBox from './chatbot-box.vue';
 import TaskManagerBox from './task-manager-box.vue';
-import UserChip from './user-chip.vue';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useImportExportStore } from '../../store';
 

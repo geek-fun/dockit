@@ -20,6 +20,7 @@ import {
   useUserStore,
 } from '../store';
 import { useAppUpdater } from '@/composables';
+import { resolveAvatarUrl } from '../datasources';
 import AboutDialog from './AboutDialog.vue';
 import UpgradeDialog from './upgrade/UpgradeDialog.vue';
 import DeviceReplaceDialog from './DeviceReplaceDialog.vue';
@@ -56,7 +57,7 @@ const handleAuth = (payload: AuthPayload) => {
     payload.username ?? '',
     payload.email ?? '',
     payload.userId ?? '',
-    payload.avatar ?? '',
+    resolveAvatarUrl(payload.avatar ?? ''),
   );
   entitlementStore.refreshEntitlement(true);
   // geekfun#59: the deep-linked token comes from a web login with no

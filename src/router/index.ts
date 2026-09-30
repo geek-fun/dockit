@@ -1,20 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { useUserStore } from '../store';
-
-const LOGIN_PATH = '/login';
 
 const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: () => ({ left: 0, top: 0 }),
   routes: [
-    {
-      path: '/login',
-      name: 'Login',
-      meta: {
-        keepAlive: false,
-      },
-      component: () => import('../views/login/index.vue'),
-    },
     {
       path: '/',
       name: 'Layout',
@@ -83,16 +72,6 @@ const router = createRouter({
       ],
     },
   ],
-});
-
-router.beforeEach(async (to, _, next) => {
-  const userStore = useUserStore();
-  const token = userStore.getToken;
-  if (to.meta.requiresAuth && !token) {
-    next(LOGIN_PATH);
-  } else {
-    next();
-  }
 });
 
 export { router };

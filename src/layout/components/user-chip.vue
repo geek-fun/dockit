@@ -2,36 +2,30 @@
   <Popover v-model:open="open">
     <PopoverTrigger as-child>
       <div
-        class="user-chip"
+        v-if="!userStore.isLoggedIn"
+        class="user-nav-item"
         role="button"
         tabindex="0"
-        :title="userStore.isLoggedIn ? userStore.displayName : ''"
+        :title="$t('aside.user')"
       >
-        <img
-          v-if="userStore.isLoggedIn && isSafeAvatar"
-          :src="userStore.avatar"
-          class="user-avatar"
-          :class="{ ultimate: entitlementStore.isLocalUltimate }"
-          alt=""
-        />
+        <span class="i-carbon-user-avatar nav-icon h-6 w-6" />
+      </div>
+      <div
+        v-else
+        class="user-nav-item user-avatar-item"
+        role="button"
+        tabindex="0"
+        :title="userStore.displayName"
+      >
+        <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
+        <span v-else class="user-avatar user-initials">{{ initials }}</span>
         <span
-          v-else-if="userStore.isLoggedIn"
-          class="user-avatar user-initials"
-          :class="{ ultimate: entitlementStore.isLocalUltimate }"
-        >
-          {{ initials }}
-        </span>
-        <span v-else class="user-avatar user-guest">
-          <span class="i-carbon-user h-4 w-4" />
-        </span>
-        <span
-          v-if="userStore.isLoggedIn"
           class="plan-dot"
           :class="entitlementStore.isLocalUltimate ? 'ultimate' : 'community'"
         />
       </div>
     </PopoverTrigger>
-    <PopoverContent side="left" align="end" class="w-72 p-0">
+    <PopoverContent side="right" align="end" class="w-72 p-0">
       <div class="user-panel">
         <div class="user-panel-header">
           <img
@@ -74,9 +68,10 @@
             <Button
               v-if="!entitlementStore.isLocalUltimate"
               size="sm"
-              class="w-full"
+              class="w-full user-upgrade-cta"
               @click="handleUpgrade"
             >
+              <Sparkles class="mr-1.5 h-3.5 w-3.5" />
               {{ $t('plan.upgrade.cta') }}
             </Button>
             <Button variant="ghost" size="sm" class="w-full" @click="handleLogout">
@@ -87,7 +82,10 @@
         </template>
 
         <div v-else class="user-panel-actions">
-          <Button size="sm" class="w-full" @click="handleLogin">
+          <Button size="sm" class="w-full" @click="handleStartFree">
+            {{ $t('plan.upgrade.startFree') }}
+          </Button>
+          <Button variant="outline" size="sm" class="w-full" @click="handleLogin">
             {{ $t('plan.section.loginLink') }}
           </Button>
         </div>
@@ -100,6 +98,7 @@
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { Sparkles } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -160,23 +159,36 @@ const handleLogin = async () => {
   open.value = false;
   await authService.openLoginUrl();
 };
+
+const handleStartFree = async () => {
+  open.value = false;
+  await authService.openRegisterUrl();
+};
 </script>
 
 <style scoped>
-.user-chip {
-  position: relative;
-  margin: auto 6px 10px;
-  height: 32px;
-  width: 28px;
+.user-nav-item {
+  height: 40px;
+  margin: 10px 0;
   display: flex;
-  align-items: center;
+  box-sizing: border-box;
   justify-content: center;
+  align-items: center;
+  color: hsl(var(--foreground));
   cursor: pointer;
-  border-radius: 8px;
 }
 
-.user-chip:hover {
-  background: hsl(var(--accent));
+.user-nav-item .nav-icon {
+  opacity: 0.4;
+  transition: 0.3s;
+}
+
+.user-nav-item:hover .nav-icon {
+  opacity: 0.9;
+}
+
+.user-avatar-item {
+  position: relative;
 }
 
 .user-avatar {
@@ -184,7 +196,6 @@ const handleLogin = async () => {
   width: 26px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid hsl(var(--border));
 }
 
 .user-initials {
@@ -198,17 +209,10 @@ const handleLogin = async () => {
   letter-spacing: 0.02em;
 }
 
-.user-guest {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: hsl(var(--muted-foreground));
-}
-
 .plan-dot {
   position: absolute;
-  right: 0;
-  bottom: 1px;
+  right: 4px;
+  bottom: 4px;
   height: 9px;
   width: 9px;
   border-radius: 50%;
@@ -285,5 +289,17 @@ const handleLogin = async () => {
   flex-direction: column;
   gap: 6px;
   padding: 10px;
+}
+
+.user-upgrade-cta {
+  border: 1px solid hsl(var(--primary) / 0.55);
+  background-color: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+
+.user-upgrade-cta:hover {
+  background-color: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
 }
 </style>

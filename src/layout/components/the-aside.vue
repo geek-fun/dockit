@@ -19,10 +19,12 @@
             @keydown.space.prevent="navClick(item)"
           >
             <span :class="[item.iconClass, 'h-6 w-6']" />
+            <ProBadge v-if="showProDot(item)" size="dot" class="icon-pro-dot" />
           </div>
         </the-aside-icon>
       </div>
       <div class="samll-nav">
+        <user-chip />
         <the-aside-icon
           v-for="item in samllNavList"
           :key="item.path"
@@ -51,13 +53,16 @@
 import { ref } from 'vue';
 import { open } from '@tauri-apps/plugin-shell';
 import { useRouter, useRoute } from 'vue-router';
-import { useAppStore } from '../../store';
+import { useAppStore, useEntitlementStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
+import UserChip from './user-chip.vue';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ProBadge } from '@/components/upgrade';
 
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();
+const entitlementStore = useEntitlementStore();
 const { setConnectPanel } = appStore;
 
 const mainNavList = ref([
@@ -114,13 +119,6 @@ const mainNavList = ref([
 
 const samllNavList = ref([
   {
-    path: '/',
-    id: 'user',
-    iconClass: 'i-carbon-user-avatar',
-    name: 'user',
-    isLink: false,
-  },
-  {
     path: '/setting',
     id: 'setting',
     iconClass: 'i-carbon-settings',
@@ -137,9 +135,13 @@ interface RouteItem {
   isLink: boolean;
 }
 
+const gatedNavIds = new Set(['manage', 'data-studio', 'import-export']);
+
+const showProDot = (item: RouteItem) =>
+  !entitlementStore.isLocalUltimate && gatedNavIds.has(item.id);
+
 const isActive = (item: RouteItem) => {
   if (!item.path || item.isLink) return false;
-  if (item.path === '/') return route.path === '/';
   return route.path === item.path || route.path.startsWith(item.path + '/');
 };
 // nav click handler method
@@ -174,6 +176,7 @@ const navClick = (item: RouteItem) => {
 }
 
 .icon-item {
+  position: relative;
   height: 40px;
   margin: 10px 0;
   display: flex;
@@ -184,7 +187,13 @@ const navClick = (item: RouteItem) => {
   cursor: pointer;
 }
 
-.icon-item :deep(span) {
+.icon-pro-dot {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+}
+
+.icon-item > span:first-child {
   opacity: 0.4;
   transition: 0.3s;
 }
@@ -203,11 +212,11 @@ const navClick = (item: RouteItem) => {
   background-color: hsl(var(--border));
 }
 
-.icon-item.active :deep(span) {
+.icon-item.active > span:first-child {
   opacity: 1;
 }
 
-.icon-item:hover :deep(span) {
+.icon-item:hover > span:first-child {
   opacity: 0.9;
 }
 </style>

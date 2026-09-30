@@ -1369,6 +1369,76 @@ export const zhCN = {
   },
   plan: {
     pricing: '旗舰版 $9.9/月 · $99/年 · 7 天免费试用',
+    nav: {
+      manage: '管理订阅',
+    },
+    gate: {
+      additive: 'Community 版之上，Ultimate 额外解锁：',
+      lockedChip: '解锁 Ultimate 后可用',
+      currentFeature: '当前功能',
+      recommended: '推荐',
+      trustLine: '版本锁：订阅期版本永久可用 · 随时取消',
+      headline: {
+        ai: '用自然语言，直接问你的数据库',
+        cluster_manage: '整个集群，一目了然',
+        import_export: '批量搬运数据，又快又稳',
+        ssh_tunnel: '通过 SSH 隧道连接远程集群',
+        proxy: '通过代理连接远程集群',
+        aws_profile: '使用 AWS SSO / IAM 认证连接',
+        mcp_bridge: '把 DocKit 接入你的 Agent 工作流',
+      },
+      bullets: {
+        nlq: '自然语言查询，自动生成 DSL',
+        agent: 'Agent 式解释、优化与一键修复',
+        monitor: '节点、分片、索引实时监控',
+        manage: '模板、别名与 allocation 管理',
+        batch: '索引级文件导入导出',
+        formats: '大规模 NDJSON / CSV 往返',
+        tunnel: '加密跳板机连接',
+        proxyEgress: 'HTTP / SOCKS 出口管控',
+        aws: '开箱即用的 Profile / SSO / IAM 认证',
+        mcp: '将集群工具暴露给任意 MCP 客户端',
+      },
+      price: {
+        yearly: '$99 / 年',
+        save: '省 17%',
+        monthly: '$9.9 / 月',
+      },
+      trust: {
+        versionLock: '订阅期内发布的版本永久可用（含离线）',
+        byok: '自带 LLM Key，无 token 加价',
+        cancel: '随时取消',
+      },
+      cta: {
+        trial: '开始 7 天免费试用',
+        login: '登录',
+      },
+    },
+    poster: {
+      ai: {
+        question: '找出最近 7 天支付失败的订单',
+        summary: '3 条结果 · 12 ms',
+      },
+      cluster: {
+        healthy: '健康',
+        nodes: '节点',
+        shards: '分片',
+        indices: '索引',
+      },
+      importExport: {
+        summary: '12,400 / 38,000 条 · 3.2 GB',
+      },
+    },
+    compare: {
+      ai: 'AI Agent 与自然语言查询',
+      cluster: '集群管理',
+      importExport: '导入 / 导出',
+      ssh: 'SSH 隧道',
+      proxy: 'HTTP / SOCKS 代理',
+      aws: 'AWS SSO / IAM',
+      mcp: 'MCP bridge',
+      versionLock: '版本锁',
+    },
     state: {
       ultimate: '旗舰版',
       community: '社区版',
@@ -1387,6 +1457,7 @@ export const zhCN = {
       description: '解锁 AI、集群管理、导入导出、SSH 隧道、AWS SSO 与 MCP bridge。',
       cta: '升级',
       refresh: '刷新权益',
+      startFree: '免费开始',
       versionPermanent: '订阅期内发布的版本永久可用，支持离线。',
       versionLockedOut: '当前版本需要有效订阅解锁，续订后可永久解锁。',
     },
@@ -1405,17 +1476,6 @@ export const zhCN = {
       logout: '退出登录',
       manage: '管理订阅',
     },
-  },
-  login: {
-    title: '登录',
-    name: '用户名',
-    password: '密码',
-    forget: '忘记密码？',
-    register: '没有账号？立即注册',
-    enterName: '请输入用户名',
-    enterPwd: '请输入密码',
-    orContinueWith: '或通过以下方式登录',
-    loginWithGeekfun: '通过 Geekfun 登录',
   },
   grammar: {
     // Search APIs

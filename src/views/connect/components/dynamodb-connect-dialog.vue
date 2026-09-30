@@ -82,7 +82,10 @@
             @click="openUpgradeDialog('aws_profile')"
             @keydown.enter="openUpgradeDialog('aws_profile')"
           >
-            <AlertDescription>{{ $t('connection.awsUltimateOnly') }}</AlertDescription>
+            <AlertDescription class="flex items-center gap-2">
+              <ProBadge size="xs" />
+              {{ $t('connection.awsUltimateOnly') }}
+            </AlertDescription>
           </Alert>
           <div class="connection-mode-content space-y-4 pt-4">
             <!-- ── Local ── -->
@@ -619,7 +622,7 @@ import {
   applyTableFilter,
 } from '../../../store';
 import { useSshProfileStore, useEntitlementStore } from '../../../store';
-import { openUpgradeDialog } from '@/components/upgrade';
+import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
 import { ApiClientError } from '../../../datasources/ApiClients';
 import { dynamoApi } from '../../../datasources/dynamoApi';
 import { useFormValidation, useDialogResult } from '@/composables';

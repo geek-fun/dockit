@@ -326,8 +326,10 @@ import {
   isSearchConnection,
   useConnectionStore,
   useSshProfileStore,
+  useEntitlementStore,
   SshProfile,
 } from '../../../store';
+import { openUpgradeDialog } from '@/components/upgrade';
 import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
@@ -350,6 +352,7 @@ const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
 const sshStore = useSshProfileStore();
+const entitlementStore = useEntitlementStore();
 const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
 
 const openNewSshProfile = () => {
@@ -803,6 +806,10 @@ const mongodbConnectDialog = ref();
 
 const handleFabAction = (action: FloatingMenuAction) => {
   if (action === 'sshProfile') {
+    if (!entitlementStore.isLocalUltimate) {
+      openUpgradeDialog('ssh_tunnel');
+      return;
+    }
     openNewSshProfile();
     return;
   }

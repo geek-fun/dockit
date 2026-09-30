@@ -8,17 +8,24 @@ export type AuthCallbackData = {
   avatar?: string;
 };
 
-const GEEKFUN_BASE_URL = 'https://console-geekfun.wentsen.com';
-const GEEKFUN_LOCAL_URL = 'http://localhost:5174';
+const GEEKFUN_BASE_URL = 'https://console.geekfun.club';
 
-const ALLOWED_AVATAR_HOSTS = import.meta.env.DEV
-  ? ['console-geekfun.wentsen.com', 'localhost']
-  : ['console-geekfun.wentsen.com'];
+// hosts a console account avatar may be served from — uploads land on the
+// media OSS bucket, Google-registered accounts keep the Google CDN URL
+const AVATAR_MEDIA_HOSTS = [
+  'wentsen-media-store-prod.ap-southeast-1.aliyuncs.com',
+  'lh3.googleusercontent.com',
+  'lh4.googleusercontent.com',
+  'lh5.googleusercontent.com',
+  'lh6.googleusercontent.com',
+];
 
-const getGeekfunUrl = (): string => {
-  const isDev = import.meta.env.DEV;
-  return isDev ? GEEKFUN_LOCAL_URL : GEEKFUN_BASE_URL;
-};
+const ALLOWED_AVATAR_HOSTS = [
+  'console.geekfun.club',
+  'console-geekfun.wentsen.com',
+  ...AVATAR_MEDIA_HOSTS,
+  ...(import.meta.env.DEV ? ['localhost'] : []),
+];
 
 export const isSafeAvatarUrl = (url: string): boolean => {
   try {
@@ -33,20 +40,21 @@ export const isSafeAvatarUrl = (url: string): boolean => {
   }
 };
 
+/** Console accounts store uploaded avatars as paths relative to the console
+ * origin — resolve them so `<img>` gets an absolute, allowlisted URL. */
+export const resolveAvatarUrl = (raw: string): string =>
+  raw.startsWith('/') ? `${GEEKFUN_BASE_URL}${raw}` : raw;
+
 export const openLoginUrl = async (): Promise<void> => {
-  const baseUrl = getGeekfunUrl();
-  const loginUrl = `${baseUrl}/login?source=dockit`;
-  await open(loginUrl);
+  await open(`${GEEKFUN_BASE_URL}/login?source=dockit`);
 };
 
 export const openRegisterUrl = async (): Promise<void> => {
-  const baseUrl = getGeekfunUrl();
-  const registerUrl = `${baseUrl}/register?source=dockit`;
-  await open(registerUrl);
+  await open(`${GEEKFUN_BASE_URL}/register?source=dockit`);
 };
 
 export const openConsoleUrl = async (): Promise<void> => {
-  await open(`${getGeekfunUrl()}/home`);
+  await open(`${GEEKFUN_BASE_URL}/home`);
 };
 
 export const parseDeepLinkUrl = (url: string): AuthCallbackData | null => {

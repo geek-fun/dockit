@@ -7,9 +7,9 @@
     @click="openUpgradeDialog('ssh_tunnel')"
     @keydown.enter="openUpgradeDialog('ssh_tunnel')"
   >
-    <span class="i-carbon-locked h-4 w-4 text-primary shrink-0" />
+    <ProBadge size="xs" />
     <span class="text-sm text-muted-foreground">{{ $t('connection.ssh.ultimateOnly') }}</span>
-    <span class="text-sm text-primary underline shrink-0">{{ $t('plan.upgrade.cta') }}</span>
+    <span class="text-sm text-primary font-medium shrink-0">{{ $t('plan.upgrade.cta') }}</span>
   </div>
   <div v-else class="ssh-tunnel-section">
     <!-- Header row: title, count, test (left) | search, create (right) -->
@@ -158,7 +158,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSshProfileStore, useEntitlementStore } from '@/store';
 import type { SshConnectionConfig, SshTunnelConfig, SshProfile } from '@/store';
-import { openUpgradeDialog } from '@/components/upgrade';
+import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
 import Sortable from 'sortablejs';
 
 const entitlementStore = useEntitlementStore();

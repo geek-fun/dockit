@@ -40,6 +40,24 @@ fn parse_auth_rejects_wrong_scheme_host_or_missing_token() {
     assert!(crate::parse_auth_from_url("not a url").is_none());
 }
 
+#[cfg(debug_assertions)]
+#[test]
+fn dev_injected_auth_reads_the_env_var() {
+    std::env::set_var(
+        "DOCKIT_DEV_AUTH_URL",
+        "dockit://auth?token=t-2&username=ada&email=ada%40example.com",
+    );
+    let payload = crate::dev_injected_auth().expect("valid injected link");
+    assert_eq!(payload.token, "t-2");
+    assert_eq!(payload.username.as_deref(), Some("ada"));
+
+    std::env::set_var("DOCKIT_DEV_AUTH_URL", "not a url");
+    assert!(crate::dev_injected_auth().is_none());
+
+    std::env::remove_var("DOCKIT_DEV_AUTH_URL");
+    assert!(crate::dev_injected_auth().is_none());
+}
+
 #[test]
 fn pending_auth_is_single_shot_and_last_write_wins() {
     let state = crate::PendingAuthState::default();
