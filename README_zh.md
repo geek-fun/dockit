@@ -88,7 +88,7 @@ DocKit 采用「单一官方构建 + 运行时社区版/旗舰版模式」，源
 - **表结构检查** — Agent 读取并解释数据库表结构
 - **数据操作** — 通过对话完成增删改查、索引管理等操作
 - **安全机制** — 按源权限控制，破坏性操作需显式确认，凭据不暴露给 LLM
-- **支持的 AI 提供商** — OpenAI、Anthropic、DeepSeek、Ollama、LM Studio
+- **支持的 AI 提供商** — OpenAI、Anthropic、DeepSeek、Requesty、Ollama、LM Studio
 
 ### DynamoDB
 
