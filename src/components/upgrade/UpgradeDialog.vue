@@ -58,6 +58,9 @@
           <div v-if="userStore.isLoggedIn && versionLockedPermanently" class="upgrade-state">
             <Badge variant="secondary">{{ $t('plan.upgrade.versionPermanent') }}</Badge>
           </div>
+          <div v-else-if="userStore.isLoggedIn && versionLockedOut" class="upgrade-state">
+            <Badge variant="outline">{{ $t('plan.upgrade.versionLockedOut') }}</Badge>
+          </div>
 
           <div class="upgrade-actions">
             <template v-if="userStore.isLoggedIn">
@@ -125,6 +128,16 @@ const billing = ref<'yearly' | 'monthly'>('yearly');
 const feature = ref<PaidFeature | undefined>(undefined);
 
 const versionLockedPermanently = computed(() => view.value?.versionLocked ?? false);
+
+// A non-null horizon proves a paid period existed: a release above it while
+// the subscription lapsed is a renewal pitch, not a first upgrade.
+const versionLockedOut = computed(
+  () =>
+    !!view.value &&
+    !view.value.ultimateActive &&
+    !view.value.versionLocked &&
+    view.value.versionLockHorizon !== null,
+);
 
 const posterComponent = computed(() => (feature.value ? posterFor(feature.value) : null));
 

@@ -220,7 +220,11 @@ const files = [
   width: 12px;
   height: 12px;
 }
-</style>
 
-:global([data-poster-context='dialog']) .poster__meta, :global([data-poster-context='dialog'])
-.poster__lock { display: none; }
+/* UpgradeDialog sets data-poster-context='dialog' and shows the poster in a
+   narrow decorative column — hide the summary line and lock chip there. */
+[data-poster-context='dialog'] .poster__meta,
+[data-poster-context='dialog'] .poster__lock {
+  display: none;
+}
+</style>
