@@ -19,10 +19,7 @@
       >
         <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
         <span v-else class="user-avatar user-initials">{{ initials }}</span>
-        <span
-          class="plan-dot"
-          :class="entitlementStore.isLocalUltimate ? 'ultimate' : 'community'"
-        />
+        <span class="plan-dot" :class="planDotClass" />
       </div>
     </PopoverTrigger>
     <PopoverContent side="right" align="end" class="w-72 p-0">
@@ -50,7 +47,7 @@
         <template v-if="userStore.isLoggedIn">
           <div class="user-panel-plan">
             <div class="flex items-center justify-between gap-2">
-              <Badge :variant="entitlementStore.isLocalUltimate ? 'default' : 'secondary'">
+              <Badge :variant="badgeVariant">
                 {{ $t(`plan.state.${entitlementStore.planState}`) }}
               </Badge>
               <span v-if="cancelScheduled" class="user-panel-note">
@@ -116,6 +113,16 @@ const open = ref(false);
 
 const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar));
 
+const badgeVariant = computed(() => {
+  if (entitlementStore.planState === 'ultimate') return 'default' as const;
+  if (entitlementStore.planState === 'unknown') return 'outline' as const;
+  return 'secondary' as const;
+});
+
+const planDotClass = computed(() =>
+  entitlementStore.planState === 'unknown' ? 'unknown' : entitlementStore.planState,
+);
+
 const initials = computed(() => {
   const source = (userStore.displayName || 'U').trim();
   return source.slice(0, 2).toUpperCase();
@@ -132,6 +139,9 @@ const planLine = computed(() => {
   }
   if (entitlementStore.isLocalUltimate) {
     return t('plan.section.versionPermanent');
+  }
+  if (entitlementStore.hasEntitlementError) {
+    return t('plan.section.checkFailed');
   }
   return t('plan.section.versionLockedOut', { date: release ?? '' });
 });
@@ -226,6 +236,10 @@ const handleStartFree = async () => {
 
 .plan-dot.community {
   background: hsl(var(--muted-foreground));
+}
+
+.plan-dot.unknown {
+  background: rgb(245 158 11);
 }
 
 .user-panel {

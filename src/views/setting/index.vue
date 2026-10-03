@@ -35,20 +35,20 @@
           {{ $t('setting.about') }}
         </TabsTrigger>
       </TabsList>
-      <div class="flex-1 overflow-y-auto">
-        <div class="px-8 py-6">
+      <div class="flex-1 overflow-y-auto flex flex-col">
+        <div class="px-8 py-6 flex-1 flex flex-col">
           <TabsContent value="Basic" class="m-0">
             <basic-setting />
           </TabsContent>
           <TabsContent value="Editor" class="m-0">
             <editor-setting />
           </TabsContent>
-          <TabsContent value="AI" class="m-0">
+          <TabsContent value="AI" class="m-0 flex-1 flex flex-col">
             <PaidGate feature="ai" compact>
               <aigc />
             </PaidGate>
           </TabsContent>
-          <TabsContent value="MCP" class="m-0">
+          <TabsContent value="MCP" class="m-0 flex-1 flex flex-col">
             <PaidGate feature="mcp_bridge" compact>
               <mcp-bridge />
             </PaidGate>

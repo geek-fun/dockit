@@ -1374,7 +1374,6 @@ export const zhCN = {
     },
     gate: {
       additive: 'Community 版之上，Ultimate 额外解锁：',
-      lockedChip: '解锁 Ultimate 后可用',
       currentFeature: '当前功能',
       recommended: '推荐',
       trustLine: '版本锁：订阅期版本永久可用 · 随时取消',
@@ -1409,24 +1408,50 @@ export const zhCN = {
         byok: '自带 LLM Key，无 token 加价',
         cancel: '随时取消',
       },
+      detail: {
+        ai: '接入任意模型 — 云端、本地或自定义',
+        mcp: '连接你常用的 MCP 客户端',
+      },
+      tiles: {
+        aiQueryT: '自然语言查询',
+        aiQueryD: '用大白话提问，生成可编辑的 DSL',
+        aiAgentT: 'Agent 式解释与修复',
+        aiAgentD: '一键优化慢查询',
+        mcpServerT: '内置 MCP Server',
+        mcpServerD: '本地运行，零配置',
+        mcpClientsT: '任意 MCP 客户端',
+        mcpClientsD: 'Claude Desktop、Cursor 等',
+      },
+      groups: {
+        cloud: '云端',
+        local: '本地',
+        custom: '自定义',
+        clients: '客户端',
+      },
       cta: {
         trial: '开始 7 天免费试用',
-        login: '登录',
+        subscribe: '订阅',
+        unlock: '解锁 Ultimate',
+        unlockSub: '7 天免费试用 · $9.9/月 · $99/年',
       },
     },
     poster: {
       ai: {
         question: '找出最近 7 天支付失败的订单',
-        summary: '3 条结果 · 12 ms',
+        answer: '已定位 3 笔失败支付，生成的查询如下：',
+        toolVerb: '查询 payment_orders',
       },
       cluster: {
         healthy: '健康',
-        nodes: '节点',
-        shards: '分片',
-        indices: '索引',
+        templates: '索引模板',
       },
       importExport: {
-        summary: '12,400 / 38,000 条 · 3.2 GB',
+        executing: '正在执行导入',
+        autoDetected: '12 个字段 · 已从来源自动识别',
+      },
+      mcp: {
+        clients: '兼容客户端',
+        config: '客户端配置',
       },
     },
     compare: {
@@ -1442,6 +1467,7 @@ export const zhCN = {
     state: {
       ultimate: '旗舰版',
       community: '社区版',
+      unknown: '未知',
     },
     features: {
       ai: 'AI — Agent / NL2SQL / 解释 / 优化 / 一键修复（自带 LLM Key）。',

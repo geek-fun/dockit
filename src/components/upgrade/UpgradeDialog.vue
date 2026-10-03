@@ -1,13 +1,12 @@
 <template>
   <Dialog :open="showModal" @update:open="handleClose">
     <DialogContent
-      class="upgrade-dialog w-[680px] max-w-[calc(100vw-64px)] p-0 gap-0 overflow-hidden"
+      class="upgrade-dialog w-[580px] max-w-[calc(100vw-64px)] p-0 gap-0 overflow-hidden"
     >
       <div class="upgrade-layout">
-        <div class="upgrade-visual" data-poster-context="dialog">
+        <div class="upgrade-visual">
           <AuroraBackground />
-          <component :is="posterComponent" v-if="posterComponent" class="upgrade-visual__poster" />
-          <div v-else class="upgrade-visual__medallion">
+          <div class="upgrade-visual__medallion">
             <div class="upgrade-visual__orb">
               <Sparkles class="h-6 w-6" />
             </div>
@@ -73,8 +72,8 @@
               </ShimmerButton>
             </template>
             <template v-else>
-              <Button variant="outline" size="sm" @click="handleLogin">
-                {{ $t('plan.gate.cta.login') }}
+              <Button variant="outline" size="sm" @click="handleUpgrade">
+                {{ $t('plan.gate.cta.subscribe') }}
               </Button>
               <ShimmerButton size="sm" class="flex-1" @click="handleStartFree">
                 {{ $t('plan.gate.cta.trial') }}
@@ -103,7 +102,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { open } from '@tauri-apps/plugin-shell';
 import { storeToRefs } from 'pinia';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -113,9 +112,8 @@ import { Check, CircleSlash, KeyRound, RefreshCw, ShieldCheck, Sparkles } from '
 import { type PaidFeature, UPGRADE_URL } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
 import { authService } from '../../datasources';
-import { registerUpgradeDialog } from './upgradeDialogService';
+import { registerUpgradeDialog, type UpgradeDialogOptions } from './upgradeDialogService';
 import { AuroraBackground, ShimmerButton } from './effects';
-import { posterFor } from './FeaturePoster';
 import ProBadge from './ProBadge.vue';
 
 const entitlementStore = useEntitlementStore();
@@ -139,8 +137,6 @@ const versionLockedOut = computed(
     view.value.versionLockHorizon !== null,
 );
 
-const posterComponent = computed(() => (feature.value ? posterFor(feature.value) : null));
-
 const featureStack: ReadonlyArray<{ id: PaidFeature; labelKey: string }> = [
   { id: 'ai', labelKey: 'plan.compare.ai' },
   { id: 'cluster_manage', labelKey: 'plan.compare.cluster' },
@@ -151,9 +147,40 @@ const featureStack: ReadonlyArray<{ id: PaidFeature; labelKey: string }> = [
   { id: 'mcp_bridge', labelKey: 'plan.compare.mcp' },
 ];
 
-const show = (paidFeature?: PaidFeature) => {
+const show = (paidFeature?: PaidFeature, options?: UpgradeDialogOptions) => {
   feature.value = paidFeature;
   showModal.value = true;
+  if (options?.coverCta) {
+    void alignToCta();
+  }
+};
+
+const alignToCta = async () => {
+  // wait for the portal content to exist (timing differs per app weight)
+  for (let i = 0; i < 60; i++) {
+    if (document.querySelector('.upgrade-dialog')) break;
+    await nextTick();
+    await new Promise(resolve => requestAnimationFrame(() => resolve(null)));
+  }
+  const dialog = document.querySelector('.upgrade-dialog') as HTMLElement | null;
+  const cta = document.querySelector('.paid-gate__unlock-btn');
+  if (!dialog || !cta) {
+    return;
+  }
+  // The dialog centers on the viewport (top-1/2 + -translate-y-1/2). Margin
+  // shifts that center; offsetHeight is layout height — both independent of
+  // the entrance animation's transform, so this is exact the moment the
+  // element mounts and the dialog enters at its final position (no snap).
+  // NOTE: the margin must be set on the DOM element directly — DialogContent's
+  // root is a Teleport fragment, Vue does not forward :style there.
+  const ctaBottom = cta.getBoundingClientRect().bottom;
+  const margin = Math.max(
+    0,
+    Math.round(ctaBottom + 16 - (window.innerHeight + dialog.offsetHeight) / 2),
+  );
+  if (margin > 0) {
+    dialog.style.marginTop = `${margin}px`;
+  }
 };
 
 const hide = () => {
@@ -172,10 +199,6 @@ const handleUpgrade = async () => {
 
 const handleStartFree = async () => {
   await authService.openRegisterUrl();
-};
-
-const handleLogin = async () => {
-  await authService.openLoginUrl();
 };
 
 const handleRefresh = async () => {
@@ -202,7 +225,7 @@ onUnmounted(() => {
 <style scoped>
 .upgrade-layout {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 190px minmax(0, 1fr);
   min-height: 420px;
   max-height: min(80vh, 640px);
 }
@@ -212,16 +235,6 @@ onUnmounted(() => {
   overflow: hidden;
   border-right: 1px solid hsl(var(--border));
   background-color: hsl(var(--muted) / 0.3);
-}
-
-.upgrade-visual__poster {
-  position: relative;
-  z-index: 1;
-  margin: 18px;
-  width: calc(100% - 36px);
-  transform-origin: top center;
-  box-shadow: none;
-  border-radius: 10px;
 }
 
 .upgrade-visual__medallion {
@@ -253,9 +266,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 13px;
-  padding: 22px 24px;
-  min-width: 0;
-  overflow-y: auto;
+  padding: 26px 28px;
 }
 
 .upgrade-heading {
@@ -352,6 +363,7 @@ onUnmounted(() => {
   font-weight: 700;
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .upgrade-price__save {
@@ -397,5 +409,41 @@ onUnmounted(() => {
   height: 11px;
   flex-shrink: 0;
   color: hsl(var(--primary) / 0.8);
+}
+</style>
+
+<style>
+/* Bottom-to-top entrance for the pricing modal. Unscoped: the dialog element
+   is Teleport-mounted and receives no parent scope attribute. Custom keyframes
+   animate `transform` only — the horizontal centering lives in the separate
+   `translate` property, so the motion is purely vertical. */
+.upgrade-dialog.upgrade-dialog[data-state='open'] {
+  animation: modal-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.upgrade-dialog.upgrade-dialog[data-state='closed'] {
+  animation: modal-sink 0.18s ease-in backwards;
+}
+
+@keyframes modal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(46vh) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-sink {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px);
+  }
 }
 </style>

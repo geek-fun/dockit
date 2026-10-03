@@ -21,20 +21,30 @@ withDefaults(defineProps<{ size?: 'sm' | 'lg' }>(), { size: 'lg' });
   border: none;
   border-radius: calc(var(--radius) + 2px);
   background-color: hsl(var(--primary));
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 24px -10px hsl(var(--primary) / 0.65);
   color: hsl(var(--primary-foreground));
   font-weight: 600;
   cursor: pointer;
   transition:
     filter 0.2s ease,
-    transform 0.2s ease;
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .shimmer-btn:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06) saturate(1.05);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 14px 30px -10px hsl(var(--primary) / 0.7);
 }
 
 .shimmer-btn:active {
   transform: translateY(1px);
+  filter: brightness(0.97);
 }
 
 .shimmer-btn:focus-visible {
@@ -68,21 +78,29 @@ withDefaults(defineProps<{ size?: 'sm' | 'lg' }>(), { size: 'lg' });
   white-space: nowrap;
 }
 
+/* Idle = fully static (a repeating sweep on a prominent CTA reads as
+   jitter); the sheen performs one sweep per hover instead. */
 .shimmer-btn__sheen {
   position: absolute;
   inset: -40%;
   pointer-events: none;
+  opacity: 0;
   background: linear-gradient(
     105deg,
     transparent 42%,
     rgba(255, 255, 255, 0.32) 50%,
     transparent 58%
   );
-  transform: translateX(-70%) rotate(0.001deg);
-  animation: shimmer-slide 3.4s ease-in-out infinite;
+  transform: translateX(-100%);
 }
 
-:global([theme='dark']) .shimmer-btn__sheen {
+.shimmer-btn:hover .shimmer-btn__sheen,
+.shimmer-btn:focus-visible .shimmer-btn__sheen {
+  animation: shimmer-slide 0.9s ease-out;
+  opacity: 1;
+}
+
+[theme='dark'] .shimmer-btn__sheen {
   background: linear-gradient(
     105deg,
     transparent 42%,
@@ -92,20 +110,22 @@ withDefaults(defineProps<{ size?: 'sm' | 'lg' }>(), { size: 'lg' });
 }
 
 @keyframes shimmer-slide {
-  0%,
-  55% {
-    transform: translateX(-70%);
+  from {
+    transform: translateX(-100%);
+    opacity: 1;
   }
-  85%,
-  100% {
-    transform: translateX(70%);
+  85% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .shimmer-btn__sheen {
-    animation: none;
-    opacity: 0;
+    display: none;
   }
 }
 </style>

@@ -67,6 +67,7 @@
       import UpgradeDialog from '/src/components/upgrade/UpgradeDialog.vue';
       import { openUpgradeDialog } from '/src/components/upgrade/upgradeDialogService.ts';
       import { useUserStore } from '/src/store/index.ts';
+      import PlanSection from '/src/views/setting/components/plan-section.vue';
       import 'virtual:uno.css';
       import '/src/assets/styles/index.css';
 
@@ -113,6 +114,7 @@
           };
 
           const btn = (label, onClick) => h('button', { onClick }, label);
+          const autoPrompt = params.get('auto') === '1';
           const frame = (label, props, height = 660) =>
             h(
               'section',
@@ -120,7 +122,7 @@
                 class: height ? 'harness-section' : 'harness-compact',
                 style: height ? `height:${height}px` : '',
               },
-              [h('span', { class: 'harness-label' }, label), h(PaidGate, props)],
+              [h('span', { class: 'harness-label' }, label), h(PaidGate, { autoPrompt, ...props })],
             );
 
           const sections = [];
@@ -130,7 +132,20 @@
           if (!only || only === 'import')
             sections.push(frame('PaidGate — import_export', { feature: 'import_export' }));
           if (!only || only === 'compact')
-            sections.push(frame('PaidGate — compact', { feature: 'ai', compact: true }, 0));
+            sections.push(frame('PaidGate — compact', { feature: 'ai', compact: true }, 560));
+          if (only === 'compact-mcp')
+            sections.push(
+              frame('PaidGate — compact mcp', { feature: 'mcp_bridge', compact: true }, 560),
+            );
+          if (only === 'plan') {
+            sections.push(
+              h(
+                'section',
+                { class: 'harness-section', style: 'height:auto;min-height:660px' },
+                [h('span', { class: 'harness-label' }, 'Settings — Basic (plan section)'), h(PlanSection)],
+              ),
+            );
+          }
 
           return () =>
             h('div', [
