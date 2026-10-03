@@ -1410,7 +1410,6 @@ export const enUS = {
     checkFailed: 'Failed to check for updates',
   },
   plan: {
-    pricing: 'Ultimate $9.9/mo · $99/yr · 7-day free trial',
     nav: {
       manage: 'Manage subscription',
     },
@@ -1427,18 +1426,6 @@ export const enUS = {
         proxy: 'Route remote connections through your proxy',
         aws_profile: 'Sign in with AWS SSO & IAM',
         mcp_bridge: 'Bring DocKit into your agent stack',
-      },
-      bullets: {
-        nlq: 'Natural-language queries with generated DSL',
-        agent: 'Agentic explain, optimize & one-click fix',
-        monitor: 'Live nodes, shards & indices monitoring',
-        manage: 'Templates, aliases & allocation management',
-        batch: 'File-level import & export for indices',
-        formats: 'Large-scale NDJSON / CSV round-trips',
-        tunnel: 'Encrypted jump-host connections',
-        proxyEgress: 'HTTP / SOCKS egress control',
-        aws: 'Profile / SSO / IAM auth out of the box',
-        mcp: 'Expose cluster tools to any MCP client',
       },
       price: {
         yearly: '$99 / year',
@@ -1511,20 +1498,8 @@ export const enUS = {
       community: 'Community',
       unknown: 'Unknown',
     },
-    features: {
-      ai: 'AI — agent, NL2SQL, explain, optimize and one-click fix. Bring your own LLM key.',
-      cluster_manage:
-        'Cluster management & monitoring — nodes, shards, indices, templates and allocation.',
-      import_export: 'Batch & file-level import/export.',
-      ssh_tunnel: 'SSH tunnel for remote connections.',
-      proxy: 'HTTP / SOCKS proxy for remote connections.',
-      aws_profile: 'AWS Profile / SSO / IAM authentication.',
-      mcp_bridge: 'Built-in MCP Server bridge.',
-    },
     upgrade: {
       title: 'Upgrade to Ultimate',
-      description:
-        'Unlock AI, cluster management, import/export, SSH tunnel, AWS SSO and the MCP bridge.',
       cta: 'Upgrade',
       refresh: 'Refresh entitlements',
       startFree: 'Start free',
