@@ -169,7 +169,8 @@ const alignToCta = async () => {
   }
   // The dialog centers on the viewport (top-1/2 + -translate-y-1/2). Margin
   // shifts that center; offsetHeight is layout height — both independent of
-  // the entrance animation's transform, so this is exact at mount time.
+  // the entrance animation's transform, so this is exact the moment the
+  // element mounts and the dialog enters at its final position (no snap).
   // NOTE: the margin must be set on the DOM element directly — DialogContent's
   // root is a Teleport fragment, Vue does not forward :style there.
   const ctaBottom = cta.getBoundingClientRect().bottom;

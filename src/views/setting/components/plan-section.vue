@@ -133,8 +133,10 @@ const versionStateText = computed(() => {
       : lang.global.t('plan.section.subscriptionActive');
   }
   // A failed check must not borrow the version-locked-out copy — that text
-  // asserts a server-side fact the client could not verify.
-  if (entitlementStore.hasEntitlementError) {
+  // asserts a server-side fact the client could not verify. The same applies
+  // when no check has answered yet (view === null): say nothing rather than
+  // render a sentence with an empty date placeholder.
+  if (entitlementStore.hasEntitlementError || view.value === null) {
     return '';
   }
   return lang.global.t('plan.section.versionLockedOut', { date: release ?? '' });
