@@ -1416,7 +1416,6 @@ export const enUS = {
     },
     gate: {
       additive: 'Everything in Community, plus:',
-      lockedChip: 'Unlock with Ultimate',
       currentFeature: 'This feature',
       recommended: 'Recommended',
       trustLine: 'Version lock keeps paid releases yours · Cancel anytime',
@@ -1451,24 +1450,50 @@ export const enUS = {
         byok: 'Bring your own LLM key — no token markup',
         cancel: 'Cancel anytime',
       },
+      detail: {
+        ai: 'Works with any model — cloud, local or custom',
+        mcp: 'Connects to your favorite MCP clients',
+      },
+      tiles: {
+        aiQueryT: 'Natural-language queries',
+        aiQueryD: 'Ask in plain language, get editable DSL',
+        aiAgentT: 'Agentic explain & fix',
+        aiAgentD: 'One click to optimize slow queries',
+        mcpServerT: 'Built-in MCP server',
+        mcpServerD: 'Runs locally — zero setup',
+        mcpClientsT: 'Any MCP client',
+        mcpClientsD: 'Claude Desktop, Cursor & more',
+      },
+      groups: {
+        cloud: 'Cloud',
+        local: 'Local',
+        custom: 'Custom',
+        clients: 'Clients',
+      },
       cta: {
         trial: 'Start 7-day free trial',
-        login: 'Log in',
+        subscribe: 'Subscribe',
+        unlock: 'Unlock with Ultimate',
+        unlockSub: '7-day free trial · $9.9/mo · $99/yr',
       },
     },
     poster: {
       ai: {
         question: 'Find payment orders that failed in the last 7 days',
-        summary: '3 documents · 12 ms',
+        answer: 'Found 3 failed payments — the generated query:',
+        toolVerb: 'Queried payment_orders',
       },
       cluster: {
         healthy: 'Healthy',
-        nodes: 'Nodes',
-        shards: 'Shards',
-        indices: 'Indices',
+        templates: 'Index Templates',
       },
       importExport: {
-        summary: '12,400 / 38,000 docs · 3.2 GB',
+        executing: 'Executing import',
+        autoDetected: '12 fields · auto-detected from source',
+      },
+      mcp: {
+        clients: 'Works with',
+        config: 'Client configuration',
       },
     },
     compare: {
@@ -1484,6 +1509,7 @@ export const enUS = {
     state: {
       ultimate: 'Ultimate',
       community: 'Community',
+      unknown: 'Unknown',
     },
     features: {
       ai: 'AI — agent, NL2SQL, explain, optimize and one-click fix. Bring your own LLM key.',

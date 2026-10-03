@@ -3,6 +3,7 @@ import { presetWind4 } from '@unocss/preset-wind4';
 import presetAnimations from 'unocss-preset-animations';
 import carbonIcons from '@iconify-json/carbon/icons.json';
 import lucideIcons from '@iconify-json/lucide/icons.json';
+import simpleIcons from '@iconify-json/simple-icons/icons.json';
 
 export default defineConfig({
   presets: [
@@ -21,6 +22,7 @@ export default defineConfig({
       collections: {
         carbon: () => carbonIcons,
         lucide: () => lucideIcons,
+        'simple-icons': () => simpleIcons,
       },
       extraProperties: {
         display: 'inline-block',

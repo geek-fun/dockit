@@ -33,7 +33,13 @@ import ClusterState from './components/cluster-state.vue';
 import DynamoTableManage from './components/dynamo-table-manage.vue';
 import MongoCollectionManage from './components/mongo-collection-manage.vue';
 import MongoClusterState from './components/mongo-cluster-state.vue';
-import { useClusterManageStore, DatabaseType, useTabStore, isSearchConnection } from '../../store';
+import {
+  useClusterManageStore,
+  DatabaseType,
+  useTabStore,
+  useEntitlementStore,
+  isSearchConnection,
+} from '../../store';
 import { storeToRefs } from 'pinia';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
@@ -78,9 +84,42 @@ const refreshData = async () => {
   }
 };
 
+const entitlementStore = useEntitlementStore();
+
+// The PaidGate only withholds this page's slot content — parent-level watchers
+// still run while gated, so every side effect below must be entitlement-gated
+// to avoid stray requests (and a stray toast) behind the upgrade wall.
+const initManagePage = async () => {
+  const selectedConnection = connection.value ?? activeConnection.value;
+  if (!selectedConnection) {
+    message.warning(lang.t('editor.establishedRequired'), {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+    return;
+  }
+
+  setConnection(selectedConnection);
+  if (activeConnection.value && isSearchConnection(activeConnection.value)) {
+    await refreshData();
+  }
+};
+
 watch(connection, async () => {
+  if (!entitlementStore.isLocalUltimate) return;
   await refreshData();
 });
+
+watch(
+  () => entitlementStore.isLocalUltimate,
+  ultimate => {
+    if (ultimate) {
+      void initManagePage();
+    }
+  },
+  { immediate: true },
+);
 
 const handleDynamoRefresh = () => {
   dynamoTableManageRef.value?.handleRefresh();
@@ -98,23 +137,6 @@ const handleMongoRefresh = () => {
 const handleCreateMongoDatabase = () => {
   mongoCollectionManageRef.value?.showCreateDatabase();
 };
-
-onMounted(async () => {
-  const selectedConnection = connection.value ?? activeConnection.value;
-  if (!selectedConnection) {
-    message.warning(lang.t('editor.establishedRequired'), {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3000,
-    });
-    return;
-  }
-
-  setConnection(selectedConnection);
-  if (activeConnection.value && isSearchConnection(activeConnection.value)) {
-    await refreshData();
-  }
-});
 </script>
 
 <style scoped>

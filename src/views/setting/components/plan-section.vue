@@ -5,30 +5,32 @@
       <p class="text-sm text-muted-foreground mt-1">{{ $t('plan.section.desc') }}</p>
     </div>
     <Card>
-      <CardContent class="p-5 space-y-4">
-        <div class="flex items-center justify-between gap-4 flex-wrap">
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <Badge :variant="entitlementStore.isLocalUltimate ? 'default' : 'secondary'">
-                {{ $t(`plan.state.${planState}`) }}
-              </Badge>
-              <span v-if="userStore.isLoggedIn" class="text-sm text-muted-foreground">
-                {{ userStore.email || userStore.username }}
-              </span>
-            </div>
-            <p class="text-xs text-muted-foreground">{{ versionStateText }}</p>
-            <p v-if="expiryText" class="text-xs text-muted-foreground">{{ expiryText }}</p>
-            <p v-if="entitlementStore.cancelScheduled" class="text-xs text-amber-600">
-              {{ $t('plan.section.cancelScheduled') }}
-            </p>
-            <p
-              v-if="entitlementStore.hasEntitlementError && userStore.isLoggedIn"
-              class="text-xs text-destructive"
-            >
-              {{ $t('plan.section.checkFailed') }}
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
+      <CardContent class="px-5 py-4 space-y-4">
+        <div class="flex items-center gap-3 flex-wrap">
+          <Badge :variant="entitlementStore.isLocalUltimate ? 'default' : 'secondary'">
+            {{ $t(`plan.state.${planState}`) }}
+          </Badge>
+          <span v-if="userStore.isLoggedIn" class="text-sm text-muted-foreground">
+            {{ userStore.email || userStore.username }}
+          </span>
+          <span class="text-xs text-muted-foreground">{{ versionStateText }}</span>
+          <span v-if="expiryText" class="text-xs text-muted-foreground">{{ expiryText }}</span>
+          <span v-if="entitlementStore.cancelScheduled" class="text-xs text-amber-600">
+            {{ $t('plan.section.cancelScheduled') }}
+          </span>
+          <span
+            v-if="entitlementStore.hasEntitlementError && userStore.isLoggedIn"
+            class="text-xs text-destructive"
+          >
+            {{ $t('plan.section.checkFailed') }}
+          </span>
+          <span v-if="!userStore.isLoggedIn" class="text-xs text-muted-foreground">
+            {{ $t('plan.section.notLoggedIn') }}
+            <button class="underline text-primary hover:opacity-80" @click="handleGeekfunLogin">
+              {{ $t('plan.section.loginLink') }}
+            </button>
+          </span>
+          <div class="flex items-center gap-2 ml-auto">
             <Button
               v-if="userStore.isLoggedIn"
               variant="outline"
@@ -47,8 +49,8 @@
               {{ $t('plan.upgrade.cta') }}
             </Button>
             <template v-if="!userStore.isLoggedIn">
-              <Button variant="outline" size="sm" @click="handleUpgrade">
-                {{ $t('plan.upgrade.cta') }}
+              <Button variant="outline" size="sm" @click="handleSubscribe">
+                {{ $t('plan.gate.cta.subscribe') }}
               </Button>
               <Button size="sm" @click="handleStartFree">
                 {{ $t('plan.upgrade.startFree') }}
@@ -59,37 +61,30 @@
             </Button>
           </div>
         </div>
-        <p v-if="!userStore.isLoggedIn" class="text-xs text-muted-foreground">
-          {{ $t('plan.section.notLoggedIn') }}
-          <button class="underline text-primary hover:opacity-80" @click="handleGeekfunLogin">
-            {{ $t('plan.section.loginLink') }}
-          </button>
-        </p>
-      </CardContent>
-    </Card>
-
-    <Card>
-      <CardContent class="p-0">
-        <div class="compare-grid">
-          <div class="compare-head compare-cell">
-            {{ $t('plan.gate.additive') }}
-          </div>
-          <div class="compare-head compare-cell compare-cell--plan">
-            {{ $t('plan.state.community') }}
-          </div>
-          <div class="compare-head compare-cell compare-cell--plan compare-cell--ultimate">
-            <span>{{ $t('plan.state.ultimate') }}</span>
-            <span class="compare-recommend">{{ $t('plan.gate.recommended') }}</span>
-          </div>
-          <template v-for="row in compareRows" :key="row.key">
-            <div class="compare-cell compare-label">{{ $t(row.key) }}</div>
-            <div class="compare-cell compare-cell--plan">
-              <X class="h-3.5 w-3.5 compare-no" />
+        <div class="compare-wrap">
+          <div class="compare-grid">
+            <div class="compare-head compare-cell">
+              {{ $t('plan.gate.additive') }}
             </div>
-            <div class="compare-cell compare-cell--plan compare-cell--ultimate">
-              <Check class="h-3.5 w-3.5 compare-yes" />
+            <div class="compare-head compare-cell compare-cell--plan">
+              {{ $t('plan.state.community') }}
             </div>
-          </template>
+            <div
+              class="compare-head compare-cell compare-cell--plan compare-cell--ultimate compare-cell--stack"
+            >
+              <span>{{ $t('plan.state.ultimate') }}</span>
+              <span class="compare-recommend">{{ $t('plan.gate.recommended') }}</span>
+            </div>
+            <template v-for="row in compareRows" :key="row.key">
+              <div class="compare-cell compare-label">{{ $t(row.key) }}</div>
+              <div class="compare-cell compare-cell--plan">
+                <X class="h-3.5 w-3.5 compare-no" />
+              </div>
+              <div class="compare-cell compare-cell--plan compare-cell--ultimate">
+                <Check class="h-3.5 w-3.5 compare-yes" />
+              </div>
+            </template>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -103,9 +98,11 @@ import { Check, RefreshCw, X } from 'lucide-vue-next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { open } from '@tauri-apps/plugin-shell';
 import { authService } from '../../../datasources';
 import { useDeviceStore, useEntitlementStore, useUserStore } from '../../../store';
 import { lang } from '../../../lang';
+import { UPGRADE_URL } from '../../../common';
 import { openUpgradeDialog } from '@/components/upgrade';
 
 const entitlementStore = useEntitlementStore();
@@ -126,7 +123,7 @@ const compareRows = [
   { key: 'plan.compare.versionLock' },
 ] as const;
 
-const planState = computed(() => (entitlementStore.isLocalUltimate ? 'ultimate' : 'community'));
+const planState = computed(() => entitlementStore.planState);
 
 const versionStateText = computed(() => {
   const release = view.value?.appReleaseDate;
@@ -134,6 +131,11 @@ const versionStateText = computed(() => {
     return view.value?.versionLocked
       ? lang.global.t('plan.section.versionPermanent')
       : lang.global.t('plan.section.subscriptionActive');
+  }
+  // A failed check must not borrow the version-locked-out copy — that text
+  // asserts a server-side fact the client could not verify.
+  if (entitlementStore.hasEntitlementError) {
+    return '';
   }
   return lang.global.t('plan.section.versionLockedOut', { date: release ?? '' });
 });
@@ -174,12 +176,27 @@ const handleGeekfunLogin = async () => {
 const handleStartFree = async () => {
   await authService.openRegisterUrl();
 };
+
+const handleSubscribe = async () => {
+  await open(UPGRADE_URL);
+};
 </script>
 
 <style scoped>
+.compare-wrap {
+  margin: 0 -20px -16px;
+  overflow: hidden;
+}
+
 .compare-grid {
   display: grid;
-  grid-template-columns: 1fr 92px 112px;
+  grid-template-columns: minmax(0, 1fr) 84px 108px;
+}
+
+.compare-cell--stack {
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
 }
 
 .compare-cell {
@@ -212,12 +229,13 @@ const handleStartFree = async () => {
 }
 
 .compare-recommend {
-  padding: 0 7px;
+  padding: 1px 8px;
   border-radius: 999px;
   background-color: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .compare-yes {

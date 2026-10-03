@@ -43,15 +43,15 @@
   animation: aurora-drift-c 38s ease-in-out infinite alternate;
 }
 
-:global([theme='dark']) .aurora-blob--a {
+[theme='dark'] .aurora-blob--a {
   background: radial-gradient(circle, hsl(152 62% 38% / 0.26), transparent 68%);
 }
 
-:global([theme='dark']) .aurora-blob--b {
+[theme='dark'] .aurora-blob--b {
   background: radial-gradient(circle, hsl(190 70% 42% / 0.18), transparent 68%);
 }
 
-:global([theme='dark']) .aurora-blob--c {
+[theme='dark'] .aurora-blob--c {
   background: radial-gradient(circle, hsl(262 45% 48% / 0.15), transparent 68%);
 }
 

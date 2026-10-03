@@ -88,6 +88,7 @@ declare module 'vue' {
     Label: typeof import('./src/components/ui/label/Label.vue')['default']
     LoadingBar: typeof import('./src/components/ui/loading-bar/LoadingBar.vue')['default']
     MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']
+    McpPoster: typeof import('./src/components/upgrade/FeaturePoster/McpPoster.vue')['default']
     ModelPicker: typeof import('./src/components/model-picker.vue')['default']
     PaidGate: typeof import('./src/components/upgrade/PaidGate.vue')['default']
     PathBreadcrumb: typeof import('./src/components/path-breadcrumb.vue')['default']

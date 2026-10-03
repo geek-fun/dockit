@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isEntitlementError, isSessionRejected, type EntitlementView } from '../common';
 import { useUserStore } from './userStore';
 
-export type PlanState = 'ultimate' | 'community';
+export type PlanState = 'ultimate' | 'community' | 'unknown';
 
 export const useEntitlementStore = defineStore('entitlement', {
   state: (): { view: EntitlementView | null } => ({
@@ -12,8 +12,13 @@ export const useEntitlementStore = defineStore('entitlement', {
   getters: {
     isLocalUltimate: state => state.view?.localUltimate ?? false,
     isCloudUltimate: state => state.view?.ultimateActive ?? false,
-    planState: state =>
-      state.view?.localUltimate ? ('ultimate' as PlanState) : ('community' as PlanState),
+    // 'community' is only claimed when the server answered; a failed or
+    // missing check must never masquerade as a confirmed plan.
+    planState: state => {
+      if (state.view?.localUltimate) return 'ultimate' as PlanState;
+      if (state.view === null || state.view.lastError) return 'unknown' as PlanState;
+      return 'community' as PlanState;
+    },
     cancelScheduled: state => Boolean(state.view?.cancelScheduledAt),
     hasEntitlementError: state => Boolean(state.view?.lastError),
   },
