@@ -1368,7 +1368,6 @@ export const zhCN = {
     checkFailed: '检查更新失败',
   },
   plan: {
-    pricing: '旗舰版 $9.9/月 · $99/年 · 7 天免费试用',
     nav: {
       manage: '管理订阅',
     },
@@ -1385,18 +1384,6 @@ export const zhCN = {
         proxy: '通过代理连接远程集群',
         aws_profile: '使用 AWS SSO / IAM 认证连接',
         mcp_bridge: '把 DocKit 接入你的 Agent 工作流',
-      },
-      bullets: {
-        nlq: '自然语言查询，自动生成 DSL',
-        agent: 'Agent 式解释、优化与一键修复',
-        monitor: '节点、分片、索引实时监控',
-        manage: '模板、别名与 allocation 管理',
-        batch: '索引级文件导入导出',
-        formats: '大规模 NDJSON / CSV 往返',
-        tunnel: '加密跳板机连接',
-        proxyEgress: 'HTTP / SOCKS 出口管控',
-        aws: '开箱即用的 Profile / SSO / IAM 认证',
-        mcp: '将集群工具暴露给任意 MCP 客户端',
       },
       price: {
         yearly: '$99 / 年',
@@ -1469,18 +1456,8 @@ export const zhCN = {
       community: '社区版',
       unknown: '未知',
     },
-    features: {
-      ai: 'AI — Agent / NL2SQL / 解释 / 优化 / 一键修复（自带 LLM Key）。',
-      cluster_manage: '集群管理与监控 — 节点 / 分片 / 索引 / 模板 / allocation。',
-      import_export: '批量 / 文件级导入导出。',
-      ssh_tunnel: 'SSH 隧道远程连接。',
-      proxy: 'HTTP / SOCKS 代理远程连接。',
-      aws_profile: 'AWS Profile / SSO / IAM 认证。',
-      mcp_bridge: '内置 MCP Server bridge。',
-    },
     upgrade: {
       title: '升级到旗舰版',
-      description: '解锁 AI、集群管理、导入导出、SSH 隧道、AWS SSO 与 MCP bridge。',
       cta: '升级',
       refresh: '刷新权益',
       startFree: '免费开始',
