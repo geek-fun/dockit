@@ -322,6 +322,9 @@ async fn fetch_subscriptions(token: &str) -> Result<SubscriptionCache, Subscript
         .json()
         .await
         .map_err(|e| SubscriptionsError::Other(format!("invalid subscriptions payload: {e}")))?;
+    if cfg!(debug_assertions) {
+        eprintln!("[entitlement] GET /subscriptions response: {payload}");
+    }
     Ok(parse_subscriptions_payload(&payload, now_unix_ms()))
 }
 
