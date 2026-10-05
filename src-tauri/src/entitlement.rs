@@ -325,7 +325,11 @@ async fn fetch_subscriptions(token: &str) -> Result<SubscriptionCache, Subscript
     if cfg!(debug_assertions) {
         eprintln!("[entitlement] GET /subscriptions response: {payload}");
     }
-    Ok(parse_subscriptions_payload(&payload, now_unix_ms()))
+    // The geekfun API wraps successful responses in an envelope:
+    //   { "code": 2000, "messages": [...], "data": { ...fields } }
+    // Unwrap it so the parser sees the actual subscription fields.
+    let body = payload.get("data").unwrap_or(&payload);
+    Ok(parse_subscriptions_payload(body, now_unix_ms()))
 }
 
 /// Map a `/api/v1/subscriptions` body onto the persisted cache shape — pure
