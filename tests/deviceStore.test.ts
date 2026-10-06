@@ -75,6 +75,7 @@ describe('deviceStore', () => {
 
   afterEach(() => {
     global.localStorage = originalLocalStorage;
+    jest.useRealTimers();
   });
 
   it('should store the activated device on success', async () => {
@@ -112,13 +113,21 @@ describe('deviceStore', () => {
   });
 
   it('should stay silent on plain network errors', async () => {
+    // transient failures retry with backoff inside the call — fake timers
+    // keep the 1.5/3/6s waits out of the jest clock
+    jest.useFakeTimers();
     mockInvoke.mockRejectedValue('network error: timeout');
     const store = useDeviceStore();
 
-    await store.ensureActivated(true);
+    const pending = store.ensureActivated(true);
+    await jest.runAllTimersAsync();
+    await pending;
 
+    expect(mockInvoke).toHaveBeenCalledTimes(4); // 1 attempt + 3 retries
     expect(store.limitReached).toBe(false);
     expect(store.showReplaceDialog).toBe(false);
+    // the failure is recorded for the plan section, not thrown
+    expect(store.activationError).toContain('network error');
   });
 
   it('should replace the picked device and close the dialog (F2)', async () => {

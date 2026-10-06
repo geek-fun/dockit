@@ -38,10 +38,10 @@ const LAST_ACTIVATED_KEY = 'device_last_activated_at';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/** Errors that retrying cannot fix: the session is dead (re-login needed)
- * or the device ledger needs a user decision (replace picker). */
+/** Errors that retrying cannot fix: the session is dead and only a fresh
+ * web login can recover it. The 5030 limit payload is handled separately —
+ * it needs a user decision (replace picker), not a retry. */
 const isActivationFatal = (err: unknown): boolean => {
-  if (parseLimitReached(err)) return true;
   const raw = typeof err === 'string' ? err : String(err);
   return raw.includes('session expired') || raw.includes('not logged in');
 };
@@ -102,10 +102,16 @@ export const useDeviceStore = defineStore('device', {
             localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
             return;
           } catch (err) {
+            const limitInfo = parseLimitReached(err);
+            if (limitInfo) {
+              // The device ledger needs a user decision (replace picker),
+              // not a retry.
+              this.limitInfo = limitInfo;
+              this.showReplaceDialog = true;
+              return;
+            }
             if (attempt >= ACTIVATION_RETRY_DELAYS_MS.length || isActivationFatal(err)) {
-              if (!parseLimitReached(err)) {
-                this.activationError = typeof err === 'string' ? err : String(err);
-              }
+              this.activationError = typeof err === 'string' ? err : String(err);
               return;
             }
             await sleep(ACTIVATION_RETRY_DELAYS_MS[attempt]);
