@@ -8,6 +8,7 @@
       <CardContent class="px-5 py-4 space-y-4">
         <div class="flex items-center gap-3 flex-wrap">
           <Badge :variant="entitlementStore.isLocalUltimate ? 'default' : 'secondary'">
+            <Loader2 v-if="planState === 'checking'" class="mr-1 h-3 w-3 animate-spin" />
             {{ $t(`plan.state.${planState}`) }}
           </Badge>
           <span v-if="userStore.isLoggedIn" class="text-sm text-muted-foreground">
@@ -109,7 +110,7 @@
 import { computed, ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { storeToRefs } from 'pinia';
-import { Check, RefreshCw, X } from 'lucide-vue-next';
+import { Check, Loader2, RefreshCw, X } from 'lucide-vue-next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { isEntitlementError, isSessionRejected, type EntitlementView } from '../common';
 import { useUserStore } from './userStore';
 
-export type PlanState = 'ultimate' | 'community' | 'unknown';
+export type PlanState = 'ultimate' | 'community' | 'unknown' | 'checking';
 
 const REFRESH_RETRY_DELAYS_MS = [1500, 3000, 6000];
 
@@ -20,7 +20,9 @@ export const useEntitlementStore = defineStore('entitlement', {
     // missing check must never masquerade as a confirmed plan.
     planState: state => {
       if (state.view?.localUltimate) return 'ultimate' as PlanState;
-      if (state.view === null || state.view.lastError) return 'unknown' as PlanState;
+      // no server answer yet — the first refresh is still in flight
+      if (state.view === null) return 'checking' as PlanState;
+      if (state.view.lastError) return 'unknown' as PlanState;
       return 'community' as PlanState;
     },
     cancelScheduled: state => Boolean(state.view?.cancelScheduledAt),

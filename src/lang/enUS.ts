@@ -1495,6 +1495,7 @@ export const enUS = {
       ultimate: 'Ultimate',
       community: 'Community',
       unknown: 'Unknown',
+      checking: 'Checking…',
     },
     upgrade: {
       title: 'Upgrade to Ultimate',

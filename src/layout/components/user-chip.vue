@@ -42,6 +42,10 @@
           <div class="user-panel-plan">
             <div class="flex items-center justify-between gap-2">
               <Badge :variant="badgeVariant">
+                <Loader2
+                  v-if="entitlementStore.planState === 'checking'"
+                  class="mr-1 h-3 w-3 animate-spin"
+                />
                 {{ $t(`plan.state.${entitlementStore.planState}`) }}
               </Badge>
               <span v-if="cancelScheduled" class="user-panel-note">
@@ -98,7 +102,7 @@ import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
 import { useI18n } from 'vue-i18n';
-import { Sparkles } from 'lucide-vue-next';
+import { Loader2, Sparkles } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -121,7 +125,6 @@ const badgeVariant = computed(() => {
   if (entitlementStore.planState === 'unknown') return 'outline' as const;
   return 'secondary' as const;
 });
-
 const planDotClass = computed(() =>
   entitlementStore.planState === 'unknown' ? 'unknown' : entitlementStore.planState,
 );
@@ -142,6 +145,9 @@ const planLine = computed(() => {
   }
   if (entitlementStore.isLocalUltimate) {
     return t('plan.section.versionPermanent');
+  }
+  if (view.value === null) {
+    return t('plan.state.checking');
   }
   if (entitlementStore.sessionExpired) {
     return t('plan.section.sessionExpired');

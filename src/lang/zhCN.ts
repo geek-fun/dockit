@@ -1453,6 +1453,7 @@ export const zhCN = {
       ultimate: '旗舰版',
       community: '社区版',
       unknown: '未知',
+      checking: '验证中…',
     },
     upgrade: {
       title: '升级到旗舰版',

@@ -179,10 +179,10 @@ describe('entitlementStore', () => {
   });
 
   describe('plan classification', () => {
-    it('marks unknown on a failed check and community only on a clean answer', () => {
+    it('marks checking before any server answer, unknown on a failed check', () => {
       const store = useEntitlementStore();
 
-      expect(store.planState).toBe('unknown');
+      expect(store.planState).toBe('checking');
 
       store.$patch({ view: view({ lastError: 'network error: timeout' }) });
       expect(store.planState).toBe('unknown');
