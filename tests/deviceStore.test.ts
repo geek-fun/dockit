@@ -126,7 +126,6 @@ describe('deviceStore', () => {
     expect(mockInvoke).toHaveBeenCalledTimes(4); // 1 attempt + 3 retries
     expect(store.limitReached).toBe(false);
     expect(store.showReplaceDialog).toBe(false);
-    // the failure is recorded for the plan section, not thrown
     expect(store.activationError).toContain('network error');
   });
 
@@ -136,7 +135,6 @@ describe('deviceStore', () => {
 
     await store.ensureActivated(true);
 
-    // only a fresh web login recovers this — retrying cannot fix it
     expect(mockInvoke).toHaveBeenCalledTimes(1);
     expect(store.activationError).toContain('session expired');
     expect(store.limitReached).toBe(false);

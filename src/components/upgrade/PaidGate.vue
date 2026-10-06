@@ -349,8 +349,7 @@ const handleLogin = async () => {
 .gate-card__bg {
   position: absolute;
   inset: 0;
-  /* In the compact card the poster is ambiance, not content — at full
-     opacity its scenario collides with the gate copy stacked above it. */
+  /* ambiance backdrop — full opacity collides with the gate copy */
   opacity: 0.2;
   filter: blur(2px);
   -webkit-mask-image: linear-gradient(to bottom, black, transparent 78%);

@@ -179,10 +179,7 @@ const handleUpgrade = () => {
   openUpgradeDialog();
 };
 
-// Entitlements are account-scoped: the cached view and the device lease must
-// never outlive the account session on this machine. Server-side revocation
-// is best-effort — the local session clears even when the network or an
-// older backend says no.
+// account-scoped — revoke the lease server-side (best-effort) before clearing
 const handleLogout = async () => {
   await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(() => {});
   await entitlementStore.clearCachedEntitlement();

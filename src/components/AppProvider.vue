@@ -63,8 +63,7 @@ const handleAuth = async (payload: AuthPayload) => {
     payload.userId ?? '',
     resolveAvatarUrl(payload.avatar ?? ''),
   );
-  // Await the local seed so it can never land after the network refresh
-  // below and overwrite a fresher server answer with the snapshot.
+  // await the seed — it must not land after the refresh below
   await entitlementStore.seedFromHandoff(payload);
   entitlementStore.refreshEntitlement(true);
   // geekfun#59: the deep-linked token comes from a web login with no
