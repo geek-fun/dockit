@@ -2,24 +2,18 @@
   <Popover v-model:open="open">
     <PopoverTrigger as-child>
       <div
-        v-if="!userStore.isLoggedIn"
         class="user-nav-item"
+        :class="{ 'user-avatar-item': userStore.isLoggedIn }"
         role="button"
         tabindex="0"
-        :title="$t('aside.user')"
+        :title="userStore.isLoggedIn ? userStore.displayName : $t('aside.user')"
       >
-        <span class="i-carbon-user-avatar nav-icon h-6 w-6" />
-      </div>
-      <div
-        v-else
-        class="user-nav-item user-avatar-item"
-        role="button"
-        tabindex="0"
-        :title="userStore.displayName"
-      >
-        <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
-        <span v-else class="user-avatar user-initials">{{ initials }}</span>
-        <span class="plan-dot" :class="planDotClass" />
+        <template v-if="userStore.isLoggedIn">
+          <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
+          <span v-else class="user-avatar user-initials">{{ initials }}</span>
+          <span class="plan-dot" :class="planDotClass" />
+        </template>
+        <span v-else class="i-carbon-user-avatar nav-icon h-6 w-6" />
       </div>
     </PopoverTrigger>
     <PopoverContent side="right" align="end" class="w-72 p-0">
@@ -58,6 +52,14 @@
           </div>
 
           <div class="user-panel-actions">
+            <Button
+              v-if="entitlementStore.sessionExpired"
+              size="sm"
+              class="w-full"
+              @click="handleLogin"
+            >
+              {{ $t('plan.section.loginLink') }}
+            </Button>
             <Button variant="outline" size="sm" class="w-full" @click="handleManage">
               <span class="i-carbon-launch mr-2 h-3.5 w-3.5" />
               {{ $t('plan.nav.manage') }}
@@ -94,6 +96,7 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
+import { invoke } from '@tauri-apps/api/core';
 import { useI18n } from 'vue-i18n';
 import { Sparkles } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
@@ -140,6 +143,9 @@ const planLine = computed(() => {
   if (entitlementStore.isLocalUltimate) {
     return t('plan.section.versionPermanent');
   }
+  if (entitlementStore.sessionExpired) {
+    return t('plan.section.sessionExpired');
+  }
   if (entitlementStore.hasEntitlementError) {
     return t('plan.section.checkFailed');
   }
@@ -156,10 +162,10 @@ const handleUpgrade = () => {
   openUpgradeDialog();
 };
 
-// Entitlements are account-scoped: the cached view and the device lease must
-// never outlive the account session on this machine.
+// account-scoped — revoke the lease server-side (best-effort) before clearing
 const handleLogout = async () => {
   open.value = false;
+  await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(() => {});
   await entitlementStore.clearCachedEntitlement();
   userStore.resetToken();
   deviceStore.$reset();

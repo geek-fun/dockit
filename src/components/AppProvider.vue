@@ -19,6 +19,7 @@ import {
   useEntitlementStore,
   useUserStore,
 } from '../store';
+import { shouldRotateToken } from '../common';
 import { useAppUpdater } from '@/composables';
 import { resolveAvatarUrl } from '../datasources';
 import AboutDialog from './AboutDialog.vue';
@@ -48,10 +49,13 @@ type AuthPayload = {
   email?: string | null;
   userId?: string | null;
   avatar?: string | null;
+  ultimateExpiresAt?: string | null;
+  versionLockHorizon?: string | null;
+  cancelScheduledAt?: string | null;
 };
 
 // Idempotent: events and the cold-start pull may both deliver the same link.
-const handleAuth = (payload: AuthPayload) => {
+const handleAuth = async (payload: AuthPayload) => {
   userStore.setAuth(
     payload.token,
     payload.username ?? '',
@@ -59,10 +63,31 @@ const handleAuth = (payload: AuthPayload) => {
     payload.userId ?? '',
     resolveAvatarUrl(payload.avatar ?? ''),
   );
+  // await the seed — it must not land after the refresh below
+  await entitlementStore.seedFromHandoff(payload);
   entitlementStore.refreshEntitlement(true);
   // geekfun#59: the deep-linked token comes from a web login with no
   // device attached — register/verify this machine right away.
   deviceStore.ensureActivated(true);
+};
+
+const rotateStaleSession = async () => {
+  if (
+    !userStore.refreshToken ||
+    !shouldRotateToken(userStore.accessToken, userStore.refreshToken)
+  ) {
+    return;
+  }
+  try {
+    const refreshed = await invoke<{ access_token: string; refresh_token: string }>(
+      'rotate_session_now',
+      { refreshToken: userStore.refreshToken },
+    );
+    userStore.setToken(refreshed.access_token);
+    userStore.setRefreshToken(refreshed.refresh_token);
+  } catch {
+    // rejected or transient — the reactive 401 paths still recover
+  }
 };
 
 const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) => {
@@ -99,6 +124,9 @@ onMounted(async () => {
   );
 
   if (userStore.isLoggedIn) {
+    await entitlementStore.hydrate();
+    // Rotate before the refresh so it goes out with a valid bearer.
+    await rotateStaleSession();
     entitlementStore.refreshEntitlement(true);
     deviceStore.ensureActivated();
   }

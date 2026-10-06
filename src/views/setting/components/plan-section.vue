@@ -18,8 +18,19 @@
           <span v-if="entitlementStore.cancelScheduled" class="text-xs text-amber-600">
             {{ $t('plan.section.cancelScheduled') }}
           </span>
+          <span v-if="entitlementStore.sessionExpired" class="text-xs text-amber-600">
+            {{ $t('plan.section.sessionExpired') }}
+          </span>
           <span
-            v-if="entitlementStore.hasEntitlementError && userStore.isLoggedIn"
+            v-else-if="
+              userStore.isLoggedIn && !userStore.refreshToken && deviceStore.activationError
+            "
+            class="text-xs text-amber-600"
+          >
+            {{ $t('plan.section.deviceActivationFailed') }}
+          </span>
+          <span
+            v-else-if="entitlementStore.hasEntitlementError && userStore.isLoggedIn"
             class="text-xs text-destructive"
           >
             {{ $t('plan.section.checkFailed') }}
@@ -31,8 +42,11 @@
             </button>
           </span>
           <div class="flex items-center gap-2 ml-auto">
+            <Button v-if="entitlementStore.sessionExpired" size="sm" @click="handleGeekfunLogin">
+              {{ $t('plan.section.loginLink') }}
+            </Button>
             <Button
-              v-if="userStore.isLoggedIn"
+              v-else-if="userStore.isLoggedIn"
               variant="outline"
               size="sm"
               :disabled="refreshing"
@@ -49,8 +63,8 @@
               {{ $t('plan.upgrade.cta') }}
             </Button>
             <template v-if="!userStore.isLoggedIn">
-              <Button variant="outline" size="sm" @click="handleSubscribe">
-                {{ $t('plan.gate.cta.subscribe') }}
+              <Button variant="outline" size="sm" @click="handleGeekfunLogin">
+                {{ $t('plan.section.loginLink') }}
               </Button>
               <Button size="sm" @click="handleStartFree">
                 {{ $t('plan.upgrade.startFree') }}
@@ -93,16 +107,15 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
+import { invoke } from '@tauri-apps/api/core';
 import { storeToRefs } from 'pinia';
 import { Check, RefreshCw, X } from 'lucide-vue-next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { open } from '@tauri-apps/plugin-shell';
 import { authService } from '../../../datasources';
 import { useDeviceStore, useEntitlementStore, useUserStore } from '../../../store';
 import { lang } from '../../../lang';
-import { UPGRADE_URL } from '../../../common';
 import { openUpgradeDialog } from '@/components/upgrade';
 
 const entitlementStore = useEntitlementStore();
@@ -136,6 +149,9 @@ const versionStateText = computed(() => {
   // asserts a server-side fact the client could not verify. The same applies
   // when no check has answered yet (view === null): say nothing rather than
   // render a sentence with an empty date placeholder.
+  if (entitlementStore.sessionExpired) {
+    return lang.global.t('plan.section.sessionExpired');
+  }
   if (entitlementStore.hasEntitlementError || view.value === null) {
     return '';
   }
@@ -163,9 +179,9 @@ const handleUpgrade = () => {
   openUpgradeDialog();
 };
 
-// Entitlements are account-scoped: the cached view and the device lease must
-// never outlive the account session on this machine.
+// account-scoped — revoke the lease server-side (best-effort) before clearing
 const handleLogout = async () => {
+  await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(() => {});
   await entitlementStore.clearCachedEntitlement();
   userStore.resetToken();
   deviceStore.$reset();
@@ -177,10 +193,6 @@ const handleGeekfunLogin = async () => {
 
 const handleStartFree = async () => {
   await authService.openRegisterUrl();
-};
-
-const handleSubscribe = async () => {
-  await open(UPGRADE_URL);
 };
 </script>
 

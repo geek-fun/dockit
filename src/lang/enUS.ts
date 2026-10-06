@@ -1458,8 +1458,6 @@ export const enUS = {
         clients: 'Clients',
       },
       cta: {
-        trial: 'Start 7-day free trial',
-        subscribe: 'Subscribe',
         unlock: 'Unlock with Ultimate',
         unlockSub: '7-day free trial · $9.9/mo · $99/yr',
       },
@@ -1519,6 +1517,9 @@ export const enUS = {
         'Subscription is scheduled to end at the close of the current billing period.',
       checkFailed:
         'Could not verify entitlements — showing cached state. Check your network and refresh.',
+      sessionExpired: 'Session expired — log in again to verify your plan.',
+      deviceActivationFailed:
+        'Device registration failed — automatic session renewal is unavailable.',
       notLoggedIn: 'You are not logged in.',
       loginLink: 'Log in with Geekfun',
       refresh: 'Refresh',

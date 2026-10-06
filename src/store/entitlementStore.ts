@@ -5,6 +5,10 @@ import { useUserStore } from './userStore';
 
 export type PlanState = 'ultimate' | 'community' | 'unknown';
 
+const REFRESH_RETRY_DELAYS_MS = [1500, 3000, 6000];
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const useEntitlementStore = defineStore('entitlement', {
   state: (): { view: EntitlementView | null } => ({
     view: null,
@@ -21,26 +25,65 @@ export const useEntitlementStore = defineStore('entitlement', {
     },
     cancelScheduled: state => Boolean(state.view?.cancelScheduledAt),
     hasEntitlementError: state => Boolean(state.view?.lastError),
+    // matches the plain-string errors Rust refresh_entitlement classifies by
+    sessionExpired: state => {
+      const err = state.view?.lastError;
+      return err === 'session expired' || err === 'not logged in';
+    },
   },
   actions: {
+    async seedFromHandoff(payload: {
+      ultimateExpiresAt?: string | null;
+      versionLockHorizon?: string | null;
+      cancelScheduledAt?: string | null;
+    }): Promise<void> {
+      const { ultimateExpiresAt, versionLockHorizon, cancelScheduledAt } = payload;
+      if (!ultimateExpiresAt && !versionLockHorizon) {
+        return;
+      }
+      try {
+        this.view = await invoke<EntitlementView>('seed_entitlement', {
+          ultimateExpiresAt: ultimateExpiresAt ?? null,
+          versionLockHorizon: versionLockHorizon ?? null,
+          cancelScheduledAt: cancelScheduledAt ?? null,
+        });
+      } catch {
+        // best effort — the refresh below still verifies
+      }
+    },
+    // only a real server answer (fetchedAtMs) may surface as a confirmed plan
+    async hydrate(): Promise<void> {
+      const cached = await invoke<EntitlementView>('get_entitlement').catch(() => null);
+      if (cached?.fetchedAtMs != null) {
+        this.view = cached;
+      }
+    },
     async refreshEntitlement(force = false): Promise<void> {
       const userStore = useUserStore();
-      try {
-        this.view = await invoke<EntitlementView>('refresh_entitlement', {
-          token: userStore.accessToken,
-          refreshToken: userStore.refreshToken || null,
-          force,
-        });
-      } catch (e) {
-        if (isSessionRejected(e)) {
-          // The lease is dead server-side — drop it so the next login starts
-          // clean instead of presenting a revoked token.
-          userStore.setRefreshToken('');
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          this.view = await invoke<EntitlementView>('refresh_entitlement', {
+            token: userStore.accessToken,
+            refreshToken: userStore.refreshToken || null,
+            force,
+          });
+          return;
+        } catch (e) {
+          if (isSessionRejected(e)) {
+            // dead lease — drop it so the next login starts clean
+            userStore.setRefreshToken('');
+            this.view = null;
+            return;
+          }
+          if (attempt >= REFRESH_RETRY_DELAYS_MS.length) {
+            if (!isEntitlementError(e)) {
+              throw e;
+            }
+            this.view = null;
+            return;
+          }
+          await sleep(REFRESH_RETRY_DELAYS_MS[attempt]);
         }
-        if (!isEntitlementError(e) && !isSessionRejected(e)) {
-          throw e;
-        }
-        this.view = null;
       }
     },
     async clearCachedEntitlement(): Promise<void> {

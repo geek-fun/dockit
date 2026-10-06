@@ -322,7 +322,12 @@ async fn fetch_subscriptions(token: &str) -> Result<SubscriptionCache, Subscript
         .json()
         .await
         .map_err(|e| SubscriptionsError::Other(format!("invalid subscriptions payload: {e}")))?;
-    Ok(parse_subscriptions_payload(&payload, now_unix_ms()))
+    if cfg!(debug_assertions) {
+        eprintln!("[entitlement] GET /subscriptions response: {payload}");
+    }
+    // geekfun API envelope: {code, messages, data} — unwrap before parsing
+    let body = payload.get("data").unwrap_or(&payload);
+    Ok(parse_subscriptions_payload(body, now_unix_ms()))
 }
 
 /// Map a `/api/v1/subscriptions` body onto the persisted cache shape — pure
@@ -413,6 +418,40 @@ pub async fn refresh_entitlement(
 
 #[tauri::command]
 pub fn get_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
+    state.view(true, None)
+}
+
+/// Seed the entitlement cache from the login handoff so the plan shows
+/// instantly; the regular refresh remains the source of truth.
+#[tauri::command]
+pub fn seed_entitlement(
+    ultimate_expires_at: Option<String>,
+    version_lock_horizon: Option<String>,
+    cancel_scheduled_at: Option<String>,
+    state: State<'_, EntitlementState>,
+) -> EntitlementView {
+    seed_cache(
+        &state,
+        ultimate_expires_at,
+        version_lock_horizon,
+        cancel_scheduled_at,
+    )
+}
+
+fn seed_cache(
+    state: &EntitlementState,
+    ultimate_expires_at: Option<String>,
+    version_lock_horizon: Option<String>,
+    cancel_scheduled_at: Option<String>,
+) -> EntitlementView {
+    if ultimate_expires_at.is_some() || version_lock_horizon.is_some() {
+        state.set_cache(SubscriptionCache {
+            fetched_at_ms: now_unix_ms(),
+            ultimate_expires_at,
+            version_lock_horizon,
+            cancel_scheduled_at,
+        });
+    }
     state.view(true, None)
 }
 
@@ -516,6 +555,35 @@ mod tests {
         let raw = entitlement_required_error("AI");
         assert!(raw.contains(ENTITLEMENT_ERROR_TYPE));
         assert!(raw.contains("AI"));
+    }
+
+    #[test]
+    fn seed_without_snapshot_fields_leaves_the_cache_empty() {
+        let state = EntitlementState::load(None);
+        let view = seed_cache(&state, None, None, None);
+        assert!(view.fetched_at_ms.is_none());
+        assert!(!view.local_ultimate);
+    }
+
+    #[test]
+    fn seed_persists_the_snapshot_and_survives_a_restart() {
+        let dir = temp_dir("seed");
+        let path = dir.join("cache.json");
+        let state = EntitlementState::load(Some(path.clone()));
+
+        let view = seed_cache(
+            &state,
+            Some("2999-01-01T00:00:00.000Z".to_string()),
+            Some("2020-01-01T00:00:00.000Z".to_string()),
+            None,
+        );
+        assert!(view.local_ultimate);
+        assert!(view.fetched_at_ms.is_some());
+        assert!(path.exists(), "seeded snapshot must be persisted");
+
+        let reloaded = EntitlementState::load(Some(path));
+        assert!(reloaded.local_entitled(), "seeded cache survives a restart");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     fn temp_dir(tag: &str) -> PathBuf {
