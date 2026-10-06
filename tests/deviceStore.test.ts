@@ -130,6 +130,19 @@ describe('deviceStore', () => {
     expect(store.activationError).toContain('network error');
   });
 
+  it('should not retry when the session is dead', async () => {
+    mockInvoke.mockRejectedValue('session expired — please sign in again');
+    const store = useDeviceStore();
+
+    await store.ensureActivated(true);
+
+    // only a fresh web login recovers this — retrying cannot fix it
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(store.activationError).toContain('session expired');
+    expect(store.limitReached).toBe(false);
+    expect(store.showReplaceDialog).toBe(false);
+  });
+
   it('should replace the picked device and close the dialog (F2)', async () => {
     const store = useDeviceStore();
     mockInvoke.mockRejectedValueOnce(
