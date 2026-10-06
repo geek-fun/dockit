@@ -67,8 +67,10 @@ pub struct ActivatedResult {
     pub limit: u32,
     pub used: u32,
     /// Device-bound 30-day lease — persisted into the session store.
-    /// The backend keeps `access_token`-style snake_case for token fields.
-    #[serde(rename = "refresh_token", default)]
+    /// The backend keeps `access_token`-style snake_case for token fields;
+    /// `refreshToken` is aliased because camelCase responses were observed
+    /// in the wild and a silent None here is what kills session renewal.
+    #[serde(rename = "refresh_token", alias = "refreshToken", default)]
     pub refresh_token: Option<String>,
 }
 
@@ -294,6 +296,17 @@ mod tests {
         });
         let result: ActivatedResult = serde_json::from_value(raw).expect("result");
         assert_eq!(result.refresh_token.as_deref(), Some("opaque-lease"));
+
+        // camelCase lease responses must land too — a silent None here is
+        // exactly what broke session renewal in the field.
+        let camel = json!({
+            "deviceId": "dev_9",
+            "limit": 3,
+            "used": 3,
+            "refreshToken": "camel-lease",
+        });
+        let result: ActivatedResult = serde_json::from_value(camel).expect("camel result");
+        assert_eq!(result.refresh_token.as_deref(), Some("camel-lease"));
 
         // tolerate responses without the lease (older backends)
         let bare: ActivatedResult =

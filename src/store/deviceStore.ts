@@ -30,9 +30,21 @@ export type ActivatedResult = {
   refreshToken?: string | null;
 };
 
-/** One activation attempt per app run, plus re-activation after each login. */
+/** One activation attempt per app run, plus re-activation after each login.
+ * Transient failures retry within the call before surfacing. */
 const ACTIVATION_THROTTLE_MS = 24 * 60 * 60 * 1000;
+const ACTIVATION_RETRY_DELAYS_MS = [1500, 3000, 6000];
 const LAST_ACTIVATED_KEY = 'device_last_activated_at';
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Errors that retrying cannot fix: the session is dead (re-login needed)
+ * or the device ledger needs a user decision (replace picker). */
+const isActivationFatal = (err: unknown): boolean => {
+  if (parseLimitReached(err)) return true;
+  const raw = typeof err === 'string' ? err : String(err);
+  return raw.includes('session expired') || raw.includes('not logged in');
+};
 
 export const useDeviceStore = defineStore('device', {
   state: (): {
@@ -42,6 +54,9 @@ export const useDeviceStore = defineStore('device', {
     limitInfo: DeviceLimitInfo | null;
     showReplaceDialog: boolean;
     activating: boolean;
+    /** Last activation failure message — surfaced in the plan section when
+     * no lease exists, because without activation the session cannot renew. */
+    activationError: string | null;
   } => ({
     deviceId: '',
     limit: 0,
@@ -49,6 +64,7 @@ export const useDeviceStore = defineStore('device', {
     limitInfo: null,
     showReplaceDialog: false,
     activating: false,
+    activationError: null,
   }),
   getters: {
     isActivated: state => state.deviceId.length > 0,
@@ -63,8 +79,9 @@ export const useDeviceStore = defineStore('device', {
       return !this.isActivated && Date.now() - last > ACTIVATION_THROTTLE_MS;
     },
     /**
-     * 权益激活执行点：login 成功与应用启动时调用。失败静默降级为提示——
-     * 服务器不会因为设备超限锁账号，5030 弹出替换选择器由用户决定。
+     * 权益激活执行点：login 成功与应用启动时调用。瞬态失败在调用内有界重试，
+     * 最终失败记入 activationError（计划页可见）——激活提供续期租约，失败
+     * 意味着 token 过期后无法自愈。5030 弹出替换选择器由用户决定。
      */
     async ensureActivated(force = false): Promise<void> {
       const userStore = useUserStore();
@@ -73,18 +90,26 @@ export const useDeviceStore = defineStore('device', {
       }
       this.activating = true;
       try {
-        const result = await invoke<ActivatedResult>('activate_device', {
-          token: userStore.accessToken,
-          refreshToken: userStore.refreshToken || null,
-          replaceDeviceId: null,
-        });
-        this.applyActivated(result);
-        localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
-      } catch (err) {
-        const limitInfo = parseLimitReached(err);
-        if (limitInfo) {
-          this.limitInfo = limitInfo;
-          this.showReplaceDialog = true;
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            const result = await invoke<ActivatedResult>('activate_device', {
+              token: userStore.accessToken,
+              refreshToken: userStore.refreshToken || null,
+              replaceDeviceId: null,
+            });
+            this.applyActivated(result);
+            this.activationError = null;
+            localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
+            return;
+          } catch (err) {
+            if (attempt >= ACTIVATION_RETRY_DELAYS_MS.length || isActivationFatal(err)) {
+              if (!parseLimitReached(err)) {
+                this.activationError = typeof err === 'string' ? err : String(err);
+              }
+              return;
+            }
+            await sleep(ACTIVATION_RETRY_DELAYS_MS[attempt]);
+          }
         }
       } finally {
         this.activating = false;
@@ -104,6 +129,7 @@ export const useDeviceStore = defineStore('device', {
           replaceDeviceId: deviceId,
         });
         this.applyActivated(result);
+        this.activationError = null;
         localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
         return true;
       } catch (err) {

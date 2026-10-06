@@ -1416,8 +1416,6 @@ export const zhCN = {
         clients: '客户端',
       },
       cta: {
-        trial: '开始 7 天免费试用',
-        subscribe: '订阅',
         unlock: '解锁 Ultimate',
         unlockSub: '7 天免费试用 · $9.9/月 · $99/年',
       },
@@ -1473,6 +1471,8 @@ export const zhCN = {
       expiresAt: '有效期至 {time}',
       cancelScheduled: '订阅已计划于本期期末结束。',
       checkFailed: '权益校验失败，当前展示缓存状态。请检查网络后刷新。',
+      sessionExpired: '登录已过期，请重新登录以验证订阅状态。',
+      deviceActivationFailed: '设备注册失败，会话自动续期暂不可用。',
       notLoggedIn: '尚未登录。',
       loginLink: '通过 Geekfun 登录',
       refresh: '刷新',

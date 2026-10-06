@@ -13,6 +13,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::common::console;
 use crate::device_identity;
@@ -97,6 +98,55 @@ fn is_server_rejected(status: reqwest::StatusCode, envelope_code: u64) -> bool {
     status == reqwest::StatusCode::UNAUTHORIZED
         || status == reqwest::StatusCode::FORBIDDEN
         || (status.is_success() && envelope_code != 2000)
+}
+
+/// Proactive renewal entry point: rotate the lease before expiry instead of
+/// waiting for a 401. Returns the successor pair directly (the frontend
+/// stores it synchronously, so ordering with the next request is
+/// deterministic) and also emits `session-refreshed`; a rejected lease
+/// surfaces as the structured `SESSION_REJECTED` error for the frontend to
+/// drop.
+#[tauri::command]
+pub async fn rotate_session_now(
+    refresh_token: Option<String>,
+    state: State<'_, SessionState>,
+    identity: State<'_, crate::device_activation::DeviceIdentityState>,
+    app: AppHandle,
+) -> Result<RefreshedSession, String> {
+    let lease = refresh_token.as_deref().unwrap_or("").trim().to_string();
+    if lease.is_empty() {
+        return Err("no stored refresh token".to_string());
+    }
+    let refreshed = rotate_session(&state, &lease, &identity.payload()).await?;
+    let _ = app.emit(
+        "session-refreshed",
+        json!({
+            "accessToken": refreshed.access_token,
+            "refreshToken": refreshed.refresh_token,
+        }),
+    );
+    Ok(refreshed)
+}
+
+/// Logout: best-effort server-side revocation of the presented lease. The
+/// server keeps only hashes, so an unknown token is an idempotent no-op —
+/// the client clears its local copy regardless of the outcome.
+#[tauri::command]
+pub async fn revoke_session(refresh_token: Option<String>) -> Result<(), String> {
+    let lease = refresh_token.as_deref().unwrap_or("").trim();
+    if lease.is_empty() {
+        return Ok(());
+    }
+    let response = console::client()
+        .post(format!("{}/api/v1/auth/logout", console::api_base_url()))
+        .json(&json!({ "refresh_token": lease }))
+        .send()
+        .await
+        .map_err(|e| format!("network error: {e}"))?;
+    if !response.status().is_success() {
+        return Err(format!("logout endpoint returned HTTP {}", response.status()));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

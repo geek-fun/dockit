@@ -72,11 +72,11 @@
               </ShimmerButton>
             </template>
             <template v-else>
-              <Button variant="outline" size="sm" @click="handleUpgrade">
-                {{ $t('plan.gate.cta.subscribe') }}
+              <Button variant="outline" size="sm" @click="handleLogin">
+                {{ $t('plan.section.loginLink') }}
               </Button>
               <ShimmerButton size="sm" class="flex-1" @click="handleStartFree">
-                {{ $t('plan.gate.cta.trial') }}
+                {{ $t('plan.upgrade.startFree') }}
               </ShimmerButton>
             </template>
           </div>
@@ -199,6 +199,10 @@ const handleUpgrade = async () => {
 
 const handleStartFree = async () => {
   await authService.openRegisterUrl();
+};
+
+const handleLogin = async () => {
+  await authService.openLoginUrl();
 };
 
 const handleRefresh = async () => {

@@ -2,65 +2,67 @@
   <div class="chatbox-resizable" :style="{ width: `${currentWidth}px` }">
     <div class="resize-handle" @mousedown="startResize" />
 
-    <!-- Session history slide-over -->
-    <transition name="history-slide">
-      <div v-if="historyPanelOpen" class="chatbox-history-overlay">
-        <SessionHistoryPanel
-          @select="switchSession"
-          @delete="deleteSession"
-          @new-session="handleNewSession"
-          @close="historyPanelOpen = false"
-        />
-      </div>
-    </transition>
-
-    <ChatPanel
-      :messages="messages"
-      :is-loading="isLoading"
-      :error="error"
-      :empty-hint="$t('aside.chatBotEmptyHint')"
-      :input-placeholder="$t('aside.chatBotPlaceholder')"
-      :session-id="activeSession?.id ?? null"
-      :context-settings="lastSettings ?? undefined"
-      :progress="activeSession ? dataStudioStore.getSessionProgress(activeSession.id) : null"
-      :stop-reason="activeSession?.stopReason ?? null"
-      :stop-message="activeSession?.stopMessage ?? null"
-      feature="sidebarAssistant"
-      compact
-      @send="sendMessage"
-      @stop-loop="cancelSession"
-      @confirm-tool-call="handleConfirmation"
-      @model-change="onModelChange"
-      @model-picker-open="syncAllProviderModels"
-    >
-      <template #header>
-        <div class="header-title">{{ $t('aside.chatBot') }}</div>
-        <div class="header-actions">
-          <button
-            class="header-icon-btn"
-            :title="$t('dataStudio.history.newSession')"
-            @click="handleNewSession"
-          >
-            <span class="i-carbon-add h-4 w-4" />
-          </button>
-          <button
-            class="header-icon-btn"
-            :class="{ 'header-icon-btn--active': historyPanelOpen }"
-            :title="$t('dataStudio.history.title')"
-            @click="historyPanelOpen = !historyPanelOpen"
-          >
-            <span class="i-carbon-time h-4 w-4" />
-          </button>
-          <button
-            class="header-icon-btn"
-            :title="$t('dataStudio.agent.clearChat')"
-            @click="clearChat"
-          >
-            <span class="i-carbon-trash-can h-4 w-4" />
-          </button>
+    <PaidGate feature="ai" compact class="h-full w-full">
+      <!-- Session history slide-over -->
+      <transition name="history-slide">
+        <div v-if="historyPanelOpen" class="chatbox-history-overlay">
+          <SessionHistoryPanel
+            @select="switchSession"
+            @delete="deleteSession"
+            @new-session="handleNewSession"
+            @close="historyPanelOpen = false"
+          />
         </div>
-      </template>
-    </ChatPanel>
+      </transition>
+
+      <ChatPanel
+        :messages="messages"
+        :is-loading="isLoading"
+        :error="error"
+        :empty-hint="$t('aside.chatBotEmptyHint')"
+        :input-placeholder="$t('aside.chatBotPlaceholder')"
+        :session-id="activeSession?.id ?? null"
+        :context-settings="lastSettings ?? undefined"
+        :progress="activeSession ? dataStudioStore.getSessionProgress(activeSession.id) : null"
+        :stop-reason="activeSession?.stopReason ?? null"
+        :stop-message="activeSession?.stopMessage ?? null"
+        feature="sidebarAssistant"
+        compact
+        @send="sendMessage"
+        @stop-loop="cancelSession"
+        @confirm-tool-call="handleConfirmation"
+        @model-change="onModelChange"
+        @model-picker-open="syncAllProviderModels"
+      >
+        <template #header>
+          <div class="header-title">{{ $t('aside.chatBot') }}</div>
+          <div class="header-actions">
+            <button
+              class="header-icon-btn"
+              :title="$t('dataStudio.history.newSession')"
+              @click="handleNewSession"
+            >
+              <span class="i-carbon-add h-4 w-4" />
+            </button>
+            <button
+              class="header-icon-btn"
+              :class="{ 'header-icon-btn--active': historyPanelOpen }"
+              :title="$t('dataStudio.history.title')"
+              @click="historyPanelOpen = !historyPanelOpen"
+            >
+              <span class="i-carbon-time h-4 w-4" />
+            </button>
+            <button
+              class="header-icon-btn"
+              :title="$t('dataStudio.agent.clearChat')"
+              @click="clearChat"
+            >
+              <span class="i-carbon-trash-can h-4 w-4" />
+            </button>
+          </div>
+        </template>
+      </ChatPanel>
+    </PaidGate>
   </div>
 </template>
 
@@ -69,6 +71,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useSidebarChatAgent } from '@/composables';
 import ChatPanel from '@/components/chat-panel.vue';
 import SessionHistoryPanel from '@/views/data-studio/components/session-history-panel.vue';
+import { PaidGate } from '@/components/upgrade';
 import { useAppStore } from '@/store';
 import { useDataStudioStore } from '@/store/dataStudioStore';
 import { storeToRefs } from 'pinia';

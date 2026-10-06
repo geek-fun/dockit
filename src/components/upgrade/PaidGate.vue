@@ -81,11 +81,11 @@
               {{ $t('plan.upgrade.cta') }}
             </ShimmerButton>
             <template v-else>
-              <Button variant="outline" size="sm" @click="handleSubscribe">
-                {{ $t('plan.gate.cta.subscribe') }}
+              <Button variant="outline" size="sm" @click="handleLogin">
+                {{ $t('plan.section.loginLink') }}
               </Button>
               <ShimmerButton size="sm" @click="handleStartFree">
-                {{ $t('plan.gate.cta.trial') }}
+                {{ $t('plan.upgrade.startFree') }}
               </ShimmerButton>
             </template>
           </div>
@@ -100,9 +100,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Bot, Plug, RefreshCw, Server, Sparkles, WandSparkles } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { type PaidFeature, UPGRADE_URL } from '../../common';
+import { type PaidFeature } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
-import { open } from '@tauri-apps/plugin-shell';
 import { authService } from '../../datasources';
 import { openUpgradeDialog } from './upgradeDialogService';
 import { AuroraBackground, ProgressiveBlur, ShimmerButton } from './effects';
@@ -234,8 +233,8 @@ const handleStartFree = async () => {
   await authService.openRegisterUrl();
 };
 
-const handleSubscribe = async () => {
-  await open(UPGRADE_URL);
+const handleLogin = async () => {
+  await authService.openLoginUrl();
 };
 </script>
 
@@ -350,6 +349,12 @@ const handleSubscribe = async () => {
 .gate-card__bg {
   position: absolute;
   inset: 0;
+  /* In the compact card the poster is ambiance, not content — at full
+     opacity its scenario collides with the gate copy stacked above it. */
+  opacity: 0.2;
+  filter: blur(2px);
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 78%);
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
 }
 
 .gate-card__bg :deep(.poster) {
@@ -590,6 +595,7 @@ const handleSubscribe = async () => {
 
 .gate-card__actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 10px;

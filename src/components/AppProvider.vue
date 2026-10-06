@@ -19,6 +19,7 @@ import {
   useEntitlementStore,
   useUserStore,
 } from '../store';
+import { shouldRotateToken } from '../common';
 import { useAppUpdater } from '@/composables';
 import { resolveAvatarUrl } from '../datasources';
 import AboutDialog from './AboutDialog.vue';
@@ -48,6 +49,11 @@ type AuthPayload = {
   email?: string | null;
   userId?: string | null;
   avatar?: string | null;
+  // Entitlement snapshot from the web handoff — lets the app show the plan
+  // instantly, before the first subscription round-trip completes.
+  ultimateExpiresAt?: string | null;
+  versionLockHorizon?: string | null;
+  cancelScheduledAt?: string | null;
 };
 
 // Idempotent: events and the cold-start pull may both deliver the same link.
@@ -59,10 +65,34 @@ const handleAuth = (payload: AuthPayload) => {
     payload.userId ?? '',
     resolveAvatarUrl(payload.avatar ?? ''),
   );
+  entitlementStore.seedFromHandoff(payload);
   entitlementStore.refreshEntitlement(true);
   // geekfun#59: the deep-linked token comes from a web login with no
   // device attached — register/verify this machine right away.
   deviceStore.ensureActivated(true);
+};
+
+// Rotate an expired or near-expiry access token before anything uses it:
+// one round trip now beats a 401 on every subsequent call. The returned
+// pair is stored directly (not only via the event) so ordering with the
+// entitlement refresh below is deterministic.
+const rotateStaleSession = async () => {
+  if (
+    !userStore.refreshToken ||
+    !shouldRotateToken(userStore.accessToken, userStore.refreshToken)
+  ) {
+    return;
+  }
+  try {
+    const refreshed = await invoke<{ access_token: string; refresh_token: string }>(
+      'rotate_session_now',
+      { refreshToken: userStore.refreshToken },
+    );
+    userStore.setToken(refreshed.access_token);
+    userStore.setRefreshToken(refreshed.refresh_token);
+  } catch {
+    // rejected or transient — the reactive 401 paths still recover
+  }
 };
 
 const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) => {
@@ -99,6 +129,11 @@ onMounted(async () => {
   );
 
   if (userStore.isLoggedIn) {
+    // Cached last success first — the UI must not flash Unknown while the
+    // network refresh below is in flight. A stale token is rotated before
+    // the refresh so it goes out with a valid bearer.
+    await entitlementStore.hydrate();
+    await rotateStaleSession();
     entitlementStore.refreshEntitlement(true);
     deviceStore.ensureActivated();
   }

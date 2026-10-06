@@ -423,6 +423,29 @@ pub fn get_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
     state.view(true, None)
 }
 
+/// Seed the entitlement cache from the login handoff. The web login knows
+/// the subscription state at redirect time; carrying a snapshot in the
+/// deep link lets the desktop app show the plan instantly instead of
+/// flashing Unknown while the first network refresh is in flight. The
+/// server stays the source of truth — the regular refresh still verifies.
+#[tauri::command]
+pub fn seed_entitlement(
+    ultimate_expires_at: Option<String>,
+    version_lock_horizon: Option<String>,
+    cancel_scheduled_at: Option<String>,
+    state: State<'_, EntitlementState>,
+) -> EntitlementView {
+    if ultimate_expires_at.is_some() || version_lock_horizon.is_some() {
+        state.set_cache(SubscriptionCache {
+            fetched_at_ms: now_unix_ms(),
+            ultimate_expires_at,
+            version_lock_horizon,
+            cancel_scheduled_at,
+        });
+    }
+    state.view(true, None)
+}
+
 /// Called on logout — entitlements are account-scoped, so the cached state
 /// must not outlive the session (a different account on the same machine
 /// must not inherit the previous account's version lock).
