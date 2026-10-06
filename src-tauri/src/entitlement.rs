@@ -423,11 +423,8 @@ pub fn get_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
     state.view(true, None)
 }
 
-/// Seed the entitlement cache from the login handoff. The web login knows
-/// the subscription state at redirect time; carrying a snapshot in the
-/// deep link lets the desktop app show the plan instantly instead of
-/// flashing Unknown while the first network refresh is in flight. The
-/// server stays the source of truth — the regular refresh still verifies.
+/// Seed the entitlement cache from the login handoff so the plan shows
+/// instantly; the regular refresh remains the source of truth.
 #[tauri::command]
 pub fn seed_entitlement(
     ultimate_expires_at: Option<String>,

@@ -30,17 +30,12 @@ export type ActivatedResult = {
   refreshToken?: string | null;
 };
 
-/** One activation attempt per app run, plus re-activation after each login.
- * Transient failures retry within the call before surfacing. */
 const ACTIVATION_THROTTLE_MS = 24 * 60 * 60 * 1000;
 const ACTIVATION_RETRY_DELAYS_MS = [1500, 3000, 6000];
 const LAST_ACTIVATED_KEY = 'device_last_activated_at';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-/** Errors that retrying cannot fix: the session is dead and only a fresh
- * web login can recover it. The 5030 limit payload is handled separately —
- * it needs a user decision (replace picker), not a retry. */
 const isActivationFatal = (err: unknown): boolean => {
   const raw = typeof err === 'string' ? err : String(err);
   return raw.includes('session expired') || raw.includes('not logged in');
@@ -54,8 +49,7 @@ export const useDeviceStore = defineStore('device', {
     limitInfo: DeviceLimitInfo | null;
     showReplaceDialog: boolean;
     activating: boolean;
-    /** Last activation failure message — surfaced in the plan section when
-     * no lease exists, because without activation the session cannot renew. */
+    /** Last activation failure — shown in the plan section (plan-section.vue). */
     activationError: string | null;
   } => ({
     deviceId: '',
@@ -78,11 +72,8 @@ export const useDeviceStore = defineStore('device', {
       const last = Number(localStorage.getItem(LAST_ACTIVATED_KEY) ?? 0);
       return !this.isActivated && Date.now() - last > ACTIVATION_THROTTLE_MS;
     },
-    /**
-     * 权益激活执行点：login 成功与应用启动时调用。瞬态失败在调用内有界重试，
-     * 最终失败记入 activationError（计划页可见）——激活提供续期租约，失败
-     * 意味着 token 过期后无法自愈。5030 弹出替换选择器由用户决定。
-     */
+    // Activation issues the renewal lease — final failure means the session
+    // cannot self-heal; 5030 needs the user's replace decision instead.
     async ensureActivated(force = false): Promise<void> {
       const userStore = useUserStore();
       if (!userStore.isLoggedIn || this.activating || !this.shouldAttempt(force)) {
@@ -104,8 +95,6 @@ export const useDeviceStore = defineStore('device', {
           } catch (err) {
             const limitInfo = parseLimitReached(err);
             if (limitInfo) {
-              // The device ledger needs a user decision (replace picker),
-              // not a retry.
               this.limitInfo = limitInfo;
               this.showReplaceDialog = true;
               return;

@@ -100,12 +100,9 @@ fn is_server_rejected(status: reqwest::StatusCode, envelope_code: u64) -> bool {
         || (status.is_success() && envelope_code != 2000)
 }
 
-/// Proactive renewal entry point: rotate the lease before expiry instead of
-/// waiting for a 401. Returns the successor pair directly (the frontend
-/// stores it synchronously, so ordering with the next request is
-/// deterministic) and also emits `session-refreshed`; a rejected lease
-/// surfaces as the structured `SESSION_REJECTED` error for the frontend to
-/// drop.
+/// Proactive renewal: returns the successor pair (also emitted via
+/// `session-refreshed`); rejections carry `SESSION_REJECTED` for the
+/// frontend to drop the lease.
 #[tauri::command]
 pub async fn rotate_session_now(
     refresh_token: Option<String>,
@@ -128,9 +125,8 @@ pub async fn rotate_session_now(
     Ok(refreshed)
 }
 
-/// Logout: best-effort server-side revocation of the presented lease. The
-/// server keeps only hashes, so an unknown token is an idempotent no-op —
-/// the client clears its local copy regardless of the outcome.
+/// Logout: best-effort revocation of the presented lease; idempotent and
+/// non-fatal by contract — the client clears its local copy regardless.
 #[tauri::command]
 pub async fn revoke_session(refresh_token: Option<String>) -> Result<(), String> {
     let lease = refresh_token.as_deref().unwrap_or("").trim();

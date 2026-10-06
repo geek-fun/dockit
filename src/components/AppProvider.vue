@@ -49,15 +49,13 @@ type AuthPayload = {
   email?: string | null;
   userId?: string | null;
   avatar?: string | null;
-  // Entitlement snapshot from the web handoff — lets the app show the plan
-  // instantly, before the first subscription round-trip completes.
   ultimateExpiresAt?: string | null;
   versionLockHorizon?: string | null;
   cancelScheduledAt?: string | null;
 };
 
 // Idempotent: events and the cold-start pull may both deliver the same link.
-const handleAuth = (payload: AuthPayload) => {
+const handleAuth = async (payload: AuthPayload) => {
   userStore.setAuth(
     payload.token,
     payload.username ?? '',
@@ -65,17 +63,15 @@ const handleAuth = (payload: AuthPayload) => {
     payload.userId ?? '',
     resolveAvatarUrl(payload.avatar ?? ''),
   );
-  entitlementStore.seedFromHandoff(payload);
+  // Await the local seed so it can never land after the network refresh
+  // below and overwrite a fresher server answer with the snapshot.
+  await entitlementStore.seedFromHandoff(payload);
   entitlementStore.refreshEntitlement(true);
   // geekfun#59: the deep-linked token comes from a web login with no
   // device attached — register/verify this machine right away.
   deviceStore.ensureActivated(true);
 };
 
-// Rotate an expired or near-expiry access token before anything uses it:
-// one round trip now beats a 401 on every subsequent call. The returned
-// pair is stored directly (not only via the event) so ordering with the
-// entitlement refresh below is deterministic.
 const rotateStaleSession = async () => {
   if (
     !userStore.refreshToken ||
@@ -129,10 +125,8 @@ onMounted(async () => {
   );
 
   if (userStore.isLoggedIn) {
-    // Cached last success first — the UI must not flash Unknown while the
-    // network refresh below is in flight. A stale token is rotated before
-    // the refresh so it goes out with a valid bearer.
     await entitlementStore.hydrate();
+    // Rotate before the refresh so it goes out with a valid bearer.
     await rotateStaleSession();
     entitlementStore.refreshEntitlement(true);
     deviceStore.ensureActivated();

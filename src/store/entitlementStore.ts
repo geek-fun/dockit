@@ -5,9 +5,6 @@ import { useUserStore } from './userStore';
 
 export type PlanState = 'ultimate' | 'community' | 'unknown';
 
-// Bounded self-heal for the login window: the first refresh right after a
-// deep-link login can race the backend provisioning the subscription (or hit
-// a transient network error) — retry before giving up and showing Unknown.
 const REFRESH_RETRY_DELAYS_MS = [1500, 3000, 6000];
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -28,18 +25,13 @@ export const useEntitlementStore = defineStore('entitlement', {
     },
     cancelScheduled: state => Boolean(state.view?.cancelScheduledAt),
     hasEntitlementError: state => Boolean(state.view?.lastError),
-    // The server classified the session as unrecoverable (401 with no
-    // lease to rotate) — only a fresh web login can verify the plan again.
+    // matches the plain-string errors Rust refresh_entitlement classifies by
     sessionExpired: state => {
       const err = state.view?.lastError;
       return err === 'session expired' || err === 'not logged in';
     },
   },
   actions: {
-    // Instant plan display right after a deep-link login: the web handoff
-    // carries an entitlement snapshot alongside the token. Seeding is
-    // best-effort — the server stays the source of truth and the regular
-    // refresh still verifies right after.
     async seedFromHandoff(payload: {
       ultimateExpiresAt?: string | null;
       versionLockHorizon?: string | null;
@@ -59,10 +51,7 @@ export const useEntitlementStore = defineStore('entitlement', {
         // best effort — the refresh below still verifies
       }
     },
-    // Show the persisted last success instantly at startup (Rust keeps an
-    // entitlement-cache.json across restarts). A cache entry always carries a
-    // fetchedAtMs from a real server answer; an empty Rust state returns null
-    // and must NOT surface as a confirmed 'community'.
+    // only a real server answer (fetchedAtMs) may surface as a confirmed plan
     async hydrate(): Promise<void> {
       const cached = await invoke<EntitlementView>('get_entitlement').catch(() => null);
       if (cached?.fetchedAtMs != null) {
@@ -81,8 +70,7 @@ export const useEntitlementStore = defineStore('entitlement', {
           return;
         } catch (e) {
           if (isSessionRejected(e)) {
-            // The lease is dead server-side — drop it so the next login starts
-            // clean instead of presenting a revoked token. Retrying is pointless.
+            // dead lease — drop it so the next login starts clean
             userStore.setRefreshToken('');
             this.view = null;
             return;
