@@ -664,6 +664,12 @@ const providerPresets: Record<
     baseUrl: 'https://router.requesty.ai/v1',
     apiCompatibility: 'openai-compatible',
   },
+  opper: {
+    label: 'Opper',
+    authMode: 'api-key',
+    baseUrl: 'https://api.opper.ai/v3/compat',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
