@@ -623,13 +623,23 @@ const draftProviderErrors = reactive<ProviderErrorMap>({});
 const dialogTestState = ref<'idle' | 'testing' | 'success' | 'failed'>('idle');
 const dialogTestError = ref<string | null>(null);
 
+// URLs already carrying their own version segment (/v1, /v3/compat, /v1beta/openai) are kept as-is;
+// mirrors normalize_base_url in data-studio-agent's provider_adapter.
+const hasVersionSegment = (url: string): boolean => {
+  const withoutScheme = url.split('://')[1] ?? url;
+  return withoutScheme
+    .split('/')
+    .slice(1)
+    .some(seg => /^v\d/.test(seg));
+};
+
 const normalizeBaseUrl = (url: string): string => {
   const trimmed = url.trim();
   if (!trimmed) return '';
 
   const withoutSlashes = trimmed.replace(/\/+$/, '');
 
-  if (withoutSlashes.endsWith('/v1')) {
+  if (withoutSlashes.endsWith('/v1') || hasVersionSegment(withoutSlashes)) {
     return withoutSlashes;
   }
 
