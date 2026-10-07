@@ -131,7 +131,7 @@ describe('entitlementStore', () => {
 
       expect(mockInvoke).toHaveBeenCalledTimes(1);
       expect(mockSetRefreshToken).toHaveBeenCalledWith('');
-      expect(store.view).toBeNull();
+      expect(store.sessionExpired).toBe(true);
     });
 
     it('retries a transient failure and succeeds', async () => {
@@ -150,31 +150,62 @@ describe('entitlementStore', () => {
       expect(store.planState).toBe('ultimate');
     });
 
-    it('rethrows a persistent non-entitlement failure with the view left empty', async () => {
+    it('lands on Unknown after persistent non-entitlement failures', async () => {
       jest.useFakeTimers();
       mockInvoke.mockRejectedValue('network error: timeout');
       const store = useEntitlementStore();
 
       const pending = store.refreshEntitlement(false);
-      // attach the rejection handler before the timers fire the retries
-      const assertion = expect(pending).rejects.toBe('network error: timeout');
       await jest.runAllTimersAsync();
-      await assertion;
+      await pending;
 
       expect(mockInvoke).toHaveBeenCalledTimes(4); // 1 attempt + 3 retries
-      expect(store.view).toBeNull();
+      expect(store.view).not.toBeNull();
+      expect(store.planState).toBe('unknown');
+      expect(store.hasEntitlementError).toBe(true);
+      expect(store.sessionExpired).toBe(false);
     });
 
-    it('resolves with an empty view for a definitive entitlement answer', async () => {
+    it('keeps a hydrated cached view when the refresh degrades', async () => {
+      mockInvoke.mockResolvedValueOnce(view({ localUltimate: true, fetchedAtMs: 42 }));
+      const store = useEntitlementStore();
+      await store.hydrate();
+
+      jest.useFakeTimers();
+      mockInvoke.mockRejectedValue('network error: timeout');
+      const pending = store.refreshEntitlement(false);
+      await jest.runAllTimersAsync();
+      await pending;
+
+      // offline contract: the last success stays on screen
+      expect(store.view?.fetchedAtMs).toBe(42);
+      expect(store.isLocalUltimate).toBe(true);
+      expect(store.hasEntitlementError).toBe(false);
+    });
+
+    it('lands on the session-expired state when the lease is rejected', async () => {
+      mockInvoke.mockRejectedValue(rejected(SESSION_REJECTED_ERROR_TYPE, 'lease expired'));
+      const store = useEntitlementStore();
+
+      await store.refreshEntitlement(false);
+
+      expect(mockInvoke).toHaveBeenCalledTimes(1);
+      expect(mockSetRefreshToken).toHaveBeenCalledWith('');
+      expect(store.planState).toBe('unknown');
+      expect(store.sessionExpired).toBe(true);
+    });
+
+    it('resolves with Unknown for a definitive entitlement answer', async () => {
       jest.useFakeTimers();
       mockInvoke.mockRejectedValue(rejected(ENTITLEMENT_ERROR_TYPE, 'requires Ultimate'));
       const store = useEntitlementStore();
 
       const pending = store.refreshEntitlement(false);
       await jest.runAllTimersAsync();
+      await pending;
 
-      await expect(pending).resolves.toBeUndefined();
-      expect(store.view).toBeNull();
+      expect(store.planState).toBe('unknown');
+      expect(store.sessionExpired).toBe(false);
     });
   });
 
