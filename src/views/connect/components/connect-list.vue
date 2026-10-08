@@ -332,7 +332,7 @@ import {
 } from '../../../store';
 import { open } from '@tauri-apps/plugin-shell';
 import { UPGRADE_URL } from '../../../common';
-import { ProBadge } from '@/components/upgrade';
+import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
 import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
