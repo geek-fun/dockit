@@ -64,9 +64,9 @@
           class="connection-card profile-card focus:ring-2 focus:ring-primary focus:outline-none"
           role="button"
           tabindex="0"
-          @click="editSshProfile(profile)"
-          @keydown.enter="editSshProfile(profile)"
-          @keydown.space.prevent="editSshProfile(profile)"
+          @click="manageSshProfile(profile)"
+          @keydown.enter="manageSshProfile(profile)"
+          @keydown.space.prevent="manageSshProfile(profile)"
         >
           <div class="card-top">
             <div class="card-icon-wrapper profile-icon">
@@ -99,7 +99,7 @@
                     variant="ghost"
                     size="icon"
                     class="h-7 w-7"
-                    @click="editSshProfile(profile)"
+                    @click="manageSshProfile(profile)"
                   >
                     <Pencil class="h-3.5 w-3.5" />
                   </Button>
@@ -116,7 +116,7 @@
                     variant="ghost"
                     size="icon"
                     class="h-7 w-7 text-destructive"
-                    @click="deleteSshProfile(profile.id)"
+                    @click="removeSshProfile(profile.id)"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
                   </Button>
@@ -360,6 +360,24 @@ const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(nu
 
 const openNewSshProfile = () => {
   sshProfileDialogRef.value?.show(null);
+};
+
+// SSH profile management is Ultimate-only — the modal (pricing + trial)
+// is kept for these entry points; the website jump is for usage strips
+const guardSshProfileManagement = (): boolean => {
+  if (entitlementStore.isLocalUltimate) return true;
+  openUpgradeDialog('ssh_tunnel');
+  return false;
+};
+
+const manageSshProfile = (profile: SshProfile) => {
+  if (!guardSshProfileManagement()) return;
+  editSshProfile(profile);
+};
+
+const removeSshProfile = (profileId: string) => {
+  if (!guardSshProfileManagement()) return;
+  deleteSshProfile(profileId);
 };
 
 const editSshProfile = (profile: SshProfile) => {
@@ -818,7 +836,7 @@ const mongodbConnectDialog = ref();
 const handleFabAction = (action: FloatingMenuAction) => {
   if (action === 'sshProfile') {
     if (!entitlementStore.isLocalUltimate) {
-      open(UPGRADE_URL);
+      openUpgradeDialog('ssh_tunnel');
       return;
     }
     openNewSshProfile();
