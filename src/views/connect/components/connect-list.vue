@@ -608,9 +608,6 @@ const getMongoTls = (connection: Connection): boolean => {
   return mongo.tls === true;
 };
 
-const hasSsh = (c: Connection): boolean =>
-  'sshTunnel' in c && c.sshTunnel != null && c.sshTunnel.enabled === true;
-
 // an SSH-bound saved connection is only operable with Ultimate — instead of
 // attempting a connect that dies with a raw 403, route to the pricing site
 const PROTECTED_ACTIONS = new Set(['connect', 'edit', 'clone', 'remove']);
