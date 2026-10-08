@@ -163,6 +163,7 @@
             >
               <span class="i-carbon-locked h-3 w-3 mr-0.5" />
               SSH
+              <ProBadge v-if="!entitlementStore.isLocalUltimate" size="xs" class="ml-1" />
             </Badge>
             <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
               {{ getVersion(connection) }}
@@ -331,6 +332,7 @@ import {
 } from '../../../store';
 import { open } from '@tauri-apps/plugin-shell';
 import { UPGRADE_URL } from '../../../common';
+import { ProBadge } from '@/components/upgrade';
 import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
@@ -606,7 +608,18 @@ const getMongoTls = (connection: Connection): boolean => {
   return mongo.tls === true;
 };
 
+const hasSsh = (c: Connection): boolean =>
+  'sshTunnel' in c && c.sshTunnel != null && c.sshTunnel.enabled === true;
+
+// an SSH-bound saved connection is only operable with Ultimate — instead of
+// attempting a connect that dies with a raw 403, route to the pricing site
+const PROTECTED_ACTIONS = new Set(['connect', 'edit', 'clone', 'remove']);
+
 const handleSelect = (key: string, connection: Connection) => {
+  if (PROTECTED_ACTIONS.has(key) && hasSsh(connection) && !entitlementStore.isLocalUltimate) {
+    open(UPGRADE_URL);
+    return;
+  }
   switch (key) {
     case 'connect':
       establishConnect(connection);
