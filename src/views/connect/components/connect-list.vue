@@ -329,7 +329,8 @@ import {
   useEntitlementStore,
   SshProfile,
 } from '../../../store';
-import { openUpgradeDialog } from '@/components/upgrade';
+import { open } from '@tauri-apps/plugin-shell';
+import { UPGRADE_URL } from '../../../common';
 import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
@@ -807,7 +808,7 @@ const mongodbConnectDialog = ref();
 const handleFabAction = (action: FloatingMenuAction) => {
   if (action === 'sshProfile') {
     if (!entitlementStore.isLocalUltimate) {
-      openUpgradeDialog('ssh_tunnel');
+      open(UPGRADE_URL);
       return;
     }
     openNewSshProfile();
