@@ -1026,6 +1026,7 @@ export const enUS = {
     prompt: {
       title: 'Agent Prompt',
       label: 'Agent Prompt',
+      ultimateOnly: 'Agent Prompt is an Ultimate feature — click to upgrade',
       add: 'Add agent prompt',
       edit: 'Edit agent prompt',
       configured: 'Configured',

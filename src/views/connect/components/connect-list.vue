@@ -64,9 +64,9 @@
           class="connection-card profile-card focus:ring-2 focus:ring-primary focus:outline-none"
           role="button"
           tabindex="0"
-          @click="editSshProfile(profile)"
-          @keydown.enter="editSshProfile(profile)"
-          @keydown.space.prevent="editSshProfile(profile)"
+          @click="manageSshProfile(profile)"
+          @keydown.enter="manageSshProfile(profile)"
+          @keydown.space.prevent="manageSshProfile(profile)"
         >
           <div class="card-top">
             <div class="card-icon-wrapper profile-icon">
@@ -99,7 +99,7 @@
                     variant="ghost"
                     size="icon"
                     class="h-7 w-7"
-                    @click="editSshProfile(profile)"
+                    @click="manageSshProfile(profile)"
                   >
                     <Pencil class="h-3.5 w-3.5" />
                   </Button>
@@ -116,7 +116,7 @@
                     variant="ghost"
                     size="icon"
                     class="h-7 w-7 text-destructive"
-                    @click="deleteSshProfile(profile.id)"
+                    @click="removeSshProfile(profile.id)"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
                   </Button>
@@ -163,6 +163,7 @@
             >
               <span class="i-carbon-locked h-3 w-3 mr-0.5" />
               SSH
+              <ProBadge v-if="!entitlementStore.isLocalUltimate" size="xs" class="ml-1" />
             </Badge>
             <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
               {{ getVersion(connection) }}
@@ -329,7 +330,9 @@ import {
   useEntitlementStore,
   SshProfile,
 } from '../../../store';
-import { openUpgradeDialog } from '@/components/upgrade';
+import { open } from '@tauri-apps/plugin-shell';
+import { UPGRADE_URL } from '../../../common';
+import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
 import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
@@ -357,6 +360,24 @@ const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(nu
 
 const openNewSshProfile = () => {
   sshProfileDialogRef.value?.show(null);
+};
+
+// SSH profile management is Ultimate-only — the modal (pricing + trial)
+// is kept for these entry points; the website jump is for usage strips
+const guardSshProfileManagement = (): boolean => {
+  if (entitlementStore.isLocalUltimate) return true;
+  openUpgradeDialog('ssh_tunnel');
+  return false;
+};
+
+const manageSshProfile = (profile: SshProfile) => {
+  if (!guardSshProfileManagement()) return;
+  editSshProfile(profile);
+};
+
+const removeSshProfile = (profileId: string) => {
+  if (!guardSshProfileManagement()) return;
+  deleteSshProfile(profileId);
 };
 
 const editSshProfile = (profile: SshProfile) => {
@@ -605,7 +626,15 @@ const getMongoTls = (connection: Connection): boolean => {
   return mongo.tls === true;
 };
 
+// an SSH-bound saved connection is only operable with Ultimate — instead of
+// attempting a connect that dies with a raw 403, route to the pricing site
+const PROTECTED_ACTIONS = new Set(['connect', 'edit', 'clone', 'remove']);
+
 const handleSelect = (key: string, connection: Connection) => {
+  if (PROTECTED_ACTIONS.has(key) && hasSsh(connection) && !entitlementStore.isLocalUltimate) {
+    open(UPGRADE_URL);
+    return;
+  }
   switch (key) {
     case 'connect':
       establishConnect(connection);
