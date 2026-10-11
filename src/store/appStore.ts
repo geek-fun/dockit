@@ -29,6 +29,7 @@ export type ProviderKind =
   | 'deepseek'
   | 'openrouter'
   | 'requesty'
+  | 'api-route'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -162,6 +163,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   },
   {
+    kind: 'api-route',
+    apiCompatibility: 'openai-compatible',
+    label: 'API Route',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://global.api-route.com/v1',
+    enabled: true,
+    defaultModels: ['gpt-6.1-sol'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -267,6 +277,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   openrouter: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   requesty: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
+  'api-route': ['gpt-6.1-sol'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -371,6 +382,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'openrouter';
     case ProviderEnum.REQUESTY:
       return 'requesty';
+    case ProviderEnum.API_ROUTE:
+      return 'api-route';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:
