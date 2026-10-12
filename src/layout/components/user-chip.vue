@@ -132,7 +132,6 @@ const planDotClass = computed(() =>
   entitlementStore.planState === 'unknown' ? 'unknown' : entitlementStore.planState,
 );
 
-
 const cancelScheduled = computed(() => entitlementStore.cancelScheduled);
 
 const planLine = computed(() => {
