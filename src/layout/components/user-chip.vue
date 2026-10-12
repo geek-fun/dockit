@@ -10,7 +10,7 @@
       >
         <template v-if="userStore.isLoggedIn">
           <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
-          <span v-else class="user-avatar user-initials">{{ initials }}</span>
+          <DefaultAvatar v-else class="user-avatar shrink-0" :seed="userStore.displayName" />
           <span class="plan-dot" :class="planDotClass" />
         </template>
         <span v-else class="i-carbon-user-avatar nav-icon h-6 w-6" />
@@ -25,9 +25,11 @@
             class="user-panel-avatar"
             alt=""
           />
-          <span v-else-if="userStore.isLoggedIn" class="user-panel-avatar user-initials">
-            {{ initials }}
-          </span>
+          <DefaultAvatar
+            v-else-if="userStore.isLoggedIn"
+            class="user-panel-avatar shrink-0"
+            :seed="userStore.displayName"
+          />
           <div class="user-panel-identity">
             <p class="user-panel-name">
               {{ userStore.isLoggedIn ? userStore.displayName : $t('plan.section.notLoggedIn') }}
@@ -106,6 +108,7 @@ import { Loader2, Sparkles } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import DefaultAvatar from '@/components/DefaultAvatar.vue';
 import { openUpgradeDialog } from '@/components/upgrade';
 import { authService, isSafeAvatarUrl } from '../../datasources/authService';
 import { useDeviceStore, useEntitlementStore, useUserStore } from '../../store';
@@ -128,11 +131,6 @@ const badgeVariant = computed(() => {
 const planDotClass = computed(() =>
   entitlementStore.planState === 'unknown' ? 'unknown' : entitlementStore.planState,
 );
-
-const initials = computed(() => {
-  const source = (userStore.displayName || 'U').trim();
-  return source.slice(0, 2).toUpperCase();
-});
 
 const cancelScheduled = computed(() => entitlementStore.cancelScheduled);
 
