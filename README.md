@@ -92,7 +92,7 @@ Describe what you need in natural language — the agent writes queries, inspect
 - **Schema inspection** — agent reads and explains your database schema
 - **Data operations** — CRUD, index management, bulk actions through conversation
 - **Safety** — per-source permissions, confirmation gate for destructive ops, credentials never exposed to the LLM
-- **Supported providers** — OpenAI, Anthropic, DeepSeek, Requesty, Ollama, LM Studio
+- **Supported providers** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Ollama, LM Studio
 
 ### DynamoDB
 
