@@ -325,4 +325,27 @@ const tools = [
   justify-content: center;
   padding: 18px 0 20px;
 }
+
+.poster__lock {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--primary) / 0.4);
+  background-color: hsl(var(--background) / 0.75);
+  backdrop-filter: blur(8px);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: hsl(var(--primary));
+}
+
+.poster__lock-icon {
+  width: 12px;
+  height: 12px;
+}
 </style>

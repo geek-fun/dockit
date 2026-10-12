@@ -79,8 +79,8 @@
             class="mb-4 cursor-pointer"
             role="button"
             tabindex="0"
-            @click="openUpgradeDialog('aws_profile')"
-            @keydown.enter="openUpgradeDialog('aws_profile')"
+            @click="openExternal(UPGRADE_URL)"
+            @keydown.enter="openExternal(UPGRADE_URL)"
           >
             <AlertDescription class="flex items-center gap-2">
               <ProBadge size="xs" />
@@ -554,7 +554,12 @@
                 @create-profile="openSshProfileDialog(null)"
                 @edit-profile="openSshProfileDialog($event)"
               />
-              <div class="prompt-header-row">
+              <UltimateFeatureStrip
+                v-if="!entitlementStore.isLocalUltimate"
+                class="w-full"
+                :label="$t('connection.prompt.ultimateOnly')"
+              />
+              <div v-else class="prompt-header-row">
                 <span class="i-carbon-chat-bot h-4 w-4 shrink-0 text-muted-foreground" />
                 <span class="text-sm font-medium whitespace-nowrap">
                   {{ $t('connection.prompt.label') }}
@@ -609,7 +614,8 @@ import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import { CustomError, MIN_LOADING_TIME } from '../../../common';
+import { CustomError, MIN_LOADING_TIME, UPGRADE_URL } from '../../../common';
+import { open as openExternal } from '@tauri-apps/plugin-shell';
 import dynamoDBIcon from '../../../assets/svg/dynamoDB.svg';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
@@ -622,7 +628,7 @@ import {
   applyTableFilter,
 } from '../../../store';
 import { useSshProfileStore, useEntitlementStore } from '../../../store';
-import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
+import { ProBadge } from '@/components/upgrade';
 import { ApiClientError } from '../../../datasources/ApiClients';
 import { dynamoApi } from '../../../datasources/dynamoApi';
 import { useFormValidation, useDialogResult } from '@/composables';

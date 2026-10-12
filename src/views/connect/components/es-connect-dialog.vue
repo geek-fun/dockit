@@ -240,7 +240,12 @@
                 @create-profile="openSshProfileDialog(null)"
                 @edit-profile="openSshProfileDialog($event)"
               />
-              <div class="prompt-header-row">
+              <UltimateFeatureStrip
+                v-if="!entitlementStore.isLocalUltimate"
+                class="w-full"
+                :label="$t('connection.prompt.ultimateOnly')"
+              />
+              <div v-else class="prompt-header-row">
                 <span class="i-carbon-chat-bot h-4 w-4 shrink-0 text-muted-foreground" />
                 <span class="text-sm font-medium whitespace-nowrap">
                   {{ $t('connection.prompt.label') }}
@@ -301,12 +306,13 @@ import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
 import easysearchIcon from '../../../assets/svg/easysearch.svg';
 import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
 import type { SshConnectionConfig } from '../../../store';
-import { useSshProfileStore } from '../../../store';
+import { useSshProfileStore, useEntitlementStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation, useDialogResult } from '@/composables';
 import { SshTunnelSection } from '@/components/ssh';
 import SshProfileDialog from './ssh-profile-dialog.vue';
 import ConnectionPromptDialog from './connection-prompt-dialog.vue';
+import { UltimateFeatureStrip } from '@/components/upgrade';
 
 import {
   Dialog,
@@ -339,6 +345,7 @@ const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidati
 const sshConfig = ref<SshConnectionConfig>({ enabled: false });
 const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
 const promptDialogRef = ref<InstanceType<typeof ConnectionPromptDialog> | null>(null);
+const entitlementStore = useEntitlementStore();
 const showAdvanced = ref(false);
 const promptValue = computed(() => formData.value.prompt ?? '');
 

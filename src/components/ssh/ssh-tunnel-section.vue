@@ -1,16 +1,8 @@
 <template>
-  <div
+  <UltimateFeatureStrip
     v-if="!entitlementStore.isLocalUltimate"
-    class="ssh-ultimate-gate"
-    role="button"
-    tabindex="0"
-    @click="openUpgradeDialog('ssh_tunnel')"
-    @keydown.enter="openUpgradeDialog('ssh_tunnel')"
-  >
-    <ProBadge size="xs" />
-    <span class="text-sm text-muted-foreground">{{ $t('connection.ssh.ultimateOnly') }}</span>
-    <span class="text-sm text-primary font-medium shrink-0">{{ $t('plan.upgrade.cta') }}</span>
-  </div>
+    :label="$t('connection.ssh.ultimateOnly')"
+  />
   <div v-else class="ssh-tunnel-section">
     <!-- Header row: title, count, test (left) | search, create (right) -->
     <div class="ssh-header-row">
@@ -158,7 +150,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSshProfileStore, useEntitlementStore } from '@/store';
 import type { SshConnectionConfig, SshTunnelConfig, SshProfile } from '@/store';
-import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
+import { UltimateFeatureStrip } from '@/components/upgrade';
 import Sortable from 'sortablejs';
 
 const entitlementStore = useEntitlementStore();
@@ -374,18 +366,6 @@ async function onTestConnection() {
 </script>
 
 <style scoped>
-.ssh-ultimate-gate {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.ssh-ultimate-gate:hover {
-  background: var(--accent);
-}
 .ssh-header-row {
   display: flex;
   align-items: center;

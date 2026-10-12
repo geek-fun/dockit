@@ -990,6 +990,7 @@ export const zhCN = {
     prompt: {
       title: 'Agent 提示词',
       label: 'Agent 提示词',
+      ultimateOnly: 'Agent 提示词是旗舰版功能 — 点击升级',
       add: '添加 Agent 提示词',
       edit: '编辑 Agent 提示词',
       configured: '已配置',
