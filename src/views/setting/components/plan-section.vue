@@ -7,7 +7,13 @@
     <Card>
       <CardContent class="px-5 py-4 space-y-4">
         <div class="flex items-center gap-3 flex-wrap">
-          <Badge :variant="entitlementStore.isLocalUltimate ? 'default' : 'secondary'">
+          <Badge
+            :variant="
+              entitlementStore.isLocalUltimate && !entitlementStore.sessionExpired
+                ? 'default'
+                : 'secondary'
+            "
+          >
             <Loader2 v-if="planState === 'checking'" class="mr-1 h-3 w-3 animate-spin" />
             {{ $t(`plan.state.${planState}`) }}
           </Badge>
@@ -160,6 +166,9 @@ const versionStateText = computed(() => {
 });
 
 const expiryText = computed(() => {
+  // Hide the "active until" banner while the session is dead — the cached
+  // benefit must not contradict the re-login instruction next to it.
+  if (entitlementStore.sessionExpired) return '';
   const expiresAt = view.value?.ultimateExpiresAt;
   if (!expiresAt || !entitlementStore.isCloudUltimate) return '';
   return lang.global.t('plan.section.expiresAt', {

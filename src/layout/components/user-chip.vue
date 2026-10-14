@@ -124,17 +124,25 @@ const open = ref(false);
 const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar));
 
 const badgeVariant = computed(() => {
+  // A dead session degrades the badge — the cached entitlement is no longer
+  // a verified server answer, the login CTA is the primary action.
+  if (entitlementStore.sessionExpired) return 'outline' as const;
   if (entitlementStore.planState === 'ultimate') return 'default' as const;
   if (entitlementStore.planState === 'unknown') return 'outline' as const;
   return 'secondary' as const;
 });
-const planDotClass = computed(() =>
-  entitlementStore.planState === 'unknown' ? 'unknown' : entitlementStore.planState,
-);
+const planDotClass = computed(() => {
+  if (entitlementStore.sessionExpired) return 'unknown';
+  return entitlementStore.planState === 'unknown' ? 'unknown' : entitlementStore.planState;
+});
 
 const cancelScheduled = computed(() => entitlementStore.cancelScheduled);
 
 const planLine = computed(() => {
+  // A stale cached entitlement must never out-voice the re-login instruction.
+  if (entitlementStore.sessionExpired) {
+    return t('plan.section.sessionExpired');
+  }
   const release = view.value?.appReleaseDate;
   if (entitlementStore.isCloudUltimate && view.value?.ultimateExpiresAt) {
     return t('plan.section.expiresAt', {
@@ -146,9 +154,6 @@ const planLine = computed(() => {
   }
   if (view.value === null) {
     return t('plan.state.checking');
-  }
-  if (entitlementStore.sessionExpired) {
-    return t('plan.section.sessionExpired');
   }
   if (entitlementStore.hasEntitlementError) {
     return t('plan.section.checkFailed');

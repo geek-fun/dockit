@@ -31,6 +31,7 @@ const view = (overrides: Partial<EntitlementView> = {}): EntitlementView => ({
   cancelScheduledAt: null,
   cached: true,
   fetchedAtMs: 123,
+  sessionPhase: null,
   lastError: null,
   ...overrides,
 });
@@ -220,11 +221,16 @@ describe('entitlementStore', () => {
       expect(store.sessionExpired).toBe(false);
       expect(store.hasEntitlementError).toBe(true);
 
-      store.$patch({ view: view({ lastError: 'session expired' }) });
+      // the session verdict is structured — lastError strings no longer match
+      store.$patch({
+        view: view({ lastError: 'session expired', sessionPhase: 'expired' }),
+      });
       expect(store.sessionExpired).toBe(true);
 
-      store.$patch({ view: view({ lastError: 'not logged in' }) });
-      expect(store.sessionExpired).toBe(true);
+      store.$patch({
+        view: view({ lastError: 'session expired', sessionPhase: 'signed-in' }),
+      });
+      expect(store.sessionExpired).toBe(false);
 
       store.$patch({ view: view() });
       expect(store.planState).toBe('community');
