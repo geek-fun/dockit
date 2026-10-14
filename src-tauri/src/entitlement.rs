@@ -32,6 +32,17 @@ pub const REFRESH_MIN_INTERVAL_MS: i64 = 5 * 60 * 1000;
 
 pub const ENTITLEMENT_ERROR_TYPE: &str = "ENTITLEMENT_REQUIRED";
 
+/// Session health carried on every view — the single source the frontend
+/// derives the login CTA and degraded plan display from (replacing lastError
+/// string matching):
+/// - `signed-in`: the lease/token pair is believed to still serve.
+/// - `expired`: the server or the dead token+leaseless combination says
+///   re-login is required.
+/// - `anonymous`: no credentials at all in this session store.
+pub const SESSION_PHASE_SIGNED_IN: &str = "signed-in";
+pub const SESSION_PHASE_EXPIRED: &str = "expired";
+pub const SESSION_PHASE_ANONYMOUS: &str = "anonymous";
+
 enum SubscriptionsError {
     /// 401 — the access token expired; a session refresh may recover.
     Unauthorized,
@@ -172,6 +183,8 @@ pub struct EntitlementView {
     /// of a fresh network response (offline / degraded / throttled).
     pub cached: bool,
     pub fetched_at_ms: Option<i64>,
+    /// Session health verdict (`SESSION_PHASE_*`) — see the constant docs.
+    pub session_phase: &'static str,
     pub last_error: Option<String>,
 }
 
@@ -233,7 +246,12 @@ impl EntitlementState {
             .unwrap_or_else(|e| e.into_inner()) = now_unix_ms();
     }
 
-    pub fn view(&self, cached: bool, last_error: Option<String>) -> EntitlementView {
+    pub fn view(
+        &self,
+        cached: bool,
+        last_error: Option<String>,
+        session_phase: &'static str,
+    ) -> EntitlementView {
         let binding = self.cache.lock().unwrap_or_else(|e| e.into_inner());
         let decision = compute_entitlement(binding.as_ref(), now_unix_ms());
         EntitlementView {
@@ -248,12 +266,14 @@ impl EntitlementState {
             cancel_scheduled_at: binding.as_ref().and_then(|c| c.cancel_scheduled_at.clone()),
             cached,
             fetched_at_ms: binding.as_ref().map(|c| c.fetched_at_ms),
+            session_phase,
             last_error,
         }
     }
 
     pub fn local_entitled(&self) -> bool {
-        self.view(true, None).local_ultimate
+        self.view(true, None, SESSION_PHASE_SIGNED_IN)
+            .local_ultimate
     }
 
     /// Wipe the cached entitlement (logout): memory + persisted cache file.
@@ -371,20 +391,28 @@ pub async fn refresh_entitlement(
     app: AppHandle,
 ) -> Result<EntitlementView, String> {
     if token.trim().is_empty() {
-        return Ok(state.view(true, Some("not logged in".to_string())));
+        return Ok(state.view(
+            true,
+            Some("not logged in".to_string()),
+            SESSION_PHASE_ANONYMOUS,
+        ));
     }
     if !force && state.refresh_throttled() {
-        return Ok(state.view(true, None));
+        return Ok(state.view(true, None, SESSION_PHASE_SIGNED_IN));
     }
     match fetch_subscriptions(token.trim()).await {
         Ok(cache) => {
             state.set_cache(cache);
-            Ok(state.view(false, None))
+            Ok(state.view(false, None, SESSION_PHASE_SIGNED_IN))
         }
         Err(SubscriptionsError::Unauthorized) => {
             let lease = refresh_token.as_deref().unwrap_or("").trim();
             if lease.is_empty() {
-                return Ok(state.view(true, Some("session expired".to_string())));
+                return Ok(state.view(
+                    true,
+                    Some("session expired".to_string()),
+                    SESSION_PHASE_EXPIRED,
+                ));
             }
             match crate::session::rotate_session(&session_state, lease, &identity.payload()).await {
                 Ok(refreshed) => {
@@ -398,27 +426,35 @@ pub async fn refresh_entitlement(
                     match fetch_subscriptions(&refreshed.access_token).await {
                         Ok(cache) => {
                             state.set_cache(cache);
-                            Ok(state.view(false, None))
+                            Ok(state.view(false, None, SESSION_PHASE_SIGNED_IN))
                         }
-                        Err(_) => Ok(state.view(true, Some("session refresh failed".to_string()))),
+                        Err(_) => Ok(state.view(
+                            true,
+                            Some("session refresh failed".to_string()),
+                            SESSION_PHASE_SIGNED_IN,
+                        )),
                     }
                 }
                 Err(err) => {
                     if err.contains(crate::session::SESSION_REJECTED_ERROR_TYPE) {
                         Err(err)
                     } else {
-                        Ok(state.view(true, Some(err)))
+                        Ok(state.view(true, Some(err), SESSION_PHASE_SIGNED_IN))
                     }
                 }
             }
         }
-        Err(SubscriptionsError::Other(err)) => Ok(state.view(true, Some(err))),
+        Err(SubscriptionsError::Other(err)) => {
+            Ok(state.view(true, Some(err), SESSION_PHASE_SIGNED_IN))
+        }
     }
 }
 
 #[tauri::command]
 pub fn get_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
-    state.view(true, None)
+    // Cached read without a session verdict — the frontend derives the phase
+    // from token facts and the next refresh corrects it.
+    state.view(true, None, SESSION_PHASE_SIGNED_IN)
 }
 
 /// Seed the entitlement cache from the login handoff so the plan shows
@@ -452,7 +488,7 @@ fn seed_cache(
             cancel_scheduled_at,
         });
     }
-    state.view(true, None)
+    state.view(true, None, SESSION_PHASE_SIGNED_IN)
 }
 
 /// Called on logout — entitlements are account-scoped, so the cached state
@@ -461,7 +497,7 @@ fn seed_cache(
 #[tauri::command]
 pub fn clear_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
     state.clear();
-    state.view(true, None)
+    state.view(true, None, SESSION_PHASE_ANONYMOUS)
 }
 
 #[cfg(test)]
@@ -563,6 +599,31 @@ mod tests {
         let view = seed_cache(&state, None, None, None);
         assert!(view.fetched_at_ms.is_none());
         assert!(!view.local_ultimate);
+    }
+
+    #[test]
+    fn views_carry_the_derived_session_phase() {
+        let state = EntitlementState::load(None);
+        assert_eq!(
+            state
+                .view(true, None, SESSION_PHASE_SIGNED_IN)
+                .session_phase,
+            SESSION_PHASE_SIGNED_IN
+        );
+        assert_eq!(
+            state.view(true, None, SESSION_PHASE_EXPIRED).session_phase,
+            SESSION_PHASE_EXPIRED
+        );
+        assert_eq!(
+            state
+                .view(
+                    true,
+                    Some("not logged in".to_string()),
+                    SESSION_PHASE_ANONYMOUS
+                )
+                .session_phase,
+            SESSION_PHASE_ANONYMOUS
+        );
     }
 
     #[test]
