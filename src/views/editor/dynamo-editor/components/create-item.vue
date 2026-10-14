@@ -96,6 +96,11 @@
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
                     class="w-full"
                   />
+                  <Switch
+                    v-else-if="item.type === 'BOOL'"
+                    :checked="item.value as boolean"
+                    @update:checked="val => (item.value = val)"
+                  />
                   <Input
                     v-else
                     v-model="item.value as string"
@@ -163,7 +168,13 @@
               </GridItem>
               <GridItem :span="10">
                 <FormItem :error="getAttributeError(index, 'value')">
+                  <Switch
+                    v-if="item.type === 'BOOL'"
+                    :checked="item.value as boolean"
+                    @update:checked="val => (item.value = val)"
+                  />
                   <Input
+                    v-else
                     v-model="item.value as string"
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
                     autocomplete="off"
@@ -213,6 +224,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -227,7 +239,6 @@ import {
 const connectionStore = useConnectionStore();
 
 const { fetchIndices, createItem } = connectionStore;
-const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
@@ -282,10 +293,8 @@ const getAttributeError = (index: number, field: 'key' | 'type' | 'value') => {
 };
 
 const selectedTable = computed(() => {
-  const indexOrTableOptions = getDynamoIndexOrTableOption.value(
-    activeConnection.value as DynamoDBConnection,
-  );
-  if (indexOrTableOptions?.length < 1) {
+  const tableName = tabStore.activePanel?.activeTable;
+  if (!tableName) {
     return {
       partitionKeyName: undefined,
       sortKeyName: undefined,
@@ -294,13 +303,14 @@ const selectedTable = computed(() => {
     };
   }
 
-  const { partitionKeyName, sortKeyName } = indexOrTableOptions[0];
+  const { partitionKey, sortKey } =
+    findTable(activeConnection.value as DynamoDBConnection, tableName) ?? {};
 
   return {
-    partitionKeyName,
-    sortKeyName,
-    partitionKeyLabel: partitionKeyName ? `${partitionKeyName}  (Partition Key):` : undefined,
-    sortKeyLabel: sortKeyName ? `${sortKeyName} (Sort Key):` : undefined,
+    partitionKeyName: partitionKey?.name,
+    sortKeyName: sortKey?.name,
+    partitionKeyLabel: partitionKey?.name ? `${partitionKey.name}  (Partition Key):` : undefined,
+    sortKeyLabel: sortKey?.name ? `${sortKey.name} (Sort Key):` : undefined,
   };
 });
 
