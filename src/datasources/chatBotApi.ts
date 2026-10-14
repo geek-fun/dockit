@@ -9,6 +9,7 @@ export enum ProviderEnum {
   OPENROUTER = 'OPENROUTER',
   REQUESTY = 'REQUESTY',
   OPPER = 'OPPER',
+  ATLAS_CLOUD = 'ATLAS_CLOUD',
   OLLAMA = 'OLLAMA',
   LM_STUDIO = 'LM_STUDIO',
 }
