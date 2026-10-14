@@ -45,7 +45,7 @@
             <div class="flex items-center justify-between gap-2">
               <Badge :variant="badgeVariant">
                 <Loader2
-                  v-if="entitlementStore.planState === 'checking'"
+                  v-if="recovering || entitlementStore.planState === 'checking'"
                   class="mr-1 h-3 w-3 animate-spin"
                 />
                 {{ $t(`plan.state.${entitlementStore.planState}`) }}
@@ -62,16 +62,35 @@
               v-if="entitlementStore.sessionExpired"
               size="sm"
               class="w-full"
+              :disabled="recovering"
               @click="handleLogin"
             >
               {{ $t('plan.section.loginLink') }}
             </Button>
-            <Button variant="outline" size="sm" class="w-full" @click="handleManage">
+            <Button
+              v-if="
+                !recovering &&
+                !entitlementStore.sessionExpired &&
+                entitlementStore.hasEntitlementError
+              "
+              size="sm"
+              class="w-full"
+              @click="retryRecovery"
+            >
+              {{ $t('plan.section.refresh') }}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              class="w-full"
+              :disabled="recovering"
+              @click="handleManage"
+            >
               <span class="i-carbon-launch mr-2 h-3.5 w-3.5" />
               {{ $t('plan.nav.manage') }}
             </Button>
             <Button
-              v-if="!entitlementStore.isLocalUltimate"
+              v-if="!entitlementStore.isLocalUltimate && !recovering"
               size="sm"
               class="w-full user-upgrade-cta"
               @click="handleUpgrade"
@@ -79,7 +98,13 @@
               <Sparkles class="mr-1.5 h-3.5 w-3.5" />
               {{ $t('plan.upgrade.cta') }}
             </Button>
-            <Button variant="ghost" size="sm" class="w-full" @click="handleLogout">
+            <Button
+              variant="ghost"
+              size="sm"
+              class="w-full"
+              :disabled="recovering"
+              @click="handleLogout"
+            >
               <span class="i-carbon-logout mr-2 h-3.5 w-3.5" />
               {{ $t('plan.section.logout') }}
             </Button>
@@ -100,9 +125,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { invoke } from '@tauri-apps/api/core';
 import { useI18n } from 'vue-i18n';
 import { Loader2, Sparkles } from 'lucide-vue-next';
 import { Badge } from '@/components/ui/badge';
@@ -111,15 +135,15 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import DefaultAvatar from '@/components/DefaultAvatar.vue';
 import { openUpgradeDialog } from '@/components/upgrade';
 import { authService, isSafeAvatarUrl } from '../../datasources/authService';
-import { useDeviceStore, useEntitlementStore, useUserStore } from '../../store';
+import { useEntitlementStore, useUserStore } from '../../store';
 
 const { t } = useI18n();
 const userStore = useUserStore();
 const entitlementStore = useEntitlementStore();
-const deviceStore = useDeviceStore();
 const { view } = storeToRefs(entitlementStore);
 
 const open = ref(false);
+const recovering = ref(false);
 
 const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar));
 
@@ -139,6 +163,10 @@ const planDotClass = computed(() => {
 const cancelScheduled = computed(() => entitlementStore.cancelScheduled);
 
 const planLine = computed(() => {
+  // Active recovery in flight — show the checking copy, never a stale answer.
+  if (recovering.value) {
+    return t('plan.state.checking');
+  }
   // A stale cached entitlement must never out-voice the re-login instruction.
   if (entitlementStore.sessionExpired) {
     return t('plan.section.sessionExpired');
@@ -171,13 +199,37 @@ const handleUpgrade = () => {
   openUpgradeDialog();
 };
 
+// One silent recovery attempt per panel open while the session is degraded:
+// rotate the lease / re-verify entitlements, and if the session is
+// definitively unrenewable the store resolves it to the logged-out look.
+const runRecovery = async () => {
+  recovering.value = true;
+  try {
+    await entitlementStore.attemptSessionRecovery();
+  } finally {
+    recovering.value = false;
+  }
+};
+
+const recoveryNeeded = () => {
+  if (entitlementStore.sessionPhase === 'anonymous') return false;
+  return entitlementStore.sessionExpired || entitlementStore.hasEntitlementError;
+};
+
+watch(open, isOpen => {
+  if (isOpen && recoveryNeeded()) {
+    void runRecovery();
+  }
+});
+
+const retryRecovery = () => {
+  void runRecovery();
+};
+
 // account-scoped — revoke the lease server-side (best-effort) before clearing
 const handleLogout = async () => {
   open.value = false;
-  await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(() => {});
-  await entitlementStore.clearCachedEntitlement();
-  userStore.resetToken();
-  deviceStore.$reset();
+  await entitlementStore.clearSessionState();
 };
 
 const handleLogin = async () => {

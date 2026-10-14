@@ -114,7 +114,6 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
 import { storeToRefs } from 'pinia';
 import { Check, Loader2, RefreshCw, X } from 'lucide-vue-next';
 import { Card, CardContent } from '@/components/ui/card';
@@ -191,10 +190,7 @@ const handleUpgrade = () => {
 
 // account-scoped — revoke the lease server-side (best-effort) before clearing
 const handleLogout = async () => {
-  await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(() => {});
-  await entitlementStore.clearCachedEntitlement();
-  userStore.resetToken();
-  deviceStore.$reset();
+  await entitlementStore.clearSessionState();
 };
 
 const handleGeekfunLogin = async () => {

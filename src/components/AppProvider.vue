@@ -20,7 +20,8 @@ import {
   useUserStore,
 } from '../store';
 import { shouldRotateToken } from '../common';
-import { useAppUpdater } from '@/composables';
+import { useAppUpdater, useMessageService } from '@/composables';
+import { lang } from '../lang';
 import { resolveAvatarUrl } from '../datasources';
 import AboutDialog from './AboutDialog.vue';
 import UpgradeDialog from './upgrade/UpgradeDialog.vue';
@@ -34,6 +35,7 @@ const userStore = useUserStore();
 const entitlementStore = useEntitlementStore();
 const deviceStore = useDeviceStore();
 const { checkForUpdates } = useAppUpdater();
+const message = useMessageService();
 
 const aboutDialog = ref<InstanceType<typeof AboutDialog> | null>(null);
 let showAboutListener: UnlistenFn | undefined;
@@ -150,6 +152,19 @@ onUnmounted(() => {
   unlistenAuth?.();
   unlistenSessionRefresh?.();
 });
+
+// Definite session loss (lease rejected, or bearer dead without a lease) is
+// resolved to the logged-out look in the store — surface the single notice.
+watch(
+  () => entitlementStore.sessionLostNotice,
+  noticeAt => {
+    if (!noticeAt) return;
+    message.warning(lang.global.t('plan.section.sessionLostSignedOut'), {
+      duration: 6000,
+      closable: true,
+    });
+  },
+);
 
 watch(
   uiThemeType,

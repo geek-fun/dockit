@@ -6,14 +6,18 @@ jest.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+const mockSetToken = jest.fn();
 const mockSetRefreshToken = jest.fn();
+const mockResetToken = jest.fn();
 
 jest.mock('../src/store/userStore', () => ({
   useUserStore: () => ({
     isLoggedIn: true,
     accessToken: 'token-1',
     refreshToken: 'lease-1',
+    setToken: mockSetToken,
     setRefreshToken: mockSetRefreshToken,
+    resetToken: mockResetToken,
   }),
 }));
 
@@ -42,7 +46,13 @@ const rejected = (errorType: string, message: string) =>
 describe('entitlementStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
+    // the userStore token mutators are file-level fns shared by the mock —
+    // keep each case's assertions independent of previous call records
+    jest.clearAllMocks();
     mockInvoke = jest.fn();
+    // void-commands (revoke/clear) default to a resolved promise;
+    // each test overrides per invocation name/value.
+    mockInvoke.mockResolvedValue(undefined);
   });
 
   describe('hydrate', () => {
@@ -124,15 +134,19 @@ describe('entitlementStore', () => {
       expect(store.planState).toBe('ultimate');
     });
 
-    it('drops the lease immediately on session rejection — no retry', async () => {
+    it('resolves a deliberately rejected lease to a full sign-out — no retry', async () => {
       mockInvoke.mockRejectedValue(rejected(SESSION_REJECTED_ERROR_TYPE, 'lease expired'));
       const store = useEntitlementStore();
 
       await store.refreshEntitlement(false);
 
-      expect(mockInvoke).toHaveBeenCalledTimes(1);
-      expect(mockSetRefreshToken).toHaveBeenCalledWith('');
-      expect(store.sessionExpired).toBe(true);
+      const refreshCalls = mockInvoke.mock.calls.filter(([name]) => name === 'refresh_entitlement');
+      expect(refreshCalls).toHaveLength(1); // rejected sessions are terminal — no retry
+      expect(mockInvoke).toHaveBeenCalledWith('revoke_session', { refreshToken: 'lease-1' });
+      expect(mockInvoke).toHaveBeenCalledWith('clear_entitlement');
+      expect(mockResetToken).toHaveBeenCalled();
+      expect(store.view).toBeNull();
+      expect(store.sessionLostNotice).toBeGreaterThan(0);
     });
 
     it('retries a transient failure and succeeds', async () => {
@@ -184,16 +198,25 @@ describe('entitlementStore', () => {
       expect(store.hasEntitlementError).toBe(false);
     });
 
-    it('lands on the session-expired state when the lease is rejected', async () => {
-      mockInvoke.mockRejectedValue(rejected(SESSION_REJECTED_ERROR_TYPE, 'lease expired'));
+    it('resolves an unrenewable bearer (401 with no lease) to a full sign-out', async () => {
+      // Rust answers Ok with a degraded view when the lease is gone and the
+      // bearer can no longer serve — the store must not leave a half-dead
+      // session behind.
+      mockInvoke.mockImplementation((name: string) => {
+        if (name === 'refresh_entitlement') {
+          return Promise.resolve(view({ lastError: 'session expired', sessionPhase: 'expired' }));
+        }
+        return Promise.resolve(undefined);
+      });
       const store = useEntitlementStore();
 
       await store.refreshEntitlement(false);
 
-      expect(mockInvoke).toHaveBeenCalledTimes(1);
-      expect(mockSetRefreshToken).toHaveBeenCalledWith('');
-      expect(store.planState).toBe('unknown');
-      expect(store.sessionExpired).toBe(true);
+      expect(mockInvoke).toHaveBeenCalledWith('revoke_session', { refreshToken: 'lease-1' });
+      expect(mockInvoke).toHaveBeenCalledWith('clear_entitlement');
+      expect(mockResetToken).toHaveBeenCalled();
+      expect(store.view).toBeNull();
+      expect(store.sessionLostNotice).toBeGreaterThan(0);
     });
 
     it('resolves with Unknown for a definitive entitlement answer', async () => {
@@ -207,6 +230,85 @@ describe('entitlementStore', () => {
 
       expect(store.planState).toBe('unknown');
       expect(store.sessionExpired).toBe(false);
+    });
+  });
+
+  describe('attemptSessionRecovery', () => {
+    it('rotates the lease first, then a successful refresh recovers', async () => {
+      mockInvoke.mockImplementation((name: string) => {
+        if (name === 'rotate_session_now') {
+          return Promise.resolve({ access_token: 'token-2', refresh_token: 'lease-2' });
+        }
+        if (name === 'refresh_entitlement') {
+          return Promise.resolve(view({ localUltimate: true, sessionPhase: 'signed-in' }));
+        }
+        return Promise.resolve(undefined);
+      });
+      const store = useEntitlementStore();
+
+      const outcome = await store.attemptSessionRecovery();
+
+      expect(outcome).toBe('recovered');
+      expect(mockInvoke).toHaveBeenCalledWith('rotate_session_now', { refreshToken: 'lease-1' });
+      expect(mockSetToken).toHaveBeenCalledWith('token-2');
+      expect(mockSetRefreshToken).toHaveBeenCalledWith('lease-2');
+    });
+
+    it('resolves a rejected rotation as a definite loss without re-checking', async () => {
+      mockInvoke.mockImplementation((name: string) => {
+        if (name === 'rotate_session_now') {
+          return Promise.reject(rejected(SESSION_REJECTED_ERROR_TYPE, 'reuse detected'));
+        }
+        return Promise.resolve(undefined);
+      });
+      const store = useEntitlementStore();
+
+      const outcome = await store.attemptSessionRecovery();
+
+      expect(outcome).toBe('lost');
+      expect(mockResetToken).toHaveBeenCalled();
+      expect(store.sessionLostNotice).toBeGreaterThan(0);
+      const refreshCalls = mockInvoke.mock.calls.filter(([name]) => name === 'refresh_entitlement');
+      expect(refreshCalls).toHaveLength(0);
+    });
+
+    it('treats a transient rotation failure as recoverable — falls back to the existing bearer', async () => {
+      mockInvoke.mockImplementation((name: string) => {
+        if (name === 'rotate_session_now') {
+          return Promise.reject('network error: timeout');
+        }
+        if (name === 'refresh_entitlement') {
+          return Promise.resolve(view({ localUltimate: true, sessionPhase: 'signed-in' }));
+        }
+        return Promise.resolve(undefined);
+      });
+      const store = useEntitlementStore();
+
+      const outcome = await store.attemptSessionRecovery();
+
+      expect(outcome).toBe('recovered');
+      expect(mockSetToken).not.toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith('refresh_entitlement', {
+        token: 'token-1',
+        refreshToken: 'lease-1',
+        force: true,
+      });
+    });
+
+    it('resolves an expired re-verification answer to a definite loss', async () => {
+      mockInvoke.mockImplementation((name: string) => {
+        if (name === 'refresh_entitlement') {
+          return Promise.resolve(view({ lastError: 'session expired', sessionPhase: 'expired' }));
+        }
+        return Promise.resolve(undefined);
+      });
+      const store = useEntitlementStore();
+
+      const outcome = await store.attemptSessionRecovery();
+
+      expect(outcome).toBe('lost');
+      expect(mockResetToken).toHaveBeenCalled();
+      expect(store.view).toBeNull();
     });
   });
 

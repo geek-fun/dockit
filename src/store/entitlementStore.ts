@@ -8,6 +8,7 @@ import {
   type SessionPhase,
 } from '../common';
 import { useUserStore } from './userStore';
+import { useDeviceStore } from './deviceStore';
 
 export type PlanState = 'ultimate' | 'community' | 'unknown' | 'checking';
 
@@ -32,8 +33,11 @@ const unknownView = (lastError: string, sessionPhase: SessionPhase): Entitlement
 });
 
 export const useEntitlementStore = defineStore('entitlement', {
-  state: (): { view: EntitlementView | null } => ({
+  state: (): { view: EntitlementView | null; sessionLostNotice: number } => ({
     view: null,
+    // Timestamp of the last definite session loss (set by handleSessionLoss);
+    // the AppProvider layer surfaces the signed-out toast from it.
+    sessionLostNotice: 0,
   }),
   getters: {
     isLocalUltimate: state => state.view?.localUltimate ?? false,
@@ -67,6 +71,55 @@ export const useEntitlementStore = defineStore('entitlement', {
     },
   },
   actions: {
+    // Shared teardown for an account session — best-effort server-side lease
+    // revocation, cached entitlements, profile identity, device registration.
+    async clearSessionState(): Promise<void> {
+      const userStore = useUserStore();
+      await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(
+        () => {},
+      );
+      await this.clearCachedEntitlement();
+      userStore.resetToken();
+      useDeviceStore().$reset();
+    },
+    // The session is definitively unrenewable (the server rejected the lease,
+    // or the bearer is dead with no lease to rotate): wipe local state so the
+    // UI returns to the logged-out look; AppProvider toasts from the notice.
+    async handleSessionLoss(): Promise<void> {
+      const userStore = useUserStore();
+      const hadIdentity = userStore.isLoggedIn;
+      await this.clearSessionState();
+      if (hadIdentity) {
+        this.sessionLostNotice = Date.now();
+      }
+    },
+    // Active recovery for a degraded session: rotate the lease while one
+    // exists, then force an entitlement refresh. A deliberate rotation
+    // rejection (or a still-expired phase afterwards) is a definite loss and
+    // resolves the whole session; transient errors leave the cached state for
+    // the caller's retry CTA.
+    async attemptSessionRecovery(): Promise<'recovered' | 'lost'> {
+      const userStore = useUserStore();
+      const lease = userStore.refreshToken || '';
+      if (lease.trim()) {
+        try {
+          const refreshed = await invoke<{ access_token: string; refresh_token: string }>(
+            'rotate_session_now',
+            { refreshToken: lease },
+          );
+          userStore.setToken(refreshed.access_token);
+          userStore.setRefreshToken(refreshed.refresh_token);
+        } catch (e) {
+          if (isSessionRejected(e)) {
+            await this.handleSessionLoss();
+            return 'lost';
+          }
+          // transient — the entitlement refresh below still tries the
+          // existing bearer before falling back to the reactive rotation
+        }
+      }
+      return (await this.refreshEntitlement(true)) === 'lost' ? 'lost' : 'recovered';
+    },
     async seedFromHandoff(payload: {
       ultimateExpiresAt?: string | null;
       versionLockHorizon?: string | null;
@@ -93,7 +146,7 @@ export const useEntitlementStore = defineStore('entitlement', {
         this.view = cached;
       }
     },
-    async refreshEntitlement(force = false): Promise<void> {
+    async refreshEntitlement(force = false): Promise<'ok' | 'lost'> {
       const userStore = useUserStore();
       for (let attempt = 0; ; attempt += 1) {
         try {
@@ -102,14 +155,20 @@ export const useEntitlementStore = defineStore('entitlement', {
             refreshToken: userStore.refreshToken || null,
             force,
           });
-          return;
+          if (this.view.sessionPhase === 'expired') {
+            // A dead lease the Rust side could not rotate — never recoverable
+            // client-side; resolve the session to the logged-out look.
+            await this.handleSessionLoss();
+            return 'lost';
+          }
+          return 'ok';
         } catch (e) {
           if (isSessionRejected(e)) {
-            // dead lease — drop it so the next login starts clean, and land
-            // on the session-expired state instead of an endless Checking…
-            userStore.setRefreshToken('');
+            // dead lease — the next login starts clean, with no half-dead
+            // limbo state left behind
             this.view = unknownView('session expired', 'expired');
-            return;
+            await this.handleSessionLoss();
+            return 'lost';
           }
           if (attempt >= REFRESH_RETRY_DELAYS_MS.length) {
             // terminal: a cached view degrades to itself (offline contract);
@@ -124,7 +183,7 @@ export const useEntitlementStore = defineStore('entitlement', {
                 'signed-in',
               );
             }
-            return;
+            return 'ok';
           }
           await sleep(REFRESH_RETRY_DELAYS_MS[attempt]);
         }
