@@ -134,19 +134,43 @@ describe('entitlementStore', () => {
       expect(store.planState).toBe('ultimate');
     });
 
-    it('resolves a deliberately rejected lease to a full sign-out — no retry', async () => {
+    it('graces the first deliberately rejected lease, resolves on the second', async () => {
       mockInvoke.mockRejectedValue(rejected(SESSION_REJECTED_ERROR_TYPE, 'lease expired'));
       const store = useEntitlementStore();
 
       await store.refreshEntitlement(false);
 
-      const refreshCalls = mockInvoke.mock.calls.filter(([name]) => name === 'refresh_entitlement');
-      expect(refreshCalls).toHaveLength(1); // rejected sessions are terminal — no retry
+      const refreshCalls = () =>
+        mockInvoke.mock.calls.filter(([name]) => name === 'refresh_entitlement');
+      expect(refreshCalls()).toHaveLength(1);
+      expect(mockResetToken).not.toHaveBeenCalled();
+      expect(store.sessionLostNotice).toBe(0);
+      expect(store.sessionExpired).toBe(true);
+
+      await store.refreshEntitlement(false);
+
+      expect(refreshCalls()).toHaveLength(2);
       expect(mockInvoke).toHaveBeenCalledWith('revoke_session', { refreshToken: 'lease-1' });
       expect(mockInvoke).toHaveBeenCalledWith('clear_entitlement');
       expect(mockResetToken).toHaveBeenCalled();
       expect(store.view).toBeNull();
       expect(store.sessionLostNotice).toBeGreaterThan(0);
+    });
+
+    it('resets the rejection grace after a healthy refresh', async () => {
+      mockInvoke
+        .mockRejectedValueOnce(rejected(SESSION_REJECTED_ERROR_TYPE, 'lease expired'))
+        .mockResolvedValueOnce(view({ sessionPhase: 'signed-in' }))
+        .mockRejectedValue(rejected(SESSION_REJECTED_ERROR_TYPE, 'lease expired'));
+      const store = useEntitlementStore();
+
+      await store.refreshEntitlement(false); // grace: degraded, no wipe
+      await store.refreshEntitlement(false); // healthy → counter reset
+      await store.refreshEntitlement(false); // a fresh single rejection
+
+      expect(mockResetToken).not.toHaveBeenCalled();
+      expect(store.sessionLostNotice).toBe(0);
+      expect(store.sessionExpired).toBe(true);
     });
 
     it('retries a transient failure and succeeds', async () => {
@@ -254,7 +278,7 @@ describe('entitlementStore', () => {
       expect(mockSetRefreshToken).toHaveBeenCalledWith('lease-2');
     });
 
-    it('resolves a rejected rotation as a definite loss without re-checking', async () => {
+    it('graces the first rejected rotation, resolves on the second — without re-checking', async () => {
       mockInvoke.mockImplementation((name: string) => {
         if (name === 'rotate_session_now') {
           return Promise.reject(rejected(SESSION_REJECTED_ERROR_TYPE, 'reuse detected'));
@@ -263,13 +287,21 @@ describe('entitlementStore', () => {
       });
       const store = useEntitlementStore();
 
-      const outcome = await store.attemptSessionRecovery();
+      const first = await store.attemptSessionRecovery();
 
-      expect(outcome).toBe('lost');
+      expect(first).toBe('lost');
+      expect(mockResetToken).not.toHaveBeenCalled();
+      expect(store.sessionLostNotice).toBe(0);
+      const refreshCalls = () =>
+        mockInvoke.mock.calls.filter(([name]) => name === 'refresh_entitlement');
+      expect(refreshCalls()).toHaveLength(0); // no pointless re-check between rejections
+
+      const second = await store.attemptSessionRecovery();
+
+      expect(second).toBe('lost');
       expect(mockResetToken).toHaveBeenCalled();
       expect(store.sessionLostNotice).toBeGreaterThan(0);
-      const refreshCalls = mockInvoke.mock.calls.filter(([name]) => name === 'refresh_entitlement');
-      expect(refreshCalls).toHaveLength(0);
+      expect(refreshCalls()).toHaveLength(0);
     });
 
     it('treats a transient rotation failure as recoverable — falls back to the existing bearer', async () => {

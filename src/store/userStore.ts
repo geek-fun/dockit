@@ -30,6 +30,8 @@ export const useUserStore = defineStore('user', {
       this.refreshToken = '';
       this.username = '';
       this.email = '';
+      this.userId = '';
+      this.avatar = '';
     },
     setAuth(token: string, username: string, email: string, userId = '', avatar = ''): void {
       this.accessToken = token;

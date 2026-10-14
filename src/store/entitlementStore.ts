@@ -33,11 +33,18 @@ const unknownView = (lastError: string, sessionPhase: SessionPhase): Entitlement
 });
 
 export const useEntitlementStore = defineStore('entitlement', {
-  state: (): { view: EntitlementView | null; sessionLostNotice: number } => ({
+  state: (): {
+    view: EntitlementView | null;
+    sessionLostNotice: number;
+    sessionRejections: number;
+  } => ({
     view: null,
     // Timestamp of the last definite session loss (set by handleSessionLoss);
     // the AppProvider layer surfaces the signed-out toast from it.
     sessionLostNotice: 0,
+    // Consecutive deliberate rotation rejections before a session loss is
+    // resolved — one rejection lands degraded, two in a row clear.
+    sessionRejections: 0,
   }),
   getters: {
     isLocalUltimate: state => state.view?.localUltimate ?? false,
@@ -73,14 +80,15 @@ export const useEntitlementStore = defineStore('entitlement', {
   actions: {
     // Shared teardown for an account session — best-effort server-side lease
     // revocation, cached entitlements, profile identity, device registration.
+    // Local teardown is synchronous and instant so the UI flips immediately;
+    // the revocation is a deliberate no-op on failure and never blocks it.
     async clearSessionState(): Promise<void> {
       const userStore = useUserStore();
-      await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(
-        () => {},
-      );
+      const lease = userStore.refreshToken || null;
       await this.clearCachedEntitlement();
       userStore.resetToken();
       useDeviceStore().$reset();
+      void invoke('revoke_session', { refreshToken: lease }).catch(() => {});
     },
     // The session is definitively unrenewable (the server rejected the lease,
     // or the bearer is dead with no lease to rotate): wipe local state so the
@@ -89,9 +97,22 @@ export const useEntitlementStore = defineStore('entitlement', {
       const userStore = useUserStore();
       const hadIdentity = userStore.isLoggedIn;
       await this.clearSessionState();
+      this.sessionRejections = 0;
       if (hadIdentity) {
         this.sessionLostNotice = Date.now();
       }
+    },
+    // A deliberate rotation rejection is server policy, not transient — but a
+    // single one only lands on the degraded login-CTA state; two in a row
+    // resolve the whole session (guards against a brief auth-gateway
+    // misclassification wiping a healthy account). Success resets the count.
+    async resolveSessionRejection(): Promise<void> {
+      this.sessionRejections += 1;
+      this.view = unknownView('session expired', 'expired');
+      if (this.sessionRejections < 2) {
+        return;
+      }
+      await this.handleSessionLoss();
     },
     // Active recovery for a degraded session: rotate the lease while one
     // exists, then force an entitlement refresh. A deliberate rotation
@@ -109,9 +130,10 @@ export const useEntitlementStore = defineStore('entitlement', {
           );
           userStore.setToken(refreshed.access_token);
           userStore.setRefreshToken(refreshed.refresh_token);
+          this.sessionRejections = 0;
         } catch (e) {
           if (isSessionRejected(e)) {
-            await this.handleSessionLoss();
+            await this.resolveSessionRejection();
             return 'lost';
           }
           // transient — the entitlement refresh below still tries the
@@ -161,13 +183,13 @@ export const useEntitlementStore = defineStore('entitlement', {
             await this.handleSessionLoss();
             return 'lost';
           }
+          this.sessionRejections = 0;
           return 'ok';
         } catch (e) {
           if (isSessionRejected(e)) {
-            // dead lease — the next login starts clean, with no half-dead
-            // limbo state left behind
-            this.view = unknownView('session expired', 'expired');
-            await this.handleSessionLoss();
+            // dead lease — the next login starts clean, and a second
+            // consecutive rejection resolves the whole session
+            await this.resolveSessionRejection();
             return 'lost';
           }
           if (attempt >= REFRESH_RETRY_DELAYS_MS.length) {
