@@ -63,11 +63,27 @@ pub fn convert_json_to_attr_value(
     match attr_type {
         "S" => value.as_str().map(|s| AttributeValue::S(s.to_string())),
         "N" => {
-            // Handle both integer and float numbers
+            // UI sends numbers as JSON strings (text inputs, create-item pk/sk):
+            // accept JSON numbers first, then numeric strings. A non-numeric
+            // string still yields None so the attribute is dropped as before.
             if let Some(n) = value.as_i64() {
                 Some(AttributeValue::N(n.to_string()))
+            } else if let Some(n) = value.as_f64() {
+                Some(AttributeValue::N(n.to_string()))
+            } else if let Some(s) = value.as_str() {
+                let trimmed = s.trim();
+                trimmed
+                    .parse::<i64>()
+                    .ok()
+                    .map(|n| AttributeValue::N(n.to_string()))
+                    .or_else(|| {
+                        trimmed
+                            .parse::<f64>()
+                            .ok()
+                            .map(|n| AttributeValue::N(n.to_string()))
+                    })
             } else {
-                value.as_f64().map(|n| AttributeValue::N(n.to_string()))
+                None
             }
         }
         "B" => value.as_str().map(|s| {
@@ -75,7 +91,22 @@ pub fn convert_json_to_attr_value(
                 general_purpose::STANDARD.decode(s).unwrap_or_default(),
             ))
         }),
-        "BOOL" => value.as_bool().map(AttributeValue::Bool),
+        "BOOL" => {
+            // UI may send booleans as "true"/"false" strings (text inputs):
+            // accept JSON booleans first, then string booleans. Any other
+            // string still yields None so the attribute is dropped as before.
+            if let Some(b) = value.as_bool() {
+                Some(AttributeValue::Bool(b))
+            } else if let Some(s) = value.as_str() {
+                match s.trim().to_ascii_lowercase().as_str() {
+                    "true" => Some(AttributeValue::Bool(true)),
+                    "false" => Some(AttributeValue::Bool(false)),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
         "NULL" => Some(AttributeValue::Null(true)),
         "SS" => value.as_array().map(|arr| {
             AttributeValue::Ss(
@@ -207,5 +238,76 @@ pub fn parse_string_to_attribute_value(value: &str) -> AttributeValue {
         AttributeValue::N(value.to_string())
     } else {
         AttributeValue::S(value.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn json_number_still_maps_to_n() {
+        assert!(matches!(
+            convert_json_to_attr_value(&json!(42), "N"),
+            Some(AttributeValue::N(_))
+        ));
+        assert!(matches!(
+            convert_json_to_attr_value(&json!(1.5), "N"),
+            Some(AttributeValue::N(_))
+        ));
+    }
+
+    #[test]
+    fn numeric_string_maps_to_n() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!("42"), "N"),
+            Some(AttributeValue::N("42".to_string()))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!("42.5"), "N"),
+            Some(AttributeValue::N("42.5".to_string()))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!(" 7 "), "N"),
+            Some(AttributeValue::N("7".to_string()))
+        );
+    }
+
+    #[test]
+    fn non_numeric_string_is_dropped() {
+        assert_eq!(convert_json_to_attr_value(&json!("abc"), "N"), None);
+    }
+
+    #[test]
+    fn json_bool_maps_to_bool() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!(true), "BOOL"),
+            Some(AttributeValue::Bool(true))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!(false), "BOOL"),
+            Some(AttributeValue::Bool(false))
+        );
+    }
+
+    #[test]
+    fn bool_string_maps_to_bool() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!("true"), "BOOL"),
+            Some(AttributeValue::Bool(true))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!("FALSE"), "BOOL"),
+            Some(AttributeValue::Bool(false))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!(" true "), "BOOL"),
+            Some(AttributeValue::Bool(true))
+        );
+    }
+
+    #[test]
+    fn non_bool_string_is_dropped() {
+        assert_eq!(convert_json_to_attr_value(&json!("yes"), "BOOL"), None);
     }
 }
