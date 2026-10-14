@@ -30,6 +30,7 @@ export type ProviderKind =
   | 'openrouter'
   | 'requesty'
   | 'opper'
+  | 'atlascloud'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -172,6 +173,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
   },
   {
+    kind: 'atlascloud',
+    apiCompatibility: 'openai-compatible',
+    label: 'Atlas Cloud',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.atlascloud.ai/v1',
+    enabled: true,
+    defaultModels: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -278,6 +288,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   openrouter: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   requesty: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   opper: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
+  atlascloud: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -384,6 +395,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'requesty';
     case ProviderEnum.OPPER:
       return 'opper';
+    case ProviderEnum.ATLAS_CLOUD:
+      return 'atlascloud';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:
