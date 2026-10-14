@@ -46,8 +46,15 @@ pub async fn update_item(
             key_attr.get("value"),
             key_attr.get("type").and_then(|v| v.as_str()),
         ) {
-            if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                update_item = update_item.key(key, av);
+            match convert_json_to_attr_value(value, attr_type) {
+                Ok(av) => update_item = update_item.key(key, av),
+                Err(e) => {
+                    return Ok(ApiResponse {
+                        status: 400,
+                        message: format!("Failed to update item: key attribute '{key}': {e}"),
+                        data: None,
+                    });
+                }
             }
         }
     }
@@ -70,10 +77,19 @@ pub async fn update_item(
 
             expression_attribute_names.insert(name_placeholder.clone(), key.to_string());
 
-            if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                expression_attribute_values.insert(value_placeholder.clone(), av);
-                update_expression_parts
-                    .push(format!("{} = {}", name_placeholder, value_placeholder));
+            match convert_json_to_attr_value(value, attr_type) {
+                Ok(av) => {
+                    expression_attribute_values.insert(value_placeholder.clone(), av);
+                    update_expression_parts
+                        .push(format!("{} = {}", name_placeholder, value_placeholder));
+                }
+                Err(e) => {
+                    return Ok(ApiResponse {
+                        status: 400,
+                        message: format!("Failed to update item: attribute '{key}': {e}"),
+                        data: None,
+                    });
+                }
             }
         }
     }

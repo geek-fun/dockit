@@ -43,6 +43,7 @@ pub async fn batch_write_item(
             if let Some(attributes) = item_json.get("attributes").and_then(|v| v.as_array()) {
                 let mut item_map: HashMap<String, aws_sdk_dynamodb::types::AttributeValue> =
                     HashMap::new();
+                let mut item_error: Option<String> = None;
 
                 for attr in attributes {
                     if let (Some(key), Some(value), Some(attr_type)) = (
@@ -50,13 +51,26 @@ pub async fn batch_write_item(
                         attr.get("value"),
                         attr.get("type").and_then(|v| v.as_str()),
                     ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            item_map.insert(key.to_string(), av);
+                        match convert_json_to_attr_value(value, attr_type) {
+                            Ok(av) => {
+                                item_map.insert(key.to_string(), av);
+                            }
+                            Err(e) => {
+                                item_error =
+                                    Some(format!("Invalid value for attribute '{key}': {e}"));
+                                break;
+                            }
                         }
                     }
                 }
 
-                if !item_map.is_empty() {
+                if let Some(message) = item_error {
+                    total_errors.push(serde_json::json!({
+                        "error": "Invalid attribute value",
+                        "message": message,
+                    }));
+                    chunk_skipped += 1;
+                } else if !item_map.is_empty() {
                     let put_request = PutRequest::builder().set_item(Some(item_map)).build();
 
                     match put_request {

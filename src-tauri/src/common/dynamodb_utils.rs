@@ -56,106 +56,169 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
 /// Converts a JSON value to a DynamoDB AttributeValue based on the specified type.
 /// Supports all DynamoDB attribute types: S, N, B, BOOL, NULL, SS, NS, BS, L, M.
 /// For L (List) and M (Map) types, nested values are inferred from their JSON types.
+/// Text inputs send structured values as JSON strings, so SS/NS/BS/L/M also accept
+/// their JSON-string encoding. Returns Err with a reason so write paths fail
+/// loudly instead of dropping invalid attributes silently.
 pub fn convert_json_to_attr_value(
     value: &serde_json::Value,
     attr_type: &str,
-) -> Option<AttributeValue> {
+) -> Result<AttributeValue, String> {
     match attr_type {
-        "S" => value.as_str().map(|s| AttributeValue::S(s.to_string())),
-        "N" => {
-            // UI sends numbers as JSON strings (text inputs, create-item pk/sk):
-            // accept JSON numbers first, then numeric strings. A non-numeric
-            // string still yields None so the attribute is dropped as before.
-            if let Some(n) = value.as_i64() {
-                Some(AttributeValue::N(n.to_string()))
-            } else if let Some(n) = value.as_f64() {
-                Some(AttributeValue::N(n.to_string()))
-            } else if let Some(s) = value.as_str() {
-                let trimmed = s.trim();
-                trimmed
-                    .parse::<i64>()
-                    .ok()
-                    .map(|n| AttributeValue::N(n.to_string()))
-                    .or_else(|| {
-                        trimmed
-                            .parse::<f64>()
-                            .ok()
-                            .map(|n| AttributeValue::N(n.to_string()))
-                    })
-            } else {
-                None
-            }
+        "S" => value
+            .as_str()
+            .map(|s| AttributeValue::S(s.to_string()))
+            .ok_or_else(|| format!("expected a string for type S, got {}", value_preview(value))),
+        "N" => json_number_to_string(value)
+            .map(AttributeValue::N)
+            .ok_or_else(|| format!("expected a number for type N, got {}", value_preview(value))),
+        "B" => {
+            let s = value.as_str().ok_or_else(|| {
+                format!(
+                    "expected a base64 string for type B, got {}",
+                    value_preview(value)
+                )
+            })?;
+            general_purpose::STANDARD
+                .decode(s.trim())
+                .map(|bytes| AttributeValue::B(aws_sdk_dynamodb::primitives::Blob::new(bytes)))
+                .map_err(|e| format!("invalid base64 for type B: {e}"))
         }
-        "B" => value.as_str().map(|s| {
-            AttributeValue::B(aws_sdk_dynamodb::primitives::Blob::new(
-                general_purpose::STANDARD.decode(s).unwrap_or_default(),
-            ))
-        }),
         "BOOL" => {
-            // UI may send booleans as "true"/"false" strings (text inputs):
-            // accept JSON booleans first, then string booleans. Any other
-            // string still yields None so the attribute is dropped as before.
+            // UI may send booleans as "true"/"false" strings (text inputs)
             if let Some(b) = value.as_bool() {
-                Some(AttributeValue::Bool(b))
+                Ok(AttributeValue::Bool(b))
             } else if let Some(s) = value.as_str() {
                 match s.trim().to_ascii_lowercase().as_str() {
-                    "true" => Some(AttributeValue::Bool(true)),
-                    "false" => Some(AttributeValue::Bool(false)),
-                    _ => None,
+                    "true" => Ok(AttributeValue::Bool(true)),
+                    "false" => Ok(AttributeValue::Bool(false)),
+                    _ => Err(format!("expected a boolean for type BOOL, got '{s}'")),
                 }
             } else {
-                None
+                Err(format!(
+                    "expected a boolean for type BOOL, got {}",
+                    value_preview(value)
+                ))
             }
         }
-        "NULL" => Some(AttributeValue::Null(true)),
-        "SS" => value.as_array().map(|arr| {
-            AttributeValue::Ss(
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect(),
-            )
-        }),
-        "NS" => value.as_array().map(|arr| {
-            AttributeValue::Ns(
-                arr.iter()
-                    .filter_map(|v| {
-                        if let Some(n) = v.as_i64() {
-                            Some(n.to_string())
-                        } else {
-                            v.as_f64().map(|n| n.to_string())
-                        }
+        "NULL" => Ok(AttributeValue::Null(true)),
+        "SS" => {
+            let arr = resolve_json_array(value, attr_type)?;
+            let items = arr
+                .iter()
+                .enumerate()
+                .map(|(i, v)| {
+                    v.as_str().map(|s| s.to_string()).ok_or_else(|| {
+                        format!("item {i} of SS must be a string, got {}", value_preview(v))
                     })
-                    .collect(),
-            )
-        }),
-        "BS" => value.as_array().map(|arr| {
-            AttributeValue::Bs(
-                arr.iter()
-                    .filter_map(|v| {
-                        v.as_str().map(|s| {
-                            aws_sdk_dynamodb::primitives::Blob::new(
-                                general_purpose::STANDARD.decode(s).unwrap_or_default(),
-                            )
-                        })
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            Ok(AttributeValue::Ss(items))
+        }
+        "NS" => {
+            let arr = resolve_json_array(value, attr_type)?;
+            let items = arr
+                .iter()
+                .enumerate()
+                .map(|(i, v)| {
+                    json_number_to_string(v).ok_or_else(|| {
+                        format!("item {i} of NS must be a number, got {}", value_preview(v))
                     })
-                    .collect(),
-            )
-        }),
-        "L" => value.as_array().map(|arr| {
-            AttributeValue::L(
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            Ok(AttributeValue::Ns(items))
+        }
+        "BS" => {
+            let arr = resolve_json_array(value, attr_type)?;
+            let items = arr
+                .iter()
+                .enumerate()
+                .map(|(i, v)| {
+                    let s = v.as_str().ok_or_else(|| {
+                        format!(
+                            "item {i} of BS must be a base64 string, got {}",
+                            value_preview(v)
+                        )
+                    })?;
+                    general_purpose::STANDARD
+                        .decode(s.trim())
+                        .map(|bytes| aws_sdk_dynamodb::primitives::Blob::new(bytes))
+                        .map_err(|e| format!("item {i} of BS is not valid base64: {e}"))
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            Ok(AttributeValue::Bs(items))
+        }
+        "L" => {
+            let arr = resolve_json_array(value, attr_type)?;
+            Ok(AttributeValue::L(
                 arr.iter()
                     .filter_map(|v| infer_attr_value_from_json(v))
                     .collect(),
-            )
-        }),
-        "M" => value.as_object().map(|map| {
-            AttributeValue::M(
+            ))
+        }
+        "M" => {
+            let resolved = resolve_structured_value(value, attr_type)?;
+            let map = resolved.as_object().ok_or_else(|| {
+                format!(
+                    "expected a JSON object for type M, got {}",
+                    value_preview(&resolved)
+                )
+            })?;
+            Ok(AttributeValue::M(
                 map.iter()
                     .filter_map(|(k, v)| infer_attr_value_from_json(v).map(|av| (k.clone(), av)))
                     .collect(),
-            )
-        }),
-        _ => None,
+            ))
+        }
+        _ => Err(format!("unsupported attribute type: {attr_type}")),
+    }
+}
+
+/// Structured values arrive either as real JSON structures or as their
+/// JSON-string encoding from text inputs.
+fn resolve_structured_value(value: &serde_json::Value, attr_type: &str) -> Result<Value, String> {
+    match value {
+        Value::String(s) => serde_json::from_str::<Value>(s.trim())
+            .map_err(|e| format!("invalid JSON for type {attr_type}: {e}")),
+        other => Ok(other.clone()),
+    }
+}
+
+fn resolve_json_array(value: &serde_json::Value, attr_type: &str) -> Result<Vec<Value>, String> {
+    let resolved = resolve_structured_value(value, attr_type)?;
+    resolved.as_array().cloned().ok_or_else(|| {
+        format!(
+            "expected a JSON array for type {attr_type}, got {}",
+            value_preview(&resolved)
+        )
+    })
+}
+
+/// Accepts JSON numbers and numeric strings (the text-input encoding).
+fn json_number_to_string(value: &serde_json::Value) -> Option<String> {
+    if let Some(n) = value.as_i64() {
+        Some(n.to_string())
+    } else if let Some(n) = value.as_f64() {
+        Some(n.to_string())
+    } else if let Some(s) = value.as_str() {
+        let trimmed = s.trim();
+        trimmed
+            .parse::<i64>()
+            .ok()
+            .map(|n| n.to_string())
+            .or_else(|| trimmed.parse::<f64>().ok().map(|n| n.to_string()))
+    } else {
+        None
+    }
+}
+
+/// Truncated JSON rendering for error messages.
+fn value_preview(value: &serde_json::Value) -> String {
+    let serialized = value.to_string();
+    if serialized.chars().count() <= 60 {
+        serialized
+    } else {
+        let truncated: String = serialized.chars().take(60).collect();
+        format!("{truncated}…")
     }
 }
 
@@ -246,47 +309,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn json_number_still_maps_to_n() {
-        assert!(matches!(
+    fn json_number_maps_to_n() {
+        assert_eq!(
             convert_json_to_attr_value(&json!(42), "N"),
-            Some(AttributeValue::N(_))
-        ));
-        assert!(matches!(
+            Ok(AttributeValue::N("42".to_string()))
+        );
+        assert_eq!(
             convert_json_to_attr_value(&json!(1.5), "N"),
-            Some(AttributeValue::N(_))
-        ));
+            Ok(AttributeValue::N("1.5".to_string()))
+        );
     }
 
     #[test]
     fn numeric_string_maps_to_n() {
         assert_eq!(
             convert_json_to_attr_value(&json!("42"), "N"),
-            Some(AttributeValue::N("42".to_string()))
+            Ok(AttributeValue::N("42".to_string()))
         );
         assert_eq!(
             convert_json_to_attr_value(&json!("42.5"), "N"),
-            Some(AttributeValue::N("42.5".to_string()))
+            Ok(AttributeValue::N("42.5".to_string()))
         );
         assert_eq!(
             convert_json_to_attr_value(&json!(" 7 "), "N"),
-            Some(AttributeValue::N("7".to_string()))
+            Ok(AttributeValue::N("7".to_string()))
         );
     }
 
     #[test]
-    fn non_numeric_string_is_dropped() {
-        assert_eq!(convert_json_to_attr_value(&json!("abc"), "N"), None);
+    fn non_numeric_string_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!("abc"), "N").is_err());
+        assert!(convert_json_to_attr_value(&json!(true), "N").is_err());
     }
 
     #[test]
     fn json_bool_maps_to_bool() {
         assert_eq!(
             convert_json_to_attr_value(&json!(true), "BOOL"),
-            Some(AttributeValue::Bool(true))
+            Ok(AttributeValue::Bool(true))
         );
         assert_eq!(
             convert_json_to_attr_value(&json!(false), "BOOL"),
-            Some(AttributeValue::Bool(false))
+            Ok(AttributeValue::Bool(false))
         );
     }
 
@@ -294,20 +358,92 @@ mod tests {
     fn bool_string_maps_to_bool() {
         assert_eq!(
             convert_json_to_attr_value(&json!("true"), "BOOL"),
-            Some(AttributeValue::Bool(true))
+            Ok(AttributeValue::Bool(true))
         );
         assert_eq!(
             convert_json_to_attr_value(&json!("FALSE"), "BOOL"),
-            Some(AttributeValue::Bool(false))
+            Ok(AttributeValue::Bool(false))
         );
         assert_eq!(
             convert_json_to_attr_value(&json!(" true "), "BOOL"),
-            Some(AttributeValue::Bool(true))
+            Ok(AttributeValue::Bool(true))
         );
     }
 
     #[test]
-    fn non_bool_string_is_dropped() {
-        assert_eq!(convert_json_to_attr_value(&json!("yes"), "BOOL"), None);
+    fn non_bool_string_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!("yes"), "BOOL").is_err());
+    }
+
+    #[test]
+    fn valid_base64_maps_to_b() {
+        assert!(convert_json_to_attr_value(&json!("aGVsbG8="), "B").is_ok());
+    }
+
+    #[test]
+    fn invalid_base64_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!("not-base64!"), "B").is_err());
+    }
+
+    #[test]
+    fn json_array_maps_to_ss() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!(["a", "b"]), "SS"),
+            Ok(AttributeValue::Ss(vec!["a".to_string(), "b".to_string()]))
+        );
+    }
+
+    #[test]
+    fn json_string_encoding_maps_to_ss() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!("[\"a\", \"b\"]"), "SS"),
+            Ok(AttributeValue::Ss(vec!["a".to_string(), "b".to_string()]))
+        );
+    }
+
+    #[test]
+    fn ss_with_non_string_item_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!(["a", 1]), "SS").is_err());
+    }
+
+    #[test]
+    fn ns_accepts_number_items_and_numeric_strings() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!([1, "2.5"]), "NS"),
+            Ok(AttributeValue::Ns(vec!["1".to_string(), "2.5".to_string()]))
+        );
+    }
+
+    #[test]
+    fn json_string_encoding_maps_to_l() {
+        assert!(matches!(
+            convert_json_to_attr_value(&json!("[1, \"a\", true]"), "L"),
+            Ok(AttributeValue::L(_))
+        ));
+    }
+
+    #[test]
+    fn json_string_encoding_maps_to_m() {
+        assert!(matches!(
+            convert_json_to_attr_value(&json!("{\"k\": 1}"), "M"),
+            Ok(AttributeValue::M(_))
+        ));
+    }
+
+    #[test]
+    fn invalid_json_string_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!("not json"), "L").is_err());
+        assert!(convert_json_to_attr_value(&json!("plain text"), "SS").is_err());
+    }
+
+    #[test]
+    fn wrong_shape_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!({"k": 1}), "L").is_err());
+        assert!(convert_json_to_attr_value(&json!([1]), "M").is_err());
+    }
+
+    #[test]
+    fn unsupported_type_is_rejected() {
+        assert!(convert_json_to_attr_value(&json!("x"), "XX").is_err());
     }
 }

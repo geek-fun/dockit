@@ -38,8 +38,15 @@ pub async fn delete_item(
             key_attr.get("value"),
             key_attr.get("type").and_then(|v| v.as_str()),
         ) {
-            if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                delete_item = delete_item.key(key, av);
+            match convert_json_to_attr_value(value, attr_type) {
+                Ok(av) => delete_item = delete_item.key(key, av),
+                Err(e) => {
+                    return Ok(ApiResponse {
+                        status: 400,
+                        message: format!("Failed to delete item: key attribute '{key}': {e}"),
+                        data: None,
+                    });
+                }
             }
         }
     }

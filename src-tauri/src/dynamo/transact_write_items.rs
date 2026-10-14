@@ -59,9 +59,12 @@ pub async fn transact_write_items(
                         attr.get("value"),
                         attr.get("type").and_then(|v| v.as_str()),
                     ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            item_map.insert(key.to_string(), av);
-                        }
+                        let av = convert_json_to_attr_value(value, attr_type).map_err(|e| {
+                            format!(
+                                "Invalid value for attribute '{key}' in 'put' at index {idx}: {e}"
+                            )
+                        })?;
+                        item_map.insert(key.to_string(), av);
                     }
                 }
 
@@ -94,9 +97,10 @@ pub async fn transact_write_items(
                         key_attr.get("value"),
                         key_attr.get("type").and_then(|v| v.as_str()),
                     ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            key_map.insert(key.to_string(), av);
-                        }
+                        let av = convert_json_to_attr_value(value, attr_type).map_err(|e| {
+                            format!("Invalid value for key attribute '{key}' in 'update' at index {idx}: {e}")
+                        })?;
+                        key_map.insert(key.to_string(), av);
                     }
                 }
 
@@ -116,11 +120,12 @@ pub async fn transact_write_items(
 
                         expression_attribute_names
                             .insert(name_placeholder.clone(), key.to_string());
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            expression_attribute_values.insert(value_placeholder.clone(), av);
-                            update_expression_parts
-                                .push(format!("{} = {}", name_placeholder, value_placeholder));
-                        }
+                        let av = convert_json_to_attr_value(value, attr_type).map_err(|e| {
+                            format!("Invalid value for attribute '{key}' in 'update' at index {idx}: {e}")
+                        })?;
+                        expression_attribute_values.insert(value_placeholder.clone(), av);
+                        update_expression_parts
+                            .push(format!("{} = {}", name_placeholder, value_placeholder));
                     }
                 }
 
@@ -159,9 +164,10 @@ pub async fn transact_write_items(
                         key_attr.get("value"),
                         key_attr.get("type").and_then(|v| v.as_str()),
                     ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            key_map.insert(key.to_string(), av);
-                        }
+                        let av = convert_json_to_attr_value(value, attr_type).map_err(|e| {
+                            format!("Invalid value for key attribute '{key}' in 'delete' at index {idx}: {e}")
+                        })?;
+                        key_map.insert(key.to_string(), av);
                     }
                 }
 

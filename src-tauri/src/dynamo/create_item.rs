@@ -29,8 +29,15 @@ pub async fn create_item(
                 attr.get("value"),
                 attr.get("type").and_then(|v| v.as_str()),
             ) {
-                if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                    put_item = put_item.item(key, av);
+                match convert_json_to_attr_value(value, attr_type) {
+                    Ok(av) => put_item = put_item.item(key, av),
+                    Err(e) => {
+                        return Ok(ApiResponse {
+                            status: 400,
+                            message: format!("Failed to create item: attribute '{key}': {e}"),
+                            data: None,
+                        });
+                    }
                 }
             }
         }
