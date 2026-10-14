@@ -680,6 +680,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.opper.ai/v3/compat',
     apiCompatibility: 'openai-compatible',
   },
+  atlascloud: {
+    label: 'Atlas Cloud',
+    authMode: 'api-key',
+    baseUrl: 'https://api.atlascloud.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
