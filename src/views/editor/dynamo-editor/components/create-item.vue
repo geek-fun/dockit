@@ -90,8 +90,28 @@
               </GridItem>
               <GridItem :span="10">
                 <FormItem>
+                  <div v-if="item.type === 'B'" class="flex w-full items-center gap-1">
+                    <Input
+                      v-model="item.value as string"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      class="flex-1"
+                      autocomplete="off"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6 shrink-0"
+                      :title="$t('editor.dynamo.loadBinaryFile')"
+                      @click="loadBinaryValue(item)"
+                    >
+                      <span class="i-carbon-upload h-4 w-4" />
+                    </Button>
+                  </div>
                   <InputNumber
-                    v-if="calcType(item.type) === 'number'"
+                    v-else-if="calcType(item.type) === 'number'"
                     v-model:model-value="item.value as number"
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
                     class="w-full"
@@ -150,7 +170,10 @@
               </GridItem>
               <GridItem :span="4">
                 <FormItem :error="getAttributeError(index, 'type')">
-                  <Select v-model="item.type">
+                  <Select
+                    :model-value="item.type"
+                    @update:model-value="val => onAttributeTypeChange(item, val as string)"
+                  >
                     <SelectTrigger>
                       <SelectValue :placeholder="$t('editor.dynamo.type')" />
                     </SelectTrigger>
@@ -168,8 +191,42 @@
               </GridItem>
               <GridItem :span="10">
                 <FormItem :error="getAttributeError(index, 'value')">
+                  <div v-if="item.type === 'B'" class="flex w-full items-center gap-1">
+                    <Input
+                      v-model="item.value as string"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      class="flex-1"
+                      autocomplete="off"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6 shrink-0"
+                      :title="$t('editor.dynamo.loadBinaryFile')"
+                      @click="loadBinaryValue(item)"
+                    >
+                      <span class="i-carbon-upload h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    v-else-if="isStructuredType(item.type)"
+                    :model-value="(item.value as string) ?? ''"
+                    readonly
+                    class="cursor-pointer"
+                    :placeholder="typeValueTemplate(item.type)"
+                    @click="openStructuredEditor(index)"
+                  />
+                  <InputNumber
+                    v-else-if="item.type === 'N'"
+                    v-model:model-value="item.value as number"
+                    :placeholder="$t('editor.dynamo.inputAttrValue')"
+                    class="w-full"
+                  />
                   <Switch
-                    v-if="item.type === 'BOOL'"
+                    v-else-if="item.type === 'BOOL'"
                     :checked="item.value as boolean"
                     @update:checked="val => (item.value = val)"
                   />
@@ -193,6 +250,13 @@
           </ScrollArea>
         </div>
       </Form>
+      <StructuredValueDialog
+        :open="structuredEditor.open"
+        :attribute-type="structuredEditorType"
+        :value="structuredEditorValue"
+        @update:open="structuredEditor.open = $event"
+        @apply="handleStructuredApply"
+      />
     </CardContent>
     <CardFooter class="card-footer shrink-0">
       <Button variant="outline" @click="handleReset">
@@ -225,6 +289,12 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Switch } from '@/components/ui/switch';
+import StructuredValueDialog from './structured-value-dialog.vue';
+import {
+  isStructuredType,
+  pickBinaryFileAsBase64,
+  typeValueTemplate,
+} from '../utils/dynamo-attribute';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -290,6 +360,40 @@ const removeKeyAttributeItem = (index: number) => {
 
 const getAttributeError = (index: number, field: 'key' | 'type' | 'value') => {
   return errors.value.attributes[index]?.[field];
+};
+
+const onAttributeTypeChange = (
+  item: { type: string; value: string | number | boolean | null },
+  type: string,
+) => {
+  item.type = type;
+  item.value = null;
+};
+
+const loadBinaryValue = async (item: { value: string | number | boolean | null }) => {
+  try {
+    const base64 = await pickBinaryFileAsBase64();
+    if (base64 !== null) item.value = base64;
+  } catch (error) {
+    message.error(String(error));
+  }
+};
+
+const structuredEditor = ref<{ open: boolean; index: number }>({ open: false, index: -1 });
+const structuredEditorType = computed(
+  () => dynamoRecordForm.value.attributes[structuredEditor.value.index]?.type ?? 'L',
+);
+const structuredEditorValue = computed(
+  () => (dynamoRecordForm.value.attributes[structuredEditor.value.index]?.value as string) ?? null,
+);
+
+const openStructuredEditor = (index: number) => {
+  structuredEditor.value = { open: true, index };
+};
+
+const handleStructuredApply = (value: string) => {
+  const target = dynamoRecordForm.value.attributes[structuredEditor.value.index];
+  if (target) target.value = value;
 };
 
 const selectedTable = computed(() => {
