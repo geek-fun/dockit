@@ -29,6 +29,8 @@ export type ProviderKind =
   | 'deepseek'
   | 'openrouter'
   | 'requesty'
+  | 'opper'
+  | 'atlascloud'
   | 'api-route'
   | 'ollama'
   | 'lm-studio'
@@ -163,6 +165,24 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   },
   {
+    kind: 'opper',
+    apiCompatibility: 'openai-compatible',
+    label: 'Opper',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.opper.ai/v3/compat',
+    enabled: true,
+    defaultModels: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
+  },
+  {
+    kind: 'atlascloud',
+    apiCompatibility: 'openai-compatible',
+    label: 'Atlas Cloud',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.atlascloud.ai/v1',
+    enabled: true,
+    defaultModels: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
+  },
+  {
     kind: 'api-route',
     apiCompatibility: 'openai-compatible',
     label: 'API Route',
@@ -277,6 +297,8 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   openrouter: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   requesty: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
+  opper: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
+  atlascloud: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
   'api-route': ['gpt-6.1-sol'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
@@ -382,6 +404,10 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'openrouter';
     case ProviderEnum.REQUESTY:
       return 'requesty';
+    case ProviderEnum.OPPER:
+      return 'opper';
+    case ProviderEnum.ATLAS_CLOUD:
+      return 'atlascloud';
     case ProviderEnum.API_ROUTE:
       return 'api-route';
     case ProviderEnum.OLLAMA:

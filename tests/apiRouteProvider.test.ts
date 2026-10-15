@@ -35,6 +35,7 @@ jest.mock('../src/datasources', () => ({
 }));
 
 import { useAppStore } from '../src/store/appStore';
+import { ProviderEnum } from '../src/datasources';
 
 describe('API Route provider', () => {
   beforeEach(() => {
@@ -42,6 +43,41 @@ describe('API Route provider', () => {
     setActivePinia(createPinia());
     mockSetSecret.mockResolvedValue(undefined);
     mockGetSecret.mockResolvedValue(undefined);
+  });
+
+  it('migrates legacy API Route settings and persists the model and credentials', async () => {
+    const store = useAppStore();
+    mockGetSecret.mockResolvedValueOnce(undefined).mockResolvedValueOnce([
+      {
+        provider: ProviderEnum.API_ROUTE,
+        enabled: true,
+        apiKey: 'legacy-api-route-key',
+        model: 'legacy-account-model',
+        httpProxy: 'http://localhost:8080',
+      },
+    ]);
+
+    await store.fetchLlmSettings();
+
+    const provider = store.providerConfigs.find(provider => provider.kind === 'api-route');
+    expect(provider).toMatchObject({
+      id: 'api-route',
+      apiKey: 'legacy-api-route-key',
+      baseUrl: 'https://global.api-route.com/v1',
+      proxy: 'http://localhost:8080',
+      proxyMode: 'manual',
+      enabled: true,
+      connected: true,
+      discoveredModels: [
+        expect.objectContaining({ label: 'legacy-account-model', providerKind: 'api-route' }),
+      ],
+    });
+    expect(mockGetSecret).toHaveBeenNthCalledWith(1, 'llmSettings', undefined);
+    expect(mockGetSecret).toHaveBeenNthCalledWith(2, 'aiConfigs', []);
+    expect(mockSetSecret).toHaveBeenCalledWith(
+      'llmSettings',
+      expect.objectContaining({ providers: expect.arrayContaining([provider]) }),
+    );
   });
 
   it('adds the preset to persisted settings without resetting an existing provider', async () => {

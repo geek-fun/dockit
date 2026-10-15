@@ -674,6 +674,18 @@ const providerPresets: Record<
     baseUrl: 'https://router.requesty.ai/v1',
     apiCompatibility: 'openai-compatible',
   },
+  opper: {
+    label: 'Opper',
+    authMode: 'api-key',
+    baseUrl: 'https://api.opper.ai/v3/compat',
+    apiCompatibility: 'openai-compatible',
+  },
+  atlascloud: {
+    label: 'Atlas Cloud',
+    authMode: 'api-key',
+    baseUrl: 'https://api.atlascloud.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   'api-route': {
     label: 'API Route',
     authMode: 'api-key',
