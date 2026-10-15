@@ -989,7 +989,11 @@ mod tests {
         .await
         .expect("rotated retry resolves");
 
-        assert!(view.ultimate_active);
+        assert!(
+            view.ultimate_active,
+            "rotated retry lost the entitlement: {:?}",
+            view.last_error
+        );
         assert_eq!(view.session_phase, SESSION_PHASE_SIGNED_IN);
         let rotated = rotated.expect("a rotated session rides back");
         assert_eq!(rotated.access_token, rotated_token);
