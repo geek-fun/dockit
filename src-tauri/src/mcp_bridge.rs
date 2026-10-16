@@ -12,7 +12,7 @@ use data_studio_agent::capabilities::registry;
 use data_studio_agent::capabilities::types::Capability;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_store::StoreExt;
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
@@ -130,8 +130,8 @@ impl InvokeResponse {
 // Axum application state
 // ---------------------------------------------------------------------------
 
-struct BridgeState {
-    handle: AppHandle,
+struct BridgeState<R: Runtime> {
+    handle: AppHandle<R>,
     app_name: &'static str,
     app_data_dir: PathBuf,
     policy: McpPolicy,
@@ -175,7 +175,7 @@ fn entitlement_denied_for(session_confirmed: bool, local_entitled: bool) -> bool
     !(session_confirmed && local_entitled)
 }
 
-fn entitlement_denied(state: &BridgeState) -> Option<String> {
+fn entitlement_denied<R: Runtime>(state: &BridgeState<R>) -> Option<String> {
     let entitlement: tauri::State<'_, crate::entitlement::EntitlementState> = state.handle.state();
     if entitlement_denied_for(
         entitlement.session_confirmed(),
@@ -186,7 +186,7 @@ fn entitlement_denied(state: &BridgeState) -> Option<String> {
     None
 }
 
-async fn handle_tools(State(state): State<Arc<BridgeState>>) -> Response {
+async fn handle_tools<R: Runtime>(State(state): State<Arc<BridgeState<R>>>) -> Response {
     if let Some(reason) = entitlement_denied(&state) {
         return (
             StatusCode::FORBIDDEN,
@@ -224,8 +224,8 @@ fn check_policy(
     ))
 }
 
-async fn handle_invoke(
-    State(state): State<Arc<BridgeState>>,
+async fn handle_invoke<R: Runtime>(
+    State(state): State<Arc<BridgeState<R>>>,
     Json(payload): Json<InvokeRequest>,
 ) -> Json<InvokeResponse> {
     if let Some(reason) = entitlement_denied(&state) {
@@ -234,8 +234,7 @@ async fn handle_invoke(
     Json(invoke_with_policy(&state.policy, payload).await)
 }
 
-// Split from handle_invoke so tests can run it without a Tauri runtime —
-// BridgeState holds a Wry AppHandle, which tauri::test mocks cannot provide.
+// Split from handle_invoke so policy tests can run without a bridge.
 async fn invoke_with_policy(policy: &McpPolicy, payload: InvokeRequest) -> InvokeResponse {
     let cap = match registry::registry().get(&payload.name) {
         Some(c) => c,
@@ -273,7 +272,7 @@ fn health_payload(app_name: &str, version: &str, port: u16) -> Value {
     })
 }
 
-async fn handle_health(State(state): State<Arc<BridgeState>>) -> Json<Value> {
+async fn handle_health<R: Runtime>(State(state): State<Arc<BridgeState<R>>>) -> Json<Value> {
     Json(health_payload(
         state.app_name,
         &state.handle.package_info().version.to_string(),
@@ -332,7 +331,7 @@ async fn remove_port_file(app_data_dir: &Path) {
 /// Shut down the bridge if it's running.
 /// Returns the JoinHandle for the old server task, if any, so the caller can
 /// await its full completion (including port file cleanup) before starting a new one.
-async fn send_shutdown(handle: &AppHandle) -> Option<tokio::task::JoinHandle<()>> {
+async fn send_shutdown<R: Runtime>(handle: &AppHandle<R>) -> Option<tokio::task::JoinHandle<()>> {
     let server_handle: tauri::State<'_, McpServerHandle> = handle.state();
     let old_tx = {
         let mut tx = server_handle.shutdown_tx.lock().unwrap();
@@ -346,7 +345,7 @@ async fn send_shutdown(handle: &AppHandle) -> Option<tokio::task::JoinHandle<()>
 }
 
 /// The bridge only runs for a session confirmed in this app run.
-pub fn sync_with_entitlement(handle: &AppHandle) {
+pub fn sync_with_entitlement<R: Runtime + 'static>(handle: &AppHandle<R>) {
     use tauri::Manager;
 
     let entitled = {
@@ -363,12 +362,14 @@ pub fn sync_with_entitlement(handle: &AppHandle) {
     });
 }
 
-fn auto_start_if_entitled(handle: &AppHandle) {
-    use tauri::Manager;
-
+fn auto_start_if_entitled<R: Runtime + 'static>(handle: &AppHandle<R>) {
     let Ok(app_data_dir) = handle.path().app_data_dir() else {
         return;
     };
+    auto_start_from_dir(handle, app_data_dir);
+}
+
+fn auto_start_from_dir<R: Runtime + 'static>(handle: &AppHandle<R>, app_data_dir: PathBuf) {
     let config = McpConfig::load(&app_data_dir);
     if !config.auto_start {
         return;
@@ -403,14 +404,14 @@ fn auto_start_if_entitled(handle: &AppHandle) {
     });
 }
 
-async fn shutdown_if_running(handle: &AppHandle) {
+async fn shutdown_if_running<R: Runtime>(handle: &AppHandle<R>) {
     if let Some(task) = send_shutdown(handle).await {
         let _ = task.await;
     }
 }
 
-pub async fn start(
-    handle: AppHandle,
+pub async fn start<R: Runtime>(
+    handle: AppHandle<R>,
     app_data_dir: PathBuf,
     preferred_port: u16,
     shutdown_rx: oneshot::Receiver<()>,
@@ -427,9 +428,9 @@ pub async fn start(
             });
 
             let app = axum::Router::new()
-                .route("/tools", post(handle_tools))
-                .route("/invoke", post(handle_invoke))
-                .route("/health", get(handle_health))
+                .route("/tools", post(handle_tools::<R>))
+                .route("/invoke", post(handle_invoke::<R>))
+                .route("/health", get(handle_health::<R>))
                 .with_state(state);
 
             // Write port file BEFORE spawning to avoid orphaned server on write failure
@@ -474,9 +475,9 @@ pub async fn start(
             });
 
             let app = axum::Router::new()
-                .route("/tools", post(handle_tools))
-                .route("/invoke", post(handle_invoke))
-                .route("/health", get(handle_health))
+                .route("/tools", post(handle_tools::<R>))
+                .route("/invoke", post(handle_invoke::<R>))
+                .route("/health", get(handle_health::<R>))
                 .with_state(state);
 
             write_port_file(&app_data_dir, random_port).await?;
@@ -609,7 +610,6 @@ pub async fn save_mcp_config(
     policy: Option<McpPolicy>,
     app: AppHandle,
 ) -> Result<String, String> {
-    use tauri::Manager;
     let entitlement: tauri::State<'_, crate::entitlement::EntitlementState> = app.state();
     crate::entitlement::ensure_local_ultimate(&entitlement, "MCP Server")?;
     let app_data_dir = app
@@ -617,20 +617,32 @@ pub async fn save_mcp_config(
         .app_data_dir()
         .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
         .to_path_buf();
+    save_mcp_config_in_dir(&app, port, auto_start, policy, &app_data_dir).await
+}
+
+async fn save_mcp_config_in_dir<R: Runtime>(
+    app: &AppHandle<R>,
+    port: Option<u16>,
+    auto_start: bool,
+    policy: Option<McpPolicy>,
+    app_data_dir: &Path,
+) -> Result<String, String> {
+    let entitlement: tauri::State<'_, crate::entitlement::EntitlementState> = app.state();
+    crate::entitlement::ensure_local_ultimate(&entitlement, "MCP Server")?;
 
     // Load first so a None policy from older clients keeps the stored policy.
-    let mut config = McpConfig::load(&app_data_dir);
+    let mut config = McpConfig::load(app_data_dir);
     config.port = port;
     config.auto_start = auto_start;
     if let Some(p) = policy {
         config.policy = p;
     }
-    config.save(&app_data_dir)?;
+    config.save(app_data_dir)?;
 
     // Always shut down the current server first and await its full exit
     // (including port file cleanup) to prevent the new server's port file
     // from being deleted by stale cleanup.
-    let old_task = send_shutdown(&app).await;
+    let old_task = send_shutdown(app).await;
     if let Some(h) = old_task {
         let _ = h.await;
     }
@@ -649,7 +661,7 @@ pub async fn save_mcp_config(
         let preferred = port.unwrap_or(get_default_port());
         start(
             app.clone(),
-            app_data_dir.clone(),
+            app_data_dir.to_path_buf(),
             preferred,
             new_shutdown_rx,
         )
@@ -665,6 +677,7 @@ mod tests {
     use data_studio_agent::capabilities::permissions::McpPermissionMode;
     use data_studio_agent::capabilities::types::RiskLevel;
     use std::net::TcpListener as StdTcpListener;
+    use tauri::Manager;
 
     fn temp_data_dir(name: &str) -> PathBuf {
         let dir =
@@ -1112,5 +1125,224 @@ mod tests {
         // Safe capability passes the policy check; with no connection config the
         // capability itself fails, proving execution reached the invoke path.
         assert_eq!(resp.status, 400);
+    }
+
+    fn mock_app(
+        state: crate::entitlement::EntitlementState,
+    ) -> tauri::App<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .manage(state)
+            .manage(McpServerHandle::new())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app")
+    }
+
+    fn paid_state() -> crate::entitlement::EntitlementState {
+        let state = crate::entitlement::EntitlementState::load(None);
+        state.confirm_session();
+        state.grant_active_plan_for_test();
+        state
+    }
+
+    fn bridge_state(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        dir: PathBuf,
+    ) -> Arc<BridgeState<tauri::test::MockRuntime>> {
+        Arc::new(BridgeState {
+            handle: app.handle().clone(),
+            app_name: "dockit",
+            app_data_dir: dir,
+            policy: McpPolicy::default(),
+        })
+    }
+
+    async fn tools_body(response: Response) -> Value {
+        let bytes = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+            .await
+            .expect("tools body");
+        serde_json::from_slice(&bytes).expect("tools json")
+    }
+
+    #[tokio::test]
+    async fn tools_and_invoke_are_forbidden_until_a_session_and_a_plan_exist() {
+        init_registry_for_tests();
+        let dir = temp_data_dir("gate-denied");
+        let cached = crate::entitlement::EntitlementState::load(None);
+        cached.grant_active_plan_for_test();
+        let app = mock_app(cached);
+        let state = bridge_state(&app, dir.clone());
+
+        let denied = handle_tools(State(state.clone())).await;
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN);
+        let body = tools_body(denied).await;
+        assert_eq!(
+            body["error_type"],
+            crate::entitlement::ENTITLEMENT_ERROR_TYPE
+        );
+
+        let Json(invoked) = handle_invoke(
+            State(state),
+            Json(InvokeRequest {
+                name: "es__search".into(),
+                args: json!({}),
+                connection_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(invoked.status, 403);
+        assert!(invoked.message.unwrap().contains("Ultimate"));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn tools_and_invoke_proceed_when_the_session_and_plan_are_both_live() {
+        init_registry_for_tests();
+        let dir = temp_data_dir("gate-open");
+        let app = mock_app(paid_state());
+        let state = bridge_state(&app, dir.clone());
+
+        let ok = handle_tools(State(state.clone())).await;
+        assert_eq!(ok.status(), StatusCode::OK);
+        let body = tools_body(ok).await;
+        assert!(body["tools"]
+            .as_array()
+            .is_some_and(|tools| !tools.is_empty()));
+        assert_eq!(body["connections"], json!([]));
+
+        let Json(invoked) = handle_invoke(
+            State(state),
+            Json(InvokeRequest {
+                name: "definitely__not_a_real_capability".into(),
+                args: json!({}),
+                connection_id: None,
+            }),
+        )
+        .await;
+        assert_eq!(invoked.status, 404);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn the_bridge_stays_down_without_a_plan_and_stops_when_the_plan_is_gone() {
+        let dir = temp_data_dir("bridge-lifecycle");
+        let cached = crate::entitlement::EntitlementState::load(None);
+        cached.grant_active_plan_for_test();
+        let cached_app = mock_app(cached);
+        McpConfig {
+            port: Some(1),
+            auto_start: true,
+            ..McpConfig::default()
+        }
+        .save(&dir)
+        .unwrap();
+        auto_start_from_dir(cached_app.handle(), dir.clone());
+        assert!(cached_app
+            .state::<McpServerHandle>()
+            .shutdown_tx
+            .lock()
+            .unwrap()
+            .is_none());
+
+        let idle = McpConfig {
+            auto_start: false,
+            ..McpConfig::default()
+        };
+        idle.save(&dir).unwrap();
+
+        let app = mock_app(paid_state());
+        auto_start_from_dir(app.handle(), dir.clone());
+        let slot = app.state::<McpServerHandle>();
+        assert!(slot.shutdown_tx.lock().unwrap().is_none());
+
+        let port = portpicker::pick_unused_port().expect("free port");
+        McpConfig {
+            port: Some(port),
+            auto_start: true,
+            ..McpConfig::default()
+        }
+        .save(&dir)
+        .unwrap();
+        auto_start_from_dir(app.handle(), dir.clone());
+        let started = wait_for_port_file(&dir).await;
+        assert!(started, "bridge should bind once the plan is live");
+
+        auto_start_from_dir(app.handle(), dir.clone());
+        assert!(dir.join("mcp-port").exists());
+
+        app.state::<crate::entitlement::EntitlementState>().clear();
+        sync_with_entitlement(app.handle());
+        let stopped = wait_for_port_file_gone(&dir).await;
+        assert!(stopped, "logout must stop the bridge");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn saving_mcp_config_refuses_to_start_without_a_confirmed_session() {
+        let dir = temp_data_dir("save-config");
+        let plan_only = crate::entitlement::EntitlementState::load(None);
+        plan_only.grant_active_plan_for_test();
+        let app = mock_app(plan_only);
+        let err = save_mcp_config_in_dir(app.handle(), Some(0), true, None, &dir)
+            .await
+            .expect_err("autostart without a session");
+        assert!(err.contains(crate::entitlement::ENTITLEMENT_ERROR_TYPE));
+        assert!(!dir.join("mcp-port").exists());
+
+        let unsigned = mock_app(crate::entitlement::EntitlementState::load(None));
+        let err = save_mcp_config_in_dir(unsigned.handle(), None, false, None, &dir)
+            .await
+            .expect_err("a free plan cannot save MCP config");
+        assert!(err.contains(crate::entitlement::ENTITLEMENT_ERROR_TYPE));
+
+        let app = mock_app(paid_state());
+        let ok = save_mcp_config_in_dir(app.handle(), None, false, None, &dir)
+            .await
+            .expect("a live plan can store config without starting");
+        assert!(ok.contains("ok"));
+        let stored = McpConfig::load(&dir);
+        assert!(!stored.auto_start);
+
+        let port = portpicker::pick_unused_port().expect("free port");
+        save_mcp_config_in_dir(app.handle(), Some(port), true, None, &dir)
+            .await
+            .expect("a live plan can start the bridge");
+        assert!(wait_for_port_file(&dir).await);
+        shutdown_if_running(app.handle()).await;
+        assert!(wait_for_port_file_gone(&dir).await);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    async fn wait_for_port_file(dir: &Path) -> bool {
+        for _ in 0..50 {
+            if let Ok(raw) = std::fs::read_to_string(dir.join("mcp-port")) {
+                if let Ok(port) = raw.trim().parse::<u16>() {
+                    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+                    if std::net::TcpStream::connect_timeout(
+                        &addr,
+                        std::time::Duration::from_millis(50),
+                    )
+                    .is_ok()
+                    {
+                        return true;
+                    }
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        false
+    }
+
+    async fn wait_for_port_file_gone(dir: &Path) -> bool {
+        for _ in 0..50 {
+            if !dir.join("mcp-port").exists() {
+                return true;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        false
     }
 }

@@ -160,18 +160,8 @@ pub async fn dynamo_api(
     credentials: DynamoCredentials,
     options: DynamoOptions,
 ) -> Result<String, String> {
-    let tunnel_port = if crate::common::ssh_bridge::ssh_tunnel_allowed(&app) {
-        match options.connection_id {
-            Some(ref cid) => {
-                app.state::<crate::ssh::TunnelManager>()
-                    .local_port(cid)
-                    .await
-            }
-            None => None,
-        }
-    } else {
-        None
-    };
+    let tunnel_port =
+        crate::common::ssh_bridge::gated_tunnel_port(&app, options.connection_id.as_deref()).await;
     match &credentials.auth {
         DynamoAuth::Profile { .. } | DynamoAuth::Sso { .. } | DynamoAuth::AssumeRole { .. } => {
             crate::entitlement::ensure_local_ultimate(
