@@ -1474,6 +1474,7 @@ export const zhCN = {
       cancelScheduled: '订阅已计划于本期期末结束。',
       checkFailed: '权益校验失败，当前展示缓存状态。请检查网络后刷新。',
       sessionExpired: '登录已过期，请重新登录以验证订阅状态。',
+      sessionLostSignedOut: '登录会话已失效，已为你退出登录，请重新登录。',
       deviceActivationFailed: '设备注册失败，会话自动续期暂不可用。',
       notLoggedIn: '尚未登录。',
       loginLink: '通过 Geekfun 登录',

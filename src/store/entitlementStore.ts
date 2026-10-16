@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
-import { isEntitlementError, isSessionRejected, type EntitlementView } from '../common';
+import {
+  isEntitlementError,
+  isSessionRejected,
+  sessionPhaseFromTokens,
+  type EntitlementView,
+  type SessionPhase,
+} from '../common';
 import { useUserStore } from './userStore';
+import { useDeviceStore } from './deviceStore';
 
 export type PlanState = 'ultimate' | 'community' | 'unknown' | 'checking';
 
@@ -11,7 +18,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Terminal failure without a cached view — a synthetic answer so the UI
 // lands on Unknown (with its retry CTA) instead of an endless Checking…
-const unknownView = (lastError: string): EntitlementView => ({
+const unknownView = (lastError: string, sessionPhase: SessionPhase): EntitlementView => ({
   ultimateActive: false,
   versionLocked: false,
   localUltimate: false,
@@ -21,12 +28,23 @@ const unknownView = (lastError: string): EntitlementView => ({
   cancelScheduledAt: null,
   cached: true,
   fetchedAtMs: null,
+  sessionPhase,
   lastError,
 });
 
 export const useEntitlementStore = defineStore('entitlement', {
-  state: (): { view: EntitlementView | null } => ({
+  state: (): {
+    view: EntitlementView | null;
+    sessionLostNotice: number;
+    sessionRejections: number;
+  } => ({
     view: null,
+    // Timestamp of the last definite session loss (set by handleSessionLoss);
+    // the AppProvider layer surfaces the signed-out toast from it.
+    sessionLostNotice: 0,
+    // Consecutive deliberate rotation rejections before a session loss is
+    // resolved — one rejection lands degraded, two in a row clear.
+    sessionRejections: 0,
   }),
   getters: {
     isLocalUltimate: state => state.view?.localUltimate ?? false,
@@ -44,13 +62,86 @@ export const useEntitlementStore = defineStore('entitlement', {
     },
     cancelScheduled: state => Boolean(state.view?.cancelScheduledAt),
     hasEntitlementError: state => Boolean(state.view?.lastError),
-    // matches the plain-string errors Rust refresh_entitlement classifies by
-    sessionExpired: state => {
-      const err = state.view?.lastError;
-      return err === 'session expired' || err === 'not logged in';
+    // Single session-health derivation (token facts + the structured server
+    // verdict) — every login-CTA / degraded-plan consumer reads this instead
+    // of matching lastError strings.
+    sessionPhase: state => {
+      const userStore = useUserStore();
+      return sessionPhaseFromTokens(
+        userStore.accessToken,
+        userStore.refreshToken,
+        state.view?.sessionPhase ?? null,
+      );
+    },
+    sessionExpired(): boolean {
+      return this.sessionPhase === 'expired';
     },
   },
   actions: {
+    // Shared teardown for an account session — best-effort server-side lease
+    // revocation, cached entitlements, profile identity, device registration.
+    // Local teardown is synchronous and instant so the UI flips immediately;
+    // the revocation is a deliberate no-op on failure and never blocks it.
+    async clearSessionState(): Promise<void> {
+      const userStore = useUserStore();
+      const lease = userStore.refreshToken || null;
+      await this.clearCachedEntitlement();
+      userStore.resetToken();
+      useDeviceStore().$reset();
+      void invoke('revoke_session', { refreshToken: lease }).catch(() => {});
+    },
+    // The session is definitively unrenewable (the server rejected the lease,
+    // or the bearer is dead with no lease to rotate): wipe local state so the
+    // UI returns to the logged-out look; AppProvider toasts from the notice.
+    async handleSessionLoss(): Promise<void> {
+      const userStore = useUserStore();
+      const hadIdentity = userStore.isLoggedIn;
+      await this.clearSessionState();
+      this.sessionRejections = 0;
+      if (hadIdentity) {
+        this.sessionLostNotice = Date.now();
+      }
+    },
+    // A deliberate rotation rejection is server policy, not transient — but a
+    // single one only lands on the degraded login-CTA state; two in a row
+    // resolve the whole session (guards against a brief auth-gateway
+    // misclassification wiping a healthy account). Success resets the count.
+    async resolveSessionRejection(): Promise<void> {
+      this.sessionRejections += 1;
+      this.view = unknownView('session expired', 'expired');
+      if (this.sessionRejections < 2) {
+        return;
+      }
+      await this.handleSessionLoss();
+    },
+    // Active recovery for a degraded session: rotate the lease while one
+    // exists, then force an entitlement refresh. A deliberate rotation
+    // rejection (or a still-expired phase afterwards) is a definite loss and
+    // resolves the whole session; transient errors leave the cached state for
+    // the caller's retry CTA.
+    async attemptSessionRecovery(): Promise<'recovered' | 'lost'> {
+      const userStore = useUserStore();
+      const lease = userStore.refreshToken || '';
+      if (lease.trim()) {
+        try {
+          const refreshed = await invoke<{ access_token: string; refresh_token: string }>(
+            'rotate_session_now',
+            { refreshToken: lease },
+          );
+          userStore.setToken(refreshed.access_token);
+          userStore.setRefreshToken(refreshed.refresh_token);
+          this.sessionRejections = 0;
+        } catch (e) {
+          if (isSessionRejected(e)) {
+            await this.resolveSessionRejection();
+            return 'lost';
+          }
+          // transient — the entitlement refresh below still tries the
+          // existing bearer before falling back to the reactive rotation
+        }
+      }
+      return (await this.refreshEntitlement(true)) === 'lost' ? 'lost' : 'recovered';
+    },
     async seedFromHandoff(payload: {
       ultimateExpiresAt?: string | null;
       versionLockHorizon?: string | null;
@@ -77,7 +168,7 @@ export const useEntitlementStore = defineStore('entitlement', {
         this.view = cached;
       }
     },
-    async refreshEntitlement(force = false): Promise<void> {
+    async refreshEntitlement(force = false): Promise<'ok' | 'lost'> {
       const userStore = useUserStore();
       for (let attempt = 0; ; attempt += 1) {
         try {
@@ -86,14 +177,20 @@ export const useEntitlementStore = defineStore('entitlement', {
             refreshToken: userStore.refreshToken || null,
             force,
           });
-          return;
+          if (this.view.sessionPhase === 'expired') {
+            // A dead lease the Rust side could not rotate — never recoverable
+            // client-side; resolve the session to the logged-out look.
+            await this.handleSessionLoss();
+            return 'lost';
+          }
+          this.sessionRejections = 0;
+          return 'ok';
         } catch (e) {
           if (isSessionRejected(e)) {
-            // dead lease — drop it so the next login starts clean, and land
-            // on the session-expired state instead of an endless Checking…
-            userStore.setRefreshToken('');
-            this.view = unknownView('session expired');
-            return;
+            // dead lease — the next login starts clean, and a second
+            // consecutive rejection resolves the whole session
+            await this.resolveSessionRejection();
+            return 'lost';
           }
           if (attempt >= REFRESH_RETRY_DELAYS_MS.length) {
             // terminal: a cached view degrades to itself (offline contract);
@@ -105,9 +202,10 @@ export const useEntitlementStore = defineStore('entitlement', {
                   : typeof e === 'string'
                     ? e
                     : String(e),
+                'signed-in',
               );
             }
-            return;
+            return 'ok';
           }
           await sleep(REFRESH_RETRY_DELAYS_MS[attempt]);
         }
