@@ -76,6 +76,10 @@ pub async fn save_ssh_profile(app: AppHandle, profile: SshProfile) -> Result<Ssh
 /// Delete an SSH profile by ID.
 #[tauri::command]
 pub async fn delete_ssh_profile(app: AppHandle, profile_id: String) -> Result<(), String> {
+    crate::entitlement::ensure_local_ultimate(
+        &app.state::<crate::entitlement::EntitlementState>(),
+        "SSH tunnel",
+    )?;
     let store = app
         .store(".store.dat")
         .map_err(|e| format!("Failed to open store: {}", e))?;
