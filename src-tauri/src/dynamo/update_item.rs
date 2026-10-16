@@ -137,3 +137,70 @@ pub async fn update_item(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn invalid_key_returns_400_before_send() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let payload = serde_json::json!({
+            "keys": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "sk", "value": "nope", "type": "N"}
+            ],
+            "attributes": [{"key": "name", "value": "a", "type": "S"}]
+        });
+        let response = update_item(
+            &client,
+            UpdateItemInput {
+                table_name: "users",
+                payload: &payload,
+            },
+        )
+        .await
+        .expect("conversion failure is an ApiResponse");
+
+        assert_eq!(response.status, 400);
+        assert!(response.message.contains("key attribute 'sk'"));
+    }
+
+    #[tokio::test]
+    async fn invalid_attribute_returns_400_after_a_valid_one() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let payload = serde_json::json!({
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "attributes": [
+                {"key": "name", "value": "a", "type": "S"},
+                {"key": "age", "value": "x", "type": "N"}
+            ]
+        });
+        let response = update_item(
+            &client,
+            UpdateItemInput {
+                table_name: "users",
+                payload: &payload,
+            },
+        )
+        .await
+        .expect("conversion failure is an ApiResponse");
+
+        assert_eq!(response.status, 400);
+        assert!(response.message.contains("attribute 'age'"));
+        assert!(response.message.contains("expected a number"));
+    }
+}

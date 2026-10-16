@@ -89,3 +89,45 @@ pub async fn create_item(
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn invalid_attribute_returns_400_before_send() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let payload = serde_json::json!({
+            "attributes": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "age", "value": "nope", "type": "N"}
+            ]
+        });
+        let response = create_item(
+            &client,
+            CreateItemInput {
+                table_name: "users",
+                payload: &payload,
+            },
+        )
+        .await
+        .expect("conversion failure is an ApiResponse");
+
+        assert_eq!(response.status, 400);
+        assert!(response.message.contains("attribute 'age'"));
+        assert!(response.message.contains("expected a number"));
+    }
+}

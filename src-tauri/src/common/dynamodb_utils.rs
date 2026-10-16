@@ -446,4 +446,101 @@ mod tests {
     fn unsupported_type_is_rejected() {
         assert!(convert_json_to_attr_value(&json!("x"), "XX").is_err());
     }
+
+    #[test]
+    fn string_type_accepts_strings_only() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!("hello"), "S"),
+            Ok(AttributeValue::S("hello".to_string()))
+        );
+        let err = convert_json_to_attr_value(&json!(1), "S").unwrap_err();
+        assert!(err.contains("expected a string"));
+    }
+
+    #[test]
+    fn binary_trims_base64_and_rejects_non_strings() {
+        let av = convert_json_to_attr_value(&json!("  aGVsbG8=  "), "B").unwrap();
+        assert_eq!(av.as_b().expect("blob").as_ref(), b"hello");
+        let err = convert_json_to_attr_value(&json!(1), "B").unwrap_err();
+        assert!(err.contains("expected a base64 string"));
+    }
+
+    #[test]
+    fn bool_rejects_non_boolean_json() {
+        let err = convert_json_to_attr_value(&json!(1), "BOOL").unwrap_err();
+        assert!(err.contains("expected a boolean"));
+    }
+
+    #[test]
+    fn null_type_is_always_null() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!(null), "NULL"),
+            Ok(AttributeValue::Null(true))
+        );
+    }
+
+    #[test]
+    fn number_larger_than_i64_uses_float_fallback() {
+        let big: Value = serde_json::from_str("9223372036854775808").unwrap();
+        assert!(convert_json_to_attr_value(&big, "N").is_ok());
+        assert_eq!(
+            convert_json_to_attr_value(&json!("-3"), "N"),
+            Ok(AttributeValue::N("-3".to_string()))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!("1e2"), "N"),
+            Ok(AttributeValue::N("100".to_string()))
+        );
+    }
+
+    #[test]
+    fn long_invalid_value_is_truncated_in_the_error() {
+        let long = "x".repeat(80);
+        let err = convert_json_to_attr_value(&Value::String(long), "N").unwrap_err();
+        assert!(err.contains('…'));
+        assert!(err.chars().count() < 120);
+    }
+
+    #[test]
+    fn ns_rejects_non_numbers_and_accepts_json_strings() {
+        let err = convert_json_to_attr_value(&json!([1, true]), "NS").unwrap_err();
+        assert!(err.contains("item 1 of NS"));
+        assert_eq!(
+            convert_json_to_attr_value(&json!("[1, \"2\"]"), "NS"),
+            Ok(AttributeValue::Ns(vec!["1".to_string(), "2".to_string()]))
+        );
+    }
+
+    #[test]
+    fn bs_accepts_base64_items_and_json_strings() {
+        let av = convert_json_to_attr_value(&json!(["aGVsbG8="]), "BS").unwrap();
+        assert_eq!(av.as_bs().expect("blobs")[0].as_ref(), b"hello");
+        assert!(convert_json_to_attr_value(&json!("[\"aGVsbG8=\"]"), "BS").is_ok());
+    }
+
+    #[test]
+    fn bs_rejects_bad_items() {
+        let not_string = convert_json_to_attr_value(&json!([1]), "BS").unwrap_err();
+        assert!(not_string.contains("item 0 of BS must be a base64 string"));
+        let bad = convert_json_to_attr_value(&json!(["!!!"]), "BS").unwrap_err();
+        assert!(bad.contains("item 0 of BS is not valid base64"));
+        assert!(convert_json_to_attr_value(&json!({"k": 1}), "BS").is_err());
+    }
+
+    #[test]
+    fn list_and_map_accept_native_json() {
+        assert!(matches!(
+            convert_json_to_attr_value(&json!([1, {"k": true}, null]), "L"),
+            Ok(AttributeValue::L(items)) if items.len() == 3
+        ));
+        assert!(matches!(
+            convert_json_to_attr_value(&json!({"k": [1, null]}), "M"),
+            Ok(AttributeValue::M(map)) if map.contains_key("k")
+        ));
+    }
+
+    #[test]
+    fn structured_json_string_is_trimmed() {
+        assert!(convert_json_to_attr_value(&json!("  [1]  "), "L").is_ok());
+    }
 }

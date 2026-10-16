@@ -16,6 +16,51 @@ export const TYPE_VALUE_TEMPLATES: Record<string, string> = {
 
 export const typeValueTemplate = (type: string): string => TYPE_VALUE_TEMPLATES[type] ?? '';
 
+export type StructuredValueIssue =
+  | { kind: 'syntax'; reason: string }
+  | { kind: 'shape' }
+  | { kind: 'emptySet' };
+
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+export const validateStructuredValue = (
+  attributeType: string,
+  text: string,
+): StructuredValueIssue | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    return { kind: 'syntax', reason: (error as Error).message };
+  }
+
+  if (attributeType === 'M') {
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? null
+      : { kind: 'shape' };
+  }
+
+  if (!Array.isArray(parsed)) return { kind: 'shape' };
+  if (attributeType === 'L') return null;
+  if (parsed.length === 0) return { kind: 'emptySet' };
+
+  if (attributeType === 'SS') {
+    return parsed.every(item => typeof item === 'string') ? null : { kind: 'shape' };
+  }
+  if (attributeType === 'NS') {
+    return parsed.every(
+      item =>
+        typeof item === 'number' ||
+        (typeof item === 'string' && item.trim() !== '' && !Number.isNaN(Number(item))),
+    )
+      ? null
+      : { kind: 'shape' };
+  }
+  return parsed.every(item => typeof item === 'string' && BASE64_PATTERN.test(item.trim()))
+    ? null
+    : { kind: 'shape' };
+};
+
 export const pickBinaryFileAsBase64 = async (): Promise<string | null> => {
   const selected = await open({ multiple: false, directory: false });
   if (!selected || Array.isArray(selected)) return null;

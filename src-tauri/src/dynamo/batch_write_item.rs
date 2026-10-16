@@ -181,3 +181,49 @@ fn convert_item_to_json(_table_name: &str, put_request: &PutRequest) -> serde_js
         "attributes": json_item
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn invalid_attribute_is_skipped_with_an_error_entry() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = vec![serde_json::json!({
+            "attributes": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "tags", "value": "nope", "type": "SS"}
+            ]
+        })];
+        let response = batch_write_item(
+            &client,
+            BatchWriteInput {
+                table_name: "users",
+                items: &items,
+            },
+        )
+        .await
+        .expect("batch write returns an ApiResponse");
+
+        assert_eq!(response.status, 200);
+        let data = response.data.expect("data");
+        assert_eq!(data["inserted"], 0);
+        assert_eq!(data["skipped"], 1);
+        assert_eq!(data["error_count"], 1);
+        let message = data["errors"][0]["message"].as_str().unwrap();
+        assert!(message.contains("attribute 'tags'"));
+    }
+}

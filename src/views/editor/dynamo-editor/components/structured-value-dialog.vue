@@ -36,7 +36,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { TYPE_VALUE_TEMPLATES } from '../utils/dynamo-attribute';
+import {
+  TYPE_VALUE_TEMPLATES,
+  validateStructuredValue,
+  type StructuredValueIssue,
+} from '../utils/dynamo-attribute';
 
 const props = defineProps<{
   open: boolean;
@@ -53,50 +57,21 @@ const appStore = useAppStore();
 const { getEditorTheme, getEditorOptions } = appStore;
 const lang = useLang();
 
-const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
-
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
 const validationError = ref('');
 
-const validate = (text: string): string => {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch (error) {
-    return lang.t('editor.dynamo.jsonInvalidSyntax', { reason: (error as Error).message });
+const validationMessage = (issue: StructuredValueIssue | null): string => {
+  if (!issue) return '';
+  if (issue.kind === 'syntax') {
+    return lang.t('editor.dynamo.jsonInvalidSyntax', { reason: issue.reason });
   }
-
-  const invalidShape = () =>
-    lang.t('editor.dynamo.jsonInvalidShape', { type: props.attributeType });
-
-  if (props.attributeType === 'M') {
-    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? ''
-      : invalidShape();
-  }
-
-  if (!Array.isArray(parsed)) return invalidShape();
-  if (props.attributeType === 'L') return '';
-  // DynamoDB forbids empty sets
-  if (parsed.length === 0) return lang.t('editor.dynamo.emptySetNotAllowed');
-
-  if (props.attributeType === 'SS') {
-    return parsed.every(item => typeof item === 'string') ? '' : invalidShape();
-  }
-  if (props.attributeType === 'NS') {
-    return parsed.every(
-      item =>
-        typeof item === 'number' ||
-        (typeof item === 'string' && item.trim() !== '' && !Number.isNaN(Number(item))),
-    )
-      ? ''
-      : invalidShape();
-  }
-  return parsed.every(item => typeof item === 'string' && BASE64_PATTERN.test(item.trim()))
-    ? ''
-    : invalidShape();
+  if (issue.kind === 'emptySet') return lang.t('editor.dynamo.emptySetNotAllowed');
+  return lang.t('editor.dynamo.jsonInvalidShape', { type: props.attributeType });
 };
+
+const validate = (text: string): string =>
+  validationMessage(validateStructuredValue(props.attributeType, text));
 
 const setupEditor = () => {
   if (!editorRef.value) return;

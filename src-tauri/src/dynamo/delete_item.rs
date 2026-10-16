@@ -72,3 +72,44 @@ pub async fn delete_item(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn invalid_key_returns_400_before_send() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let payload = serde_json::json!({
+            "keys": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "age", "value": true, "type": "N"}
+            ]
+        });
+        let response = delete_item(
+            &client,
+            DeleteItemInput {
+                table_name: "users",
+                payload: &payload,
+            },
+        )
+        .await
+        .expect("conversion failure is an ApiResponse");
+
+        assert_eq!(response.status, 400);
+        assert!(response.message.contains("key attribute 'age'"));
+    }
+}

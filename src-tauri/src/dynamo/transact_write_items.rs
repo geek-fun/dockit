@@ -531,4 +531,91 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown operation 'upsert'"));
     }
+
+    #[tokio::test]
+    async fn test_transact_write_put_invalid_attribute() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "put",
+            "table_name": "t",
+            "attributes": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "age", "value": "x", "type": "N"}
+            ]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("attribute 'age' in 'put' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_update_invalid_key() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "update",
+            "table_name": "t",
+            "keys": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "sk", "value": "x", "type": "N"}
+            ],
+            "attributes": [{"key": "name", "value": "a", "type": "S"}]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("key attribute 'sk' in 'update' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_update_invalid_attribute() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "update",
+            "table_name": "t",
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "attributes": [
+                {"key": "name", "value": "a", "type": "S"},
+                {"key": "flag", "value": "maybe", "type": "BOOL"}
+            ]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("attribute 'flag' in 'update' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_delete_invalid_key() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "delete",
+            "table_name": "t",
+            "keys": [{"key": "id", "value": "nope", "type": "BOOL"}]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("key attribute 'id' in 'delete' at index 0"));
+    }
 }
