@@ -41,6 +41,15 @@
           </AlertDescription>
         </Alert>
 
+        <Alert v-if="showTunnelSkipped" variant="warning" class="mb-4">
+          <AlertDescription>
+            <p>{{ $t('connection.ssh.tunnelSkippedHint') }}</p>
+            <Button variant="default" size="sm" class="mt-3" @click="openUpgrade">
+              {{ $t('plan.upgrade.cta') }}
+            </Button>
+          </AlertDescription>
+        </Alert>
+
         <Form @submit.prevent="saveConnect">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
@@ -296,7 +305,8 @@ import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import { CustomError, MIN_LOADING_TIME } from '../../../common';
+import { CustomError, MIN_LOADING_TIME, UPGRADE_URL } from '../../../common';
+import { open as openExternal } from '@tauri-apps/plugin-shell';
 import mongodbIcon from '../../../assets/svg/mongodb.svg';
 import { DatabaseType, MongoDBConnection, useConnectionStore } from '../../../store';
 import type { SshConnectionConfig } from '../../../store';
@@ -705,6 +715,10 @@ const testConnect = async (event: MouseEvent) => {
 };
 
 const tunnelSkipped = () => sshConfig.value.enabled && !entitlementStore.isLocalUltimate;
+const showTunnelSkipped = computed(() => (isSuccess.value || isError.value) && tunnelSkipped());
+const openUpgrade = () => {
+  void openExternal(UPGRADE_URL);
+};
 
 const testConnectConfirm = async () => {
   testLoading.value = true;
@@ -720,11 +734,7 @@ const testConnectConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    succeed(
-      tunnelSkipped()
-        ? `${lang.t('connection.mongodb.connectSuccess')} · ${lang.t('connection.ssh.tunnelSkippedOnConnect')}`
-        : lang.t('connection.mongodb.connectSuccess'),
-    );
+    succeed(lang.t('connection.mongodb.connectSuccess'));
   } catch (e) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -733,8 +743,7 @@ const testConnectConfirm = async () => {
     }
 
     const error = e as CustomError;
-    const detail = error.details || `Connection failed (status: ${error.status})`;
-    fail(tunnelSkipped() ? `${detail} — ${lang.t('connection.ssh.tunnelSkippedHint')}` : detail);
+    fail(error.details || `Connection failed (status: ${error.status})`);
   } finally {
     testLoading.value = false;
   }

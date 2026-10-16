@@ -12,12 +12,17 @@
         <Alert v-if="isError" variant="destructive" class="alert-container">
           <AlertTitle>{{ $t('connection.connectionError') }}</AlertTitle>
           <AlertDescription>{{ message }}</AlertDescription>
-          <p v-if="errorHint" class="alert-hint">
-            {{ errorHint }}
-          </p>
           <button class="alert-close-btn" @click="resetResult()">
             <X class="w-4 h-4" />
           </button>
+        </Alert>
+        <Alert v-if="isError && errorHint" variant="warning" class="alert-container">
+          <AlertDescription>
+            <p>{{ errorHint }}</p>
+            <Button variant="default" size="sm" class="mt-3" @click="openUpgrade">
+              {{ $t('plan.upgrade.cta') }}
+            </Button>
+          </AlertDescription>
         </Alert>
         <div v-if="isIdle" class="loading-container">
           <Spinner size="lg" />
@@ -46,14 +51,20 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { open } from '@tauri-apps/plugin-shell';
 import { useDialogResult } from '@/composables';
 import { X } from 'lucide-vue-next';
+import { UPGRADE_URL } from '../../../common';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const { isError, isIdle, message, fail, reset: resetResult } = useDialogResult();
+
+const openUpgrade = () => {
+  void open(UPGRADE_URL);
+};
 const showModal = ref(false);
 const connectionName = ref('');
 const warning = ref<string | null>(null);
@@ -135,12 +146,6 @@ defineExpose({
   margin-bottom: 24px;
   width: 100%;
   position: relative;
-}
-
-.alert-hint {
-  margin-top: 8px;
-  font-size: 12px;
-  opacity: 0.9;
 }
 
 .alert-close-btn {

@@ -41,6 +41,15 @@
           </AlertDescription>
         </Alert>
 
+        <Alert v-if="showTunnelSkipped" variant="warning" class="mb-4">
+          <AlertDescription>
+            <p>{{ $t('connection.ssh.tunnelSkippedHint') }}</p>
+            <Button variant="default" size="sm" class="mt-3" @click="openUpgrade">
+              {{ $t('plan.upgrade.cta') }}
+            </Button>
+          </AlertDescription>
+        </Alert>
+
         <Form @submit.prevent="saveConnect">
           <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
             <Input
@@ -1264,6 +1273,10 @@ const isFormValid = computed(() => {
 });
 
 const tunnelSkipped = () => sshConfig.value.enabled && !entitlementStore.isLocalUltimate;
+const showTunnelSkipped = computed(() => (isSuccess.value || isError.value) && tunnelSkipped());
+const openUpgrade = () => {
+  void openExternal(UPGRADE_URL);
+};
 
 const testConnect = async () => {
   resetResult();
@@ -1305,17 +1318,9 @@ const testConnect = async () => {
     if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
     if (result.success) {
-      succeed(
-        tunnelSkipped()
-          ? `${lang.t('connection.testSuccess')} · ${lang.t('connection.ssh.tunnelSkippedOnConnect')}`
-          : lang.t('connection.testSuccess'),
-      );
+      succeed(lang.t('connection.testSuccess'));
     } else {
-      fail(
-        tunnelSkipped()
-          ? `${result.message} — ${lang.t('connection.ssh.tunnelSkippedHint')}`
-          : result.message,
-      );
+      fail(result.message);
     }
   } catch (error: unknown) {
     const elapsed = Date.now() - startTime;

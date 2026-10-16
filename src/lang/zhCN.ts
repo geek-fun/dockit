@@ -1018,8 +1018,6 @@ export const zhCN = {
         'SSH 隧道为旗舰版功能：社区版或未登录，本次连接已跳过该连接保存的 SSH 隧道配置并直连（配置保留，升级后自动恢复）。',
       tunnelSkippedHint:
         '本次连接已跳过该连接保存的 SSH 隧道（旗舰版功能，且当前为社区版或未登录）。如果集群只能通过该隧道访问，请升级到旗舰版。',
-      tunnelSkippedOnConnect:
-        '已直连 —— 该连接保存的 SSH 隧道被跳过（旗舰版功能，当前为社区版或未登录）',
       createProfile: '新建配置',
       editProfile: '编辑配置',
       noProfile: '未选择配置',
