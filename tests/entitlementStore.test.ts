@@ -9,12 +9,19 @@ jest.mock('@tauri-apps/api/core', () => ({
 const mockSetToken = jest.fn();
 const mockSetRefreshToken = jest.fn();
 const mockResetToken = jest.fn();
+let mockLoggedIn = true;
 
 jest.mock('../src/store/userStore', () => ({
   useUserStore: () => ({
-    isLoggedIn: true,
-    accessToken: 'token-1',
-    refreshToken: 'lease-1',
+    get isLoggedIn() {
+      return mockLoggedIn;
+    },
+    get accessToken() {
+      return mockLoggedIn ? 'token-1' : '';
+    },
+    get refreshToken() {
+      return mockLoggedIn ? 'lease-1' : '';
+    },
     setToken: mockSetToken,
     setRefreshToken: mockSetRefreshToken,
     resetToken: mockResetToken,
@@ -53,6 +60,46 @@ describe('entitlementStore', () => {
     // void-commands (revoke/clear) default to a resolved promise;
     // each test overrides per invocation name/value.
     mockInvoke.mockResolvedValue(undefined);
+    mockLoggedIn = true;
+  });
+
+  describe('no account session', () => {
+    it('never hydrates a leftover cache', async () => {
+      mockLoggedIn = false;
+      mockInvoke.mockResolvedValue(view({ localUltimate: true, fetchedAtMs: 42 }));
+      const store = useEntitlementStore();
+
+      await store.hydrate();
+
+      expect(mockInvoke).not.toHaveBeenCalled();
+      expect(store.view).toBeNull();
+      expect(store.isLocalUltimate).toBe(false);
+      expect(store.sessionPhase).toBe('anonymous');
+    });
+
+    it('drops the cached plan instead of refreshing anonymously', async () => {
+      mockLoggedIn = false;
+      mockInvoke.mockResolvedValue(view({ fetchedAtMs: null }));
+      const store = useEntitlementStore();
+      store.$patch({ view: view({ localUltimate: true, fetchedAtMs: 42 }) });
+
+      const outcome = await store.refreshEntitlement(true);
+
+      expect(outcome).toBe('ok');
+      expect(mockInvoke).toHaveBeenCalledWith('clear_entitlement');
+      expect(mockInvoke).not.toHaveBeenCalledWith('refresh_entitlement', expect.anything());
+      expect(store.view).toBeNull();
+      expect(store.isLocalUltimate).toBe(false);
+    });
+
+    it('claims the session on hydrate so background entitlements may reconcile', async () => {
+      mockInvoke.mockResolvedValue(view({ fetchedAtMs: 42 }));
+      const store = useEntitlementStore();
+
+      await store.hydrate();
+
+      expect(mockInvoke).toHaveBeenCalledWith('get_entitlement', { tokenPresent: true });
+    });
   });
 
   describe('hydrate', () => {

@@ -1052,6 +1052,10 @@ export const enUS = {
       systemProxyAdd: 'Add',
       systemProxyDetach: 'Remove system proxy',
       systemProxyNotDetected: 'System proxy is enabled but none was detected. Connecting directly.',
+      tunnelSkipped:
+        'SSH tunnel is an Ultimate feature: Community or signed-out sessions skip the tunnel saved on this connection and connect directly (the config itself is kept).',
+      tunnelSkippedHint:
+        'The tunnel saved on this connection was skipped for this attempt (an Ultimate feature, and you are on Community or signed out). If the cluster is only reachable through that tunnel, upgrade to Ultimate.',
       createProfile: 'Create New Profile',
       editProfile: 'Edit Profile',
       noProfile: 'No profile selected',

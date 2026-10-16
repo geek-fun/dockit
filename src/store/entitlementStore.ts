@@ -163,13 +163,23 @@ export const useEntitlementStore = defineStore('entitlement', {
     },
     // only a real server answer (fetchedAtMs) may surface as a confirmed plan
     async hydrate(): Promise<void> {
-      const cached = await invoke<EntitlementView>('get_entitlement').catch(() => null);
+      if (!useUserStore().isLoggedIn) {
+        this.view = null;
+        return;
+      }
+      const cached = await invoke<EntitlementView>('get_entitlement', {
+        tokenPresent: true,
+      }).catch(() => null);
       if (cached?.fetchedAtMs != null) {
         this.view = cached;
       }
     },
     async refreshEntitlement(force = false): Promise<'ok' | 'lost'> {
       const userStore = useUserStore();
+      if (!userStore.isLoggedIn) {
+        await this.clearCachedEntitlement();
+        return 'ok';
+      }
       for (let attempt = 0; ; attempt += 1) {
         try {
           this.view = await invoke<EntitlementView>('refresh_entitlement', {

@@ -16,6 +16,14 @@
             <X class="w-4 h-4" />
           </button>
         </Alert>
+        <Alert v-if="isError && errorHint" variant="warning" class="alert-container">
+          <AlertDescription>
+            <p>{{ errorHint }}</p>
+            <Button variant="default" size="sm" class="mt-3" @click="openUpgrade">
+              {{ $t('plan.upgrade.cta') }}
+            </Button>
+          </AlertDescription>
+        </Alert>
         <div v-if="isIdle" class="loading-container">
           <Spinner size="lg" />
         </div>
@@ -43,17 +51,24 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { open } from '@tauri-apps/plugin-shell';
 import { useDialogResult } from '@/composables';
 import { X } from 'lucide-vue-next';
+import { UPGRADE_URL } from '../../../common';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 const { isError, isIdle, message, fail, reset: resetResult } = useDialogResult();
+
+const openUpgrade = () => {
+  void open(UPGRADE_URL);
+};
 const showModal = ref(false);
 const connectionName = ref('');
 const warning = ref<string | null>(null);
+const errorHint = ref<string | null>(null);
 const cancelCallback = ref<(() => void) | null>(null);
 const retryCallback = ref<(() => void) | null>(null);
 
@@ -62,6 +77,7 @@ const show = (name: string, onCancel: () => void, onRetry: () => void, warn?: st
   cancelCallback.value = onCancel;
   retryCallback.value = onRetry;
   warning.value = warn ?? null;
+  errorHint.value = null;
   resetResult();
   showModal.value = true;
 };
@@ -70,12 +86,14 @@ const hide = () => {
   showModal.value = false;
   connectionName.value = '';
   warning.value = null;
+  errorHint.value = null;
   resetResult();
   cancelCallback.value = null;
   retryCallback.value = null;
 };
 
-const showError = (error: string) => {
+const showError = (error: string, hint?: string | null) => {
+  errorHint.value = hint ?? null;
   fail(error);
 };
 

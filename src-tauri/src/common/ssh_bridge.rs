@@ -4,8 +4,7 @@
 use crate::ssh::config::{SshConnectionConfig, TransportLayerConfig};
 use crate::ssh::{start_transport_layers, TunnelManager};
 use serde_json::Value;
-use tauri::AppHandle;
-use tauri::Manager;
+use tauri::{AppHandle, Manager, Runtime};
 
 /// Resolved tunnel endpoint. The tunnel stays alive in TunnelManager
 /// until the app exits — callers should NOT clean up after each use.
@@ -63,8 +62,8 @@ fn tunnel_key(ssh: Option<&Value>, host: &str, port: u16) -> String {
 /// the client talks plain HTTP to 127.0.0.1:{local_port} and SSH forwards
 /// it. https (ES, AWS DynamoDB) and mongodb:// (Mongo) targets keep
 /// SOCKS5/CONNECT.
-pub async fn resolve_connection_target(
-    app: &AppHandle,
+pub async fn resolve_connection_target<R: Runtime>(
+    app: &AppHandle<R>,
     config: &Value,
     connection_id: &str,
     tunnels: &TunnelManager,
@@ -123,10 +122,61 @@ pub async fn resolve_connection_target(
     }
 }
 
+/// SSH tunnels need a confirmed session and an active plan; without both, the
+/// tunnel is dropped so the caller connects directly.
+pub fn effective_ssh_tunnel<R: Runtime>(
+    app: &AppHandle<R>,
+    ssh_tunnel: Option<Value>,
+) -> Option<Value> {
+    if ssh_tunnel_allowed(app) {
+        return ssh_tunnel;
+    }
+    let enabled = ssh_tunnel
+        .as_ref()
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if enabled {
+        None
+    } else {
+        ssh_tunnel
+    }
+}
+
+pub(crate) fn ssh_tunnel_allowed<R: Runtime>(app: &AppHandle<R>) -> bool {
+    use tauri::Manager;
+    let entitlement = app.state::<crate::entitlement::EntitlementState>();
+    entitlement.session_confirmed() && entitlement.local_entitled()
+}
+
+/// An existing tunnel port is visible only while this run may use SSH.
+pub(crate) async fn gated_tunnel_port<R: Runtime>(
+    app: &AppHandle<R>,
+    connection_id: Option<&str>,
+) -> Option<u16> {
+    if !ssh_tunnel_allowed(app) {
+        return None;
+    }
+    let cid = connection_id?;
+    app.state::<crate::ssh::TunnelManager>()
+        .local_port(cid)
+        .await
+}
+
 /// Resolve the SSH tunnel for a connection config in place: when enabled,
 /// `host`/`port`/`endpointUrl` are rewritten to the local tunnel endpoint
 /// and `sshTunnel` is removed; when disabled, `sshTunnel` is removed.
-pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result<(), String> {
+pub async fn resolve_ssh_in_place<R: Runtime>(
+    app: &AppHandle<R>,
+    config: &mut Value,
+) -> Result<(), String> {
+    if !ssh_tunnel_allowed(app) {
+        if let Some(obj) = config.as_object_mut() {
+            obj.remove("sshTunnel");
+        }
+        return Ok(());
+    }
+
     let ssh = config.get("sshTunnel").cloned();
     let enabled = ssh
         .as_ref()
@@ -321,8 +371,8 @@ fn derive_region_endpoint(config: &Value) -> Option<String> {
 ///
 /// `force_port_forward` forces port-forward mode (plain-HTTP targets like
 /// DynamoDB Local; see `resolve_connection_target`).
-pub async fn resolve_ssh_tunnel(
-    app: &AppHandle,
+pub async fn resolve_ssh_tunnel<R: Runtime>(
+    app: &AppHandle<R>,
     ssh: Option<&Value>,
     host: &str,
     port: u16,
@@ -363,8 +413,8 @@ pub async fn resolve_ssh_tunnel(
 
 /// Build transport layer configs from the SSH connection config.
 /// Each profile_id represents one hop in the chain, processed in order.
-fn build_transport_layers(
-    app: &AppHandle,
+fn build_transport_layers<R: Runtime>(
+    app: &AppHandle<R>,
     ssh: &SshConnectionConfig,
 ) -> Result<Vec<TransportLayerConfig>, String> {
     let mut layers = if !ssh.profile_ids.is_empty() {
@@ -387,8 +437,8 @@ fn build_transport_layers(
     Ok(layers)
 }
 
-fn load_profile_as_tunnel(
-    app: &AppHandle,
+fn load_profile_as_tunnel<R: Runtime>(
+    app: &AppHandle<R>,
     profile_id: &str,
 ) -> Result<TransportLayerConfig, String> {
     use tauri_plugin_store::StoreExt;
@@ -679,5 +729,133 @@ mod tests {
             extract_remote_target(&serde_json::json!({ "endpointUrl": "not a url" })),
             ("localhost".to_string(), 443)
         );
+    }
+
+    fn mock_app(
+        state: crate::entitlement::EntitlementState,
+    ) -> tauri::App<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .manage(state)
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app")
+    }
+
+    fn enabled_tunnel() -> Value {
+        json!({
+            "enabled": true,
+            "inline": { "host": "bastion", "port": 22, "username": "jump" }
+        })
+    }
+
+    #[test]
+    fn a_tunnel_is_allowed_only_for_a_confirmed_session_and_an_active_plan() {
+        let unsigned = crate::entitlement::EntitlementState::load(None);
+        unsigned.grant_active_plan_for_test();
+        let cached_only = mock_app(unsigned);
+        assert!(!ssh_tunnel_allowed(cached_only.handle()));
+
+        let signed_out = mock_app(crate::entitlement::EntitlementState::load(None));
+        assert!(!ssh_tunnel_allowed(signed_out.handle()));
+
+        let session_only = crate::entitlement::EntitlementState::load(None);
+        session_only.confirm_session();
+        let free = mock_app(session_only);
+        assert!(!ssh_tunnel_allowed(free.handle()));
+
+        let paid = crate::entitlement::EntitlementState::load(None);
+        paid.confirm_session();
+        paid.grant_active_plan_for_test();
+        let ultimate = mock_app(paid);
+        assert!(ssh_tunnel_allowed(ultimate.handle()));
+    }
+
+    #[test]
+    fn an_enabled_tunnel_is_dropped_unless_this_run_may_use_it() {
+        let blocked = mock_app(crate::entitlement::EntitlementState::load(None));
+        assert!(effective_ssh_tunnel(blocked.handle(), Some(enabled_tunnel())).is_none());
+        let disabled = json!({"enabled": false});
+        assert_eq!(
+            effective_ssh_tunnel(blocked.handle(), Some(disabled.clone())).as_ref(),
+            Some(&disabled)
+        );
+        assert!(effective_ssh_tunnel(blocked.handle(), None).is_none());
+
+        let paid = crate::entitlement::EntitlementState::load(None);
+        paid.confirm_session();
+        paid.grant_active_plan_for_test();
+        let ultimate = mock_app(paid);
+        let kept = effective_ssh_tunnel(ultimate.handle(), Some(enabled_tunnel()));
+        assert_eq!(kept.and_then(|v| v["enabled"].as_bool()), Some(true));
+    }
+
+    #[tokio::test]
+    async fn resolve_ssh_in_place_strips_a_saved_tunnel_without_a_live_plan() {
+        let cached = crate::entitlement::EntitlementState::load(None);
+        cached.grant_active_plan_for_test();
+        let app = mock_app(cached);
+        let mut config = json!({
+            "host": "db.internal",
+            "port": 27017,
+            "sshTunnel": enabled_tunnel(),
+        });
+
+        resolve_ssh_in_place(app.handle(), &mut config)
+            .await
+            .expect("dropping the tunnel does not connect");
+
+        assert!(config.get("sshTunnel").is_none());
+        assert_eq!(config["host"], "db.internal");
+        assert_eq!(config["port"], 27017);
+    }
+
+    #[tokio::test]
+    async fn resolve_ssh_in_place_leaves_a_non_object_config_alone() {
+        let app = mock_app(crate::entitlement::EntitlementState::load(None));
+        let mut config = Value::Null;
+        resolve_ssh_in_place(app.handle(), &mut config)
+            .await
+            .unwrap();
+        assert!(config.is_null());
+    }
+
+    #[tokio::test]
+    async fn resolve_ssh_in_place_drops_a_disabled_tunnel_when_the_plan_allows_ssh() {
+        let paid = crate::entitlement::EntitlementState::load(None);
+        paid.confirm_session();
+        paid.grant_active_plan_for_test();
+        let app = mock_app(paid);
+        let mut config = json!({
+            "host": "db.internal",
+            "port": 27017,
+            "sshTunnel": { "enabled": false },
+        });
+
+        resolve_ssh_in_place(app.handle(), &mut config)
+            .await
+            .unwrap();
+
+        assert!(config.get("sshTunnel").is_none());
+        assert_eq!(config["host"], "db.internal");
+    }
+
+    #[tokio::test]
+    async fn gated_tunnel_port_stays_hidden_without_a_live_plan() {
+        let blocked = mock_app(crate::entitlement::EntitlementState::load(None));
+        assert!(gated_tunnel_port(blocked.handle(), Some("conn-1"))
+            .await
+            .is_none());
+
+        let paid = crate::entitlement::EntitlementState::load(None);
+        paid.confirm_session();
+        paid.grant_active_plan_for_test();
+        let app = tauri::test::mock_builder()
+            .manage(paid)
+            .manage(crate::ssh::TunnelManager::new())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app");
+        assert!(gated_tunnel_port(app.handle(), None).await.is_none());
+        assert!(gated_tunnel_port(app.handle(), Some("missing"))
+            .await
+            .is_none());
     }
 }

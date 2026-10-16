@@ -9,12 +9,13 @@
 //! `ultimateActive` regardless of the version lock.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Runtime, State};
 
 use crate::common::console;
 
@@ -215,6 +216,8 @@ pub struct EntitlementState {
     cache: Mutex<Option<SubscriptionCache>>,
     last_success_ms: Mutex<i64>,
     cache_path: Mutex<Option<PathBuf>>,
+    /// A persisted cache proves nothing about the current session.
+    session_confirmed: AtomicBool,
 }
 
 impl EntitlementState {
@@ -228,7 +231,26 @@ impl EntitlementState {
             cache: Mutex::new(cache),
             last_success_ms: Mutex::new(0),
             cache_path: Mutex::new(cache_path),
+            session_confirmed: AtomicBool::new(false),
         }
+    }
+
+    pub fn confirm_session(&self) {
+        self.session_confirmed.store(true, Ordering::SeqCst);
+    }
+
+    pub fn session_confirmed(&self) -> bool {
+        self.session_confirmed.load(Ordering::SeqCst)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn grant_active_plan_for_test(&self) {
+        self.set_cache(SubscriptionCache {
+            fetched_at_ms: now_unix_ms(),
+            ultimate_expires_at: Some("2999-01-01T00:00:00.000Z".to_string()),
+            version_lock_horizon: None,
+            cancel_scheduled_at: None,
+        });
     }
 
     fn set_cache(&self, cache: SubscriptionCache) {
@@ -283,6 +305,7 @@ impl EntitlementState {
             .last_success_ms
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = 0;
+        self.session_confirmed.store(false, Ordering::SeqCst);
         if let Ok(path) = self.cache_path.lock() {
             if let Some(path) = path.as_ref() {
                 let _ = std::fs::remove_file(path);
@@ -376,6 +399,16 @@ fn parse_subscriptions_payload(
     }
 }
 
+/// No session means no entitlement: drop the cache rather than serve it.
+fn anonymous_view(state: &EntitlementState) -> EntitlementView {
+    state.clear();
+    state.view(
+        true,
+        Some("not logged in".to_string()),
+        SESSION_PHASE_ANONYMOUS,
+    )
+}
+
 /// Transport-level entitlement refresh: classify the network outcome and
 /// resolve it onto a view. A transparent rotation never blocks the caller —
 /// the rotated successor rides back as `Some(session)` so the command layer
@@ -391,15 +424,9 @@ async fn refresh_entitlement_core(
     identity: &crate::device_activation::DeviceIdentityState,
 ) -> Result<(EntitlementView, Option<crate::session::RefreshedSession>), String> {
     if token.trim().is_empty() {
-        return Ok((
-            state.view(
-                true,
-                Some("not logged in".to_string()),
-                SESSION_PHASE_ANONYMOUS,
-            ),
-            None,
-        ));
+        return Ok((anonymous_view(state), None));
     }
+    state.confirm_session();
     if !force && state.refresh_throttled() {
         return Ok((state.view(true, None, SESSION_PHASE_SIGNED_IN), None));
     }
@@ -476,6 +503,14 @@ pub async fn refresh_entitlement(
         &identity,
     )
     .await?;
+    Ok(settle_refresh(view, rotated, &app))
+}
+
+pub(crate) fn settle_refresh<R: Runtime>(
+    view: EntitlementView,
+    rotated: Option<crate::session::RefreshedSession>,
+    app: &AppHandle<R>,
+) -> EntitlementView {
     if let Some(refreshed) = rotated {
         let _ = app.emit(
             "session-refreshed",
@@ -485,11 +520,30 @@ pub async fn refresh_entitlement(
             }),
         );
     }
-    Ok(view)
+    if view.session_phase != SESSION_PHASE_EXPIRED {
+        crate::mcp_bridge::sync_with_entitlement(app);
+    }
+    view
 }
 
 #[tauri::command]
-pub fn get_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
+pub fn get_entitlement(
+    token_present: Option<bool>,
+    state: State<'_, EntitlementState>,
+    app: AppHandle,
+) -> EntitlementView {
+    entitlement_view_for_token(token_present, &state, &app)
+}
+
+pub(crate) fn entitlement_view_for_token<R: Runtime>(
+    token_present: Option<bool>,
+    state: &EntitlementState,
+    app: &AppHandle<R>,
+) -> EntitlementView {
+    if token_present == Some(true) {
+        state.confirm_session();
+        crate::mcp_bridge::sync_with_entitlement(app);
+    }
     // Cached read without a session verdict — the frontend derives the phase
     // from token facts and the next refresh corrects it.
     state.view(true, None, SESSION_PHASE_SIGNED_IN)
@@ -533,14 +587,23 @@ fn seed_cache(
 /// must not outlive the session (a different account on the same machine
 /// must not inherit the previous account's version lock).
 #[tauri::command]
-pub fn clear_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
+pub fn clear_entitlement(state: State<'_, EntitlementState>, app: AppHandle) -> EntitlementView {
+    reset_entitlement(&state, &app)
+}
+
+pub(crate) fn reset_entitlement<R: Runtime>(
+    state: &EntitlementState,
+    app: &AppHandle<R>,
+) -> EntitlementView {
     state.clear();
+    crate::mcp_bridge::sync_with_entitlement(app);
     state.view(true, None, SESSION_PHASE_ANONYMOUS)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::Manager;
 
     const NOW: i64 = 1_760_000_000_000; // 2025-10-09T06:13:20Z
 
@@ -730,6 +793,30 @@ mod tests {
 
         let reloaded = EntitlementState::load(Some(path));
         assert!(reloaded.local_entitled(), "seeded cache survives a restart");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_persisted_cache_alone_is_not_a_session() {
+        let dir = temp_dir("session-claim");
+        let path = dir.join("cache.json");
+        let state = EntitlementState::load(Some(path.clone()));
+        seed_cache(
+            &state,
+            Some("2999-01-01T00:00:00.000Z".to_string()),
+            None,
+            None,
+        );
+
+        assert!(state.local_entitled());
+        assert!(!state.session_confirmed());
+
+        state.confirm_session();
+        assert!(state.session_confirmed());
+
+        let view = anonymous_view(&state);
+        assert!(!state.session_confirmed());
+        assert!(!view.local_ultimate);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -998,5 +1085,70 @@ mod tests {
         let rotated = rotated.expect("a rotated session rides back");
         assert_eq!(rotated.access_token, rotated_token);
         assert_eq!(rotated.refresh_token, format!("{lease}-next"));
+    }
+
+    fn mock_app(state: EntitlementState) -> tauri::App<tauri::test::MockRuntime> {
+        tauri::test::mock_builder()
+            .manage(state)
+            .manage(crate::mcp_bridge::McpServerHandle::new())
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app")
+    }
+
+    #[test]
+    fn a_present_token_claims_the_session_and_a_missing_one_does_not() {
+        let claimed = EntitlementState::load(None);
+        let app = mock_app(claimed);
+        let state = app.state::<EntitlementState>();
+        entitlement_view_for_token(Some(true), &state, app.handle());
+        assert!(state.session_confirmed());
+
+        let untouched = EntitlementState::load(None);
+        let app = mock_app(untouched);
+        let state = app.state::<EntitlementState>();
+        entitlement_view_for_token(None, &state, app.handle());
+        entitlement_view_for_token(Some(false), &state, app.handle());
+        assert!(!state.session_confirmed());
+    }
+
+    #[test]
+    fn clearing_the_entitlement_drops_the_plan_and_the_session() {
+        let state = EntitlementState::load(None);
+        state.confirm_session();
+        state.grant_active_plan_for_test();
+        let app = mock_app(state);
+        let state = app.state::<EntitlementState>();
+
+        let view = reset_entitlement(&state, app.handle());
+
+        assert!(!state.session_confirmed());
+        assert!(!state.local_entitled());
+        assert!(!view.local_ultimate);
+        assert_eq!(view.session_phase, SESSION_PHASE_ANONYMOUS);
+    }
+
+    #[test]
+    fn an_expired_refresh_does_not_sync_and_a_live_one_broadcasts_rotation() {
+        let state = EntitlementState::load(None);
+        let app = mock_app(state);
+        let expired = EntitlementState::load(None).view(
+            true,
+            Some("session expired".to_string()),
+            SESSION_PHASE_EXPIRED,
+        );
+        let settled = settle_refresh(expired, None, app.handle());
+        assert_eq!(settled.session_phase, SESSION_PHASE_EXPIRED);
+
+        let signed_in = EntitlementState::load(None).view(true, None, SESSION_PHASE_SIGNED_IN);
+        let settled = settle_refresh(
+            signed_in,
+            Some(crate::session::RefreshedSession {
+                access_token: "next-access".to_string(),
+                refresh_token: "next-refresh".to_string(),
+            }),
+            app.handle(),
+        );
+        assert_eq!(settled.session_phase, SESSION_PHASE_SIGNED_IN);
+        assert!(settled.last_error.is_none());
     }
 }

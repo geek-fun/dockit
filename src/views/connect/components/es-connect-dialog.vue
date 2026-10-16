@@ -41,6 +41,15 @@
           </AlertDescription>
         </Alert>
 
+        <Alert v-if="showTunnelSkipped" variant="warning" class="mb-4">
+          <AlertDescription>
+            <p>{{ $t('connection.ssh.tunnelSkippedHint') }}</p>
+            <Button variant="default" size="sm" class="mt-3" @click="openUpgrade">
+              {{ $t('plan.upgrade.cta') }}
+            </Button>
+          </AlertDescription>
+        </Alert>
+
         <Form @submit.prevent="saveConnect">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
@@ -300,7 +309,8 @@ import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import { CustomError, MIN_LOADING_TIME } from '../../../common';
+import { CustomError, MIN_LOADING_TIME, UPGRADE_URL } from '../../../common';
+import { open as openExternal } from '@tauri-apps/plugin-shell';
 import elasticsearchIcon from '../../../assets/svg/elasticsearch.svg';
 import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
 import easysearchIcon from '../../../assets/svg/easysearch.svg';
@@ -570,6 +580,12 @@ const testConnect = async (event: MouseEvent) => {
   }
 
   testConnectConfirm();
+};
+
+const tunnelSkipped = () => sshConfig.value.enabled && !entitlementStore.isLocalUltimate;
+const showTunnelSkipped = computed(() => (isSuccess.value || isError.value) && tunnelSkipped());
+const openUpgrade = () => {
+  void openExternal(UPGRADE_URL);
 };
 
 const testConnectConfirm = async () => {

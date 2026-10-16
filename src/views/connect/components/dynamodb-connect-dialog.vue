@@ -41,6 +41,15 @@
           </AlertDescription>
         </Alert>
 
+        <Alert v-if="showTunnelSkipped" variant="warning" class="mb-4">
+          <AlertDescription>
+            <p>{{ $t('connection.ssh.tunnelSkippedHint') }}</p>
+            <Button variant="default" size="sm" class="mt-3" @click="openUpgrade">
+              {{ $t('plan.upgrade.cta') }}
+            </Button>
+          </AlertDescription>
+        </Alert>
+
         <Form @submit.prevent="saveConnect">
           <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
             <Input
@@ -1262,6 +1271,12 @@ const isFormValid = computed(() => {
       return false;
   }
 });
+
+const tunnelSkipped = () => sshConfig.value.enabled && !entitlementStore.isLocalUltimate;
+const showTunnelSkipped = computed(() => (isSuccess.value || isError.value) && tunnelSkipped());
+const openUpgrade = () => {
+  void openExternal(UPGRADE_URL);
+};
 
 const testConnect = async () => {
   resetResult();

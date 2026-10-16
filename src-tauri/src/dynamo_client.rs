@@ -160,20 +160,8 @@ pub async fn dynamo_api(
     credentials: DynamoCredentials,
     options: DynamoOptions,
 ) -> Result<String, String> {
-    // Resolve SSH tunnel port if connection_id is provided
-    let tunnel_port = if let Some(ref cid) = options.connection_id {
-        app.state::<crate::ssh::TunnelManager>()
-            .local_port(cid)
-            .await
-    } else {
-        None
-    };
-    if tunnel_port.is_some() {
-        crate::entitlement::ensure_local_ultimate(
-            app.state::<crate::entitlement::EntitlementState>().inner(),
-            "SSH tunnel",
-        )?;
-    }
+    let tunnel_port =
+        crate::common::ssh_bridge::gated_tunnel_port(&app, options.connection_id.as_deref()).await;
     match &credentials.auth {
         DynamoAuth::Profile { .. } | DynamoAuth::Sso { .. } | DynamoAuth::AssumeRole { .. } => {
             crate::entitlement::ensure_local_ultimate(
@@ -549,18 +537,7 @@ pub async fn dynamo_test_connection(
     }
 
     let (remote_host, remote_port) = crate::common::ssh_bridge::extract_remote_target(&config);
-    let ssh_enabled = ssh_tunnel
-        .as_ref()
-        .and_then(|s| s.get("enabled"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if ssh_enabled {
-        // Gate before any tunnel is established, not after.
-        crate::entitlement::ensure_local_ultimate(
-            app.state::<crate::entitlement::EntitlementState>().inner(),
-            "SSH tunnel",
-        )?;
-    }
+    let ssh_tunnel = crate::common::ssh_bridge::effective_ssh_tunnel(&app, ssh_tunnel);
     let endpoint_is_http = config
         .get("endpointUrl")
         .and_then(|v| v.as_str())
@@ -574,12 +551,6 @@ pub async fn dynamo_test_connection(
         endpoint_is_http,
     )
     .await?;
-    if tunnel.host == "127.0.0.1" || tunnel.socks5_port.is_some() {
-        crate::entitlement::ensure_local_ultimate(
-            app.state::<crate::entitlement::EntitlementState>().inner(),
-            "SSH tunnel",
-        )?;
-    }
     if let Some(socks5_port) = tunnel.socks5_port {
         // Socks5/CONNECT mode (dual-protocol tunnel): the AWS SDK supports
         // HTTP CONNECT proxies, so route through the tunnel with the real

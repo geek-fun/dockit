@@ -1014,6 +1014,10 @@ export const zhCN = {
       systemProxyAdd: '添加',
       systemProxyDetach: '移除系统代理',
       systemProxyNotDetected: '已启用系统代理但当前未检测到，正在直连。',
+      tunnelSkipped:
+        'SSH 隧道为旗舰版功能：社区版或未登录，本次连接已跳过该连接保存的 SSH 隧道配置并直连（配置保留，升级后自动恢复）。',
+      tunnelSkippedHint:
+        '本次连接已跳过该连接保存的 SSH 隧道（旗舰版功能，且当前为社区版或未登录）。如果集群只能通过该隧道访问，请升级到旗舰版。',
       createProfile: '新建配置',
       editProfile: '编辑配置',
       noProfile: '未选择配置',
