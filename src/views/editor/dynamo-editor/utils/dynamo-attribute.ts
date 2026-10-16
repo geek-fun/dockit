@@ -21,7 +21,38 @@ export type StructuredValueIssue =
   | { kind: 'shape' }
   | { kind: 'emptySet' };
 
-const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const DECIMAL_PATTERN = /^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/;
+
+const hasCanonicalTrailingBits = (padded: string): boolean => {
+  const padding = padded.endsWith('==') ? 2 : padded.endsWith('=') ? 1 : 0;
+  if (padding === 0) return true;
+  const last = BASE64_ALPHABET.indexOf(padded[padded.length - padding - 1]);
+  return padding === 2 ? (last & 0b1111) === 0 : (last & 0b11) === 0;
+};
+
+// Mirrors the Rust `general_purpose::STANDARD` decoder used by convert_json_to_attr_value.
+// An empty string is valid: DynamoDB allows empty binary values inside a set.
+const isCanonicalBase64 = (value: string): boolean => {
+  const trimmed = value.trim();
+  return BASE64_PATTERN.test(trimmed) && hasCanonicalTrailingBits(trimmed);
+};
+
+// Mirrors the Rust i64-then-f64 parse, minus the non-finite values Rust would pass through.
+const isNumericString = (value: string): boolean => {
+  const trimmed = value.trim();
+  return DECIMAL_PATTERN.test(trimmed) && Number.isFinite(Number(trimmed));
+};
+
+const hasNonFiniteNumber = (value: unknown): boolean => {
+  if (typeof value === 'number') return !Number.isFinite(value);
+  if (Array.isArray(value)) return value.some(hasNonFiniteNumber);
+  if (value !== null && typeof value === 'object') {
+    return Object.values(value).some(hasNonFiniteNumber);
+  }
+  return false;
+};
 
 export const validateStructuredValue = (
   attributeType: string,
@@ -34,6 +65,10 @@ export const validateStructuredValue = (
     return { kind: 'syntax', reason: (error as Error).message };
   }
 
+  // JSON.parse turns an overflowing literal (1e400) into Infinity, which JSON.stringify
+  // would silently rewrite as null and change the stored value.
+  if (hasNonFiniteNumber(parsed)) return { kind: 'shape' };
+
   if (attributeType === 'M') {
     return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
       ? null
@@ -45,20 +80,45 @@ export const validateStructuredValue = (
   if (parsed.length === 0) return { kind: 'emptySet' };
 
   if (attributeType === 'SS') {
+    // Empty string values are allowed inside a set; only the set itself cannot be empty.
     return parsed.every(item => typeof item === 'string') ? null : { kind: 'shape' };
   }
   if (attributeType === 'NS') {
     return parsed.every(
       item =>
-        typeof item === 'number' ||
-        (typeof item === 'string' && item.trim() !== '' && !Number.isNaN(Number(item))),
+        (typeof item === 'number' && Number.isFinite(item)) ||
+        (typeof item === 'string' && isNumericString(item)),
     )
       ? null
       : { kind: 'shape' };
   }
-  return parsed.every(item => typeof item === 'string' && BASE64_PATTERN.test(item.trim()))
+  return parsed.every(item => typeof item === 'string' && isCanonicalBase64(item))
     ? null
     : { kind: 'shape' };
+};
+
+export type TableKeyLabels = {
+  partitionKeyName?: string;
+  sortKeyName?: string;
+  partitionKeyLabel?: string;
+  sortKeyLabel?: string;
+};
+
+type TableKeyLike = { name?: string };
+
+export const resolveTableKeyLabels = (table?: {
+  partitionKey?: TableKeyLike;
+  sortKey?: TableKeyLike;
+}): TableKeyLabels => {
+  const partitionKeyName = table?.partitionKey?.name;
+  const sortKeyName = table?.sortKey?.name;
+
+  return {
+    partitionKeyName,
+    sortKeyName,
+    partitionKeyLabel: partitionKeyName ? `${partitionKeyName}  (Partition Key):` : undefined,
+    sortKeyLabel: sortKeyName ? `${sortKeyName} (Sort Key):` : undefined,
+  };
 };
 
 export const pickBinaryFileAsBase64 = async (): Promise<string | null> => {

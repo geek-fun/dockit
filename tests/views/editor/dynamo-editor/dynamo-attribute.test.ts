@@ -3,6 +3,7 @@ import { readFile } from '@tauri-apps/plugin-fs';
 import {
   isStructuredType,
   pickBinaryFileAsBase64,
+  resolveTableKeyLabels,
   typeValueTemplate,
   validateStructuredValue,
 } from '../../../../src/views/editor/dynamo-editor/utils/dynamo-attribute';
@@ -62,6 +63,106 @@ describe('dynamo attribute helpers', () => {
       const issue = validateStructuredValue('L', '{');
       expect(issue?.kind).toBe('syntax');
       if (issue?.kind === 'syntax') expect(issue.reason.length).toBeGreaterThan(0);
+    });
+
+    // DynamoDB rejects empty sets but allows empty string/binary values inside a set
+    // (verified against a local DynamoDB: SS ["a",""] and BS [""] are accepted).
+    it('allows empty values inside a set but not an empty set', () => {
+      expect(validateStructuredValue('SS', '["a", ""]')).toBeNull();
+      expect(validateStructuredValue('BS', '[""]')).toBeNull();
+      expect(validateStructuredValue('SS', '[]')).toEqual({ kind: 'emptySet' });
+      expect(validateStructuredValue('BS', '[]')).toEqual({ kind: 'emptySet' });
+    });
+
+    it('rejects numbers JSON.parse turned into Infinity', () => {
+      expect(validateStructuredValue('NS', '[1e400]')).toEqual({ kind: 'shape' });
+      expect(validateStructuredValue('L', '[1e400]')).toEqual({ kind: 'shape' });
+      expect(validateStructuredValue('M', '{"a": -1e400}')).toEqual({ kind: 'shape' });
+    });
+
+    // Samples cross-checked against the Rust `general_purpose::STANDARD` decoder used by
+    // convert_json_to_attr_value: a value this validator accepts must not yield a 400 later.
+    it.each([
+      ['aGVsbG8=', true],
+      ['abcd', true],
+      ['abc=', true],
+      ['YWJjZA==', true],
+      [' aGVsbG8= ', true],
+      ['aGVsbG8', false],
+      ['abc', false],
+      ['ab==', false],
+      ['a==', false],
+      ['aGVsbG9=', false],
+      ['====', false],
+      ['aGVsbG8=extra', false],
+      ['!!!', false],
+      ['', true],
+    ])('base64 sample %p is accepted: %p', (sample, accepted) => {
+      const text = JSON.stringify([sample]);
+      expect(validateStructuredValue('BS', text)).toEqual(accepted ? null : { kind: 'shape' });
+    });
+
+    // Samples cross-checked against the Rust i64-then-f64 parse in json_number_to_string.
+    it.each([
+      ['42', true],
+      ['42.5', true],
+      [' 7 ', true],
+      ['+5', true],
+      ['.5', true],
+      ['5.', true],
+      ['1e2', true],
+      ['0x10', false],
+      ['1_000', false],
+      ['Infinity', false],
+      ['NaN', false],
+      ['', false],
+      [' ', false],
+    ])('numeric string sample %p is accepted: %p', (sample, accepted) => {
+      const text = JSON.stringify([sample]);
+      expect(validateStructuredValue('NS', text)).toEqual(accepted ? null : { kind: 'shape' });
+    });
+  });
+
+  describe('resolveTableKeyLabels', () => {
+    it('derives both labels from the table key schema', () => {
+      const labels = resolveTableKeyLabels({
+        partitionKey: { name: 'pk' },
+        sortKey: { name: 'sk' },
+      });
+
+      expect(labels).toEqual({
+        partitionKeyName: 'pk',
+        sortKeyName: 'sk',
+        partitionKeyLabel: 'pk  (Partition Key):',
+        sortKeyLabel: 'sk (Sort Key):',
+      });
+    });
+
+    it('renders only the partition key when there is no sort key', () => {
+      const labels = resolveTableKeyLabels({ partitionKey: { name: 'pk' } });
+
+      expect(labels.partitionKeyName).toBe('pk');
+      expect(labels.partitionKeyLabel).toBe('pk  (Partition Key):');
+      expect(labels.sortKeyName).toBeUndefined();
+      expect(labels.sortKeyLabel).toBeUndefined();
+    });
+
+    it('renders nothing when the table metadata is missing', () => {
+      expect(resolveTableKeyLabels()).toEqual({
+        partitionKeyName: undefined,
+        sortKeyName: undefined,
+        partitionKeyLabel: undefined,
+        sortKeyLabel: undefined,
+      });
+      expect(resolveTableKeyLabels({})).toEqual(resolveTableKeyLabels());
+    });
+
+    it('ignores a key entry without a name', () => {
+      const labels = resolveTableKeyLabels({ partitionKey: {}, sortKey: { name: 'sk' } });
+
+      expect(labels.partitionKeyLabel).toBeUndefined();
+      expect(labels.partitionKeyName).toBeUndefined();
+      expect(labels.sortKeyName).toBe('sk');
     });
   });
 

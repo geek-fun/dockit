@@ -293,6 +293,7 @@ import StructuredValueDialog from './structured-value-dialog.vue';
 import {
   isStructuredType,
   pickBinaryFileAsBase64,
+  resolveTableKeyLabels,
   typeValueTemplate,
 } from '../utils/dynamo-attribute';
 import { Button } from '@/components/ui/button';
@@ -398,24 +399,9 @@ const handleStructuredApply = (value: string) => {
 
 const selectedTable = computed(() => {
   const tableName = tabStore.activePanel?.activeTable;
-  if (!tableName) {
-    return {
-      partitionKeyName: undefined,
-      sortKeyName: undefined,
-      partitionKeyLabel: undefined,
-      sortKeyLabel: undefined,
-    };
-  }
+  if (!tableName) return resolveTableKeyLabels();
 
-  const { partitionKey, sortKey } =
-    findTable(activeConnection.value as DynamoDBConnection, tableName) ?? {};
-
-  return {
-    partitionKeyName: partitionKey?.name,
-    sortKeyName: sortKey?.name,
-    partitionKeyLabel: partitionKey?.name ? `${partitionKey.name}  (Partition Key):` : undefined,
-    sortKeyLabel: sortKey?.name ? `${sortKey.name} (Sort Key):` : undefined,
-  };
+  return resolveTableKeyLabels(findTable(activeConnection.value as DynamoDBConnection, tableName));
 });
 
 const calcType = (type: string) => {

@@ -1,4 +1,4 @@
-use crate::common::dynamodb_utils::convert_json_to_attr_value;
+use crate::common::dynamodb_utils::convert_attributes;
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::types::{PutRequest, WriteRequest};
@@ -40,37 +40,17 @@ pub async fn batch_write_item(
         let mut chunk_skipped = 0usize;
 
         for item_json in chunk {
-            if let Some(attributes) = item_json.get("attributes").and_then(|v| v.as_array()) {
-                let mut item_map: HashMap<String, aws_sdk_dynamodb::types::AttributeValue> =
-                    HashMap::new();
-                let mut item_error: Option<String> = None;
-
-                for attr in attributes {
-                    if let (Some(key), Some(value), Some(attr_type)) = (
-                        attr.get("key").and_then(|v| v.as_str()),
-                        attr.get("value"),
-                        attr.get("type").and_then(|v| v.as_str()),
-                    ) {
-                        match convert_json_to_attr_value(value, attr_type) {
-                            Ok(av) => {
-                                item_map.insert(key.to_string(), av);
-                            }
-                            Err(e) => {
-                                item_error =
-                                    Some(format!("Invalid value for attribute '{key}': {e}"));
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if let Some(message) = item_error {
+            match convert_attributes(item_json.get("attributes"), "") {
+                Ok(attributes) if attributes.is_empty() => {
                     total_errors.push(serde_json::json!({
-                        "error": "Invalid attribute value",
-                        "message": message,
+                        "error": "Invalid item",
+                        "message": "item has no attributes",
                     }));
                     chunk_skipped += 1;
-                } else if !item_map.is_empty() {
+                }
+                Ok(attributes) => {
+                    let item_map: HashMap<String, aws_sdk_dynamodb::types::AttributeValue> =
+                        attributes.into_iter().collect();
                     let put_request = PutRequest::builder().set_item(Some(item_map)).build();
 
                     match put_request {
@@ -86,11 +66,14 @@ pub async fn batch_write_item(
                             chunk_skipped += 1;
                         }
                     }
-                } else {
+                }
+                Err(e) => {
+                    total_errors.push(serde_json::json!({
+                        "error": "Invalid attribute value",
+                        "message": e,
+                    }));
                     chunk_skipped += 1;
                 }
-            } else {
-                chunk_skipped += 1;
             }
         }
         total_skipped += chunk_skipped;
@@ -225,5 +208,108 @@ mod tests {
         assert_eq!(data["error_count"], 1);
         let message = data["errors"][0]["message"].as_str().unwrap();
         assert!(message.contains("attribute 'tags'"));
+    }
+
+    #[tokio::test]
+    async fn mixed_batch_counts_inserted_skipped_and_errors() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchWriteItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "UnprocessedItems": {}
+            })))
+            .mount(&server)
+            .await;
+        let client = make_mock_client(&server).await;
+
+        let items = vec![
+            serde_json::json!({"attributes": [{"key": "id", "value": "1", "type": "N"}]}),
+            serde_json::json!({"attributes": [{"key": "id", "value": "2", "type": "N"}]}),
+            serde_json::json!({"attributes": [{"key": "id", "value": "3", "type": "N"}, {"key": "tags", "value": "nope", "type": "SS"}]}),
+        ];
+        let response = batch_write_item(
+            &client,
+            BatchWriteInput {
+                table_name: "users",
+                items: &items,
+            },
+        )
+        .await
+        .expect("batch write returns an ApiResponse");
+
+        assert_eq!(response.status, 200);
+        let data = response.data.expect("data");
+        assert_eq!(data["inserted"], 2);
+        assert_eq!(data["skipped"], 1);
+        assert_eq!(data["error_count"], 1);
+        assert_eq!(data["unprocessed_count"], 0);
+
+        // Only the two valid items are sent, and numeric strings keep their N type.
+        let requests = server.received_requests().await.expect("recorded requests");
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value =
+            serde_json::from_slice(&requests[0].body).expect("request body is JSON");
+        let writes = body["RequestItems"]["users"].as_array().expect("writes");
+        assert_eq!(writes.len(), 2);
+        assert_eq!(writes[0]["PutRequest"]["Item"]["id"]["N"], "1");
+        assert_eq!(writes[1]["PutRequest"]["Item"]["id"]["N"], "2");
+    }
+
+    #[tokio::test]
+    async fn item_without_attributes_is_reported_not_silently_skipped() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchWriteItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "UnprocessedItems": {}
+            })))
+            .mount(&server)
+            .await;
+        let client = make_mock_client(&server).await;
+
+        let items = vec![
+            serde_json::json!({"attributes": [{"key": "id", "value": "1", "type": "N"}]}),
+            serde_json::json!({"attributes": [{"key": "id", "value": "2"}]}),
+            serde_json::json!({"table": "users"}),
+        ];
+        let response = batch_write_item(
+            &client,
+            BatchWriteInput {
+                table_name: "users",
+                items: &items,
+            },
+        )
+        .await
+        .expect("batch write returns an ApiResponse");
+
+        let data = response.data.expect("data");
+        assert_eq!(data["inserted"], 1);
+        assert_eq!(data["skipped"], 2);
+        assert_eq!(data["error_count"], 2);
+
+        let messages: Vec<&str> = data["errors"]
+            .as_array()
+            .expect("errors")
+            .iter()
+            .map(|e| e["message"].as_str().unwrap_or_default())
+            .collect();
+        assert!(
+            messages.iter().any(|m| m.contains("has no 'type'")),
+            "{messages:?}"
+        );
+        assert!(
+            messages
+                .iter()
+                .any(|m| m.contains("no attributes provided")),
+            "{messages:?}"
+        );
     }
 }

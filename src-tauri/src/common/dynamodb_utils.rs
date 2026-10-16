@@ -102,7 +102,7 @@ pub fn convert_json_to_attr_value(
         }
         "NULL" => Ok(AttributeValue::Null(true)),
         "SS" => {
-            let arr = resolve_json_array(value, attr_type)?;
+            let arr = resolve_set_items(value, attr_type)?;
             let items = arr
                 .iter()
                 .enumerate()
@@ -115,7 +115,7 @@ pub fn convert_json_to_attr_value(
             Ok(AttributeValue::Ss(items))
         }
         "NS" => {
-            let arr = resolve_json_array(value, attr_type)?;
+            let arr = resolve_set_items(value, attr_type)?;
             let items = arr
                 .iter()
                 .enumerate()
@@ -128,7 +128,7 @@ pub fn convert_json_to_attr_value(
             Ok(AttributeValue::Ns(items))
         }
         "BS" => {
-            let arr = resolve_json_array(value, attr_type)?;
+            let arr = resolve_set_items(value, attr_type)?;
             let items = arr
                 .iter()
                 .enumerate()
@@ -193,19 +193,111 @@ fn resolve_json_array(value: &serde_json::Value, attr_type: &str) -> Result<Vec<
     })
 }
 
+/// DynamoDB rejects empty sets ("An string set may not be empty"), so fail here with a
+/// message the caller can act on instead of letting the request round-trip to the service.
+fn resolve_set_items(value: &serde_json::Value, attr_type: &str) -> Result<Vec<Value>, String> {
+    let items = resolve_json_array(value, attr_type)?;
+    if items.is_empty() {
+        return Err(format!(
+            "DynamoDB does not support empty sets (type {attr_type})"
+        ));
+    }
+    Ok(items)
+}
+
+/// Agents receive JSON-shaped arguments as strings (the tool schema declares them as
+/// `string`), so accept both the structured value and its JSON-string encoding.
+pub fn resolve_json_argument(value: &Value) -> Result<Value, String> {
+    match value {
+        Value::String(encoded) => serde_json::from_str::<Value>(encoded.trim())
+            .map_err(|e| format!("expected JSON, got a string that is not valid JSON: {e}")),
+        other => Ok(other.clone()),
+    }
+}
+
+/// Converts the `[{key, value, type}]` payload shared by the UI and the agent tools into
+/// ordered `(name, AttributeValue)` pairs.
+///
+/// Every entry must carry a key, a type and a value: an attribute missing any of them used
+/// to be dropped silently, which for a primary key surfaced as an opaque DynamoDB
+/// missing-key error and for an update produced a partial write. `context` is appended to
+/// the attribute name so batched callers can say which item failed.
+pub fn convert_attributes(
+    attributes: Option<&Value>,
+    context: &str,
+) -> Result<Vec<(String, AttributeValue)>, String> {
+    let resolved = match attributes {
+        None | Some(Value::Null) => return Err("no attributes provided".to_string()),
+        Some(Value::String(encoded)) => serde_json::from_str::<Value>(encoded.trim())
+            .map_err(|e| format!("attributes is not valid JSON: {e}"))?,
+        Some(other) => other.clone(),
+    };
+
+    let entries = resolved.as_array().ok_or_else(|| {
+        format!(
+            "attributes must be a JSON array, got {}",
+            value_preview(&resolved)
+        )
+    })?;
+
+    entries
+        .iter()
+        .enumerate()
+        .map(|(index, entry)| {
+            if !entry.is_object() {
+                return Err(format!(
+                    "attribute {index}{context} must be an object with key, value and type"
+                ));
+            }
+
+            let key = entry
+                .get("key")
+                .and_then(|v| v.as_str())
+                .filter(|key| !key.is_empty())
+                .ok_or_else(|| format!("attribute {index}{context} has no 'key'"))?;
+
+            let attr_type = entry
+                .get("type")
+                .and_then(|v| v.as_str())
+                .filter(|attr_type| !attr_type.is_empty())
+                .ok_or_else(|| format!("attribute '{key}'{context} has no 'type'"))?;
+
+            let value = entry
+                .get("value")
+                .ok_or_else(|| format!("attribute '{key}'{context} has no 'value'"))?;
+
+            convert_json_to_attr_value(value, attr_type)
+                .map(|av| (key.to_string(), av))
+                .map_err(|e| format!("attribute '{key}'{context}: {e}"))
+        })
+        .collect()
+}
+
 /// Accepts JSON numbers and numeric strings (the text-input encoding).
+/// Non-finite values (JSON `1e400`, or the strings "Infinity"/"NaN") are rejected:
+/// DynamoDB answers those with "A value provided cannot be converted into a number".
 fn json_number_to_string(value: &serde_json::Value) -> Option<String> {
     if let Some(n) = value.as_i64() {
         Some(n.to_string())
-    } else if let Some(n) = value.as_f64() {
+    } else if let Some(n) = value.as_u64() {
+        // Integers above i64::MAX are exactly representable as u64 but not as f64,
+        // which would round them (9223372036854775808 -> 9223372036854776000).
         Some(n.to_string())
+    } else if let Some(n) = value.as_f64() {
+        n.is_finite().then(|| n.to_string())
     } else if let Some(s) = value.as_str() {
         let trimmed = s.trim();
         trimmed
             .parse::<i64>()
             .ok()
             .map(|n| n.to_string())
-            .or_else(|| trimmed.parse::<f64>().ok().map(|n| n.to_string()))
+            .or_else(|| {
+                trimmed
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|n| n.is_finite())
+                    .map(|n| n.to_string())
+            })
     } else {
         None
     }
@@ -480,9 +572,28 @@ mod tests {
     }
 
     #[test]
-    fn number_larger_than_i64_uses_float_fallback() {
-        let big: Value = serde_json::from_str("9223372036854775808").unwrap();
-        assert!(convert_json_to_attr_value(&big, "N").is_ok());
+    fn integers_keep_full_precision_up_to_u64() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!(9007199254740993i64), "N"),
+            Ok(AttributeValue::N("9007199254740993".to_string()))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!(i64::MAX), "N"),
+            Ok(AttributeValue::N(i64::MAX.to_string()))
+        );
+
+        let above_i64: Value = serde_json::from_str("9223372036854775808").unwrap();
+        assert_eq!(
+            convert_json_to_attr_value(&above_i64, "N"),
+            Ok(AttributeValue::N("9223372036854775808".to_string()))
+        );
+
+        let max_u64: Value = serde_json::from_str("18446744073709551615").unwrap();
+        assert_eq!(
+            convert_json_to_attr_value(&max_u64, "N"),
+            Ok(AttributeValue::N("18446744073709551615".to_string()))
+        );
+
         assert_eq!(
             convert_json_to_attr_value(&json!("-3"), "N"),
             Ok(AttributeValue::N("-3".to_string()))
@@ -491,6 +602,61 @@ mod tests {
             convert_json_to_attr_value(&json!("1e2"), "N"),
             Ok(AttributeValue::N("100".to_string()))
         );
+    }
+
+    #[test]
+    fn integers_beyond_u64_fall_back_to_float_with_precision_loss() {
+        let huge: Value = serde_json::from_str("99999999999999999999").unwrap();
+        assert_eq!(
+            convert_json_to_attr_value(&huge, "N"),
+            Ok(AttributeValue::N("100000000000000000000".to_string()))
+        );
+    }
+
+    #[test]
+    fn numeric_string_parsing_matches_the_ui_validator() {
+        // Mirrored by the NS sample table in
+        // tests/views/editor/dynamo-editor/dynamo-attribute.test.ts.
+        for accepted in ["42", "42.5", " 7 ", "+5", ".5", "5.", "1e2", "-3"] {
+            assert!(
+                convert_json_to_attr_value(&json!(accepted), "N").is_ok(),
+                "{accepted} should be accepted as N"
+            );
+        }
+        for rejected in ["0x10", "1_000", "", " "] {
+            assert!(
+                convert_json_to_attr_value(&json!(rejected), "N").is_err(),
+                "{rejected:?} should be rejected as N"
+            );
+        }
+    }
+
+    #[test]
+    fn base64_acceptance_matches_the_ui_validator() {
+        // Mirrored by the BS sample table in
+        // tests/views/editor/dynamo-editor/dynamo-attribute.test.ts. The UI is stricter for
+        // the empty string (DynamoDB rejects empty values inside a set), so it is absent here.
+        for accepted in ["aGVsbG8=", "abcd", "abc=", "YWJjZA=="] {
+            assert!(
+                convert_json_to_attr_value(&json!(accepted), "B").is_ok(),
+                "{accepted} should be accepted as B"
+            );
+        }
+        for rejected in [
+            "aGVsbG8",
+            "abc",
+            "a==",
+            "ab==",
+            "aGVsbG9=",
+            "====",
+            "aGVsbG8=extra",
+            "!!!",
+        ] {
+            assert!(
+                convert_json_to_attr_value(&json!(rejected), "B").is_err(),
+                "{rejected} should be rejected as B"
+            );
+        }
     }
 
     #[test]
@@ -525,6 +691,102 @@ mod tests {
         let bad = convert_json_to_attr_value(&json!(["!!!"]), "BS").unwrap_err();
         assert!(bad.contains("item 0 of BS is not valid base64"));
         assert!(convert_json_to_attr_value(&json!({"k": 1}), "BS").is_err());
+    }
+
+    #[test]
+    fn empty_sets_are_rejected_but_empty_lists_and_maps_are_not() {
+        for attr_type in ["SS", "NS", "BS"] {
+            for value in [json!([]), json!("[]"), json!(" [] ")] {
+                let err = convert_json_to_attr_value(&value, attr_type).unwrap_err();
+                assert!(err.contains("empty sets"), "{attr_type} {value}: {err}");
+            }
+        }
+
+        assert!(matches!(
+            convert_json_to_attr_value(&json!([]), "L"),
+            Ok(AttributeValue::L(items)) if items.is_empty()
+        ));
+        assert!(matches!(
+            convert_json_to_attr_value(&json!({}), "M"),
+            Ok(AttributeValue::M(map)) if map.is_empty()
+        ));
+    }
+
+    #[test]
+    fn empty_values_inside_a_set_are_allowed() {
+        assert_eq!(
+            convert_json_to_attr_value(&json!(["a", ""]), "SS"),
+            Ok(AttributeValue::Ss(vec!["a".to_string(), String::new()]))
+        );
+        assert_eq!(
+            convert_json_to_attr_value(&json!([""]), "BS"),
+            Ok(AttributeValue::Bs(vec![
+                aws_sdk_dynamodb::primitives::Blob::new(Vec::new())
+            ]))
+        );
+    }
+
+    #[test]
+    fn non_finite_numbers_are_rejected() {
+        // serde_json refuses out-of-range literals, so only strings can carry these.
+        for value in ["Infinity", "-Infinity", "NaN", "inf", "1e400", "-1e400"] {
+            let err = convert_json_to_attr_value(&json!(value), "N").unwrap_err();
+            assert!(err.contains("expected a number"), "{value}: {err}");
+            assert!(convert_json_to_attr_value(&json!([value]), "NS").is_err());
+        }
+    }
+
+    #[test]
+    fn convert_attributes_requires_key_type_and_value() {
+        let err = convert_attributes(Some(&json!([{"key": "id", "value": "1"}])), "").unwrap_err();
+        assert!(err.contains("attribute 'id' has no 'type'"), "{err}");
+
+        let err = convert_attributes(Some(&json!([{"key": "id", "type": "S"}])), "").unwrap_err();
+        assert!(err.contains("attribute 'id' has no 'value'"), "{err}");
+
+        let err = convert_attributes(Some(&json!([{"value": "1", "type": "S"}])), "").unwrap_err();
+        assert!(err.contains("has no 'key'"), "{err}");
+
+        let err = convert_attributes(Some(&json!([{"key": "", "value": "1", "type": "S"}])), "")
+            .unwrap_err();
+        assert!(err.contains("has no 'key'"), "{err}");
+
+        let err = convert_attributes(Some(&json!(["nope"])), "").unwrap_err();
+        assert!(err.contains("must be an object"), "{err}");
+
+        assert!(convert_attributes(None, "").is_err());
+        assert!(convert_attributes(Some(&json!("not json")), "").is_err());
+        assert!(convert_attributes(Some(&json!({"k": 1})), "").is_err());
+    }
+
+    #[test]
+    fn convert_attributes_accepts_json_string_encoding_in_order() {
+        let pairs = convert_attributes(
+            Some(&json!(
+                "[{\"key\":\"a\",\"value\":\"1\",\"type\":\"N\"},{\"key\":\"b\",\"value\":\"x\",\"type\":\"S\"}]"
+            )),
+            "",
+        )
+        .unwrap();
+
+        assert_eq!(pairs.len(), 2);
+        assert_eq!(pairs[0].0, "a");
+        assert_eq!(pairs[0].1, AttributeValue::N("1".to_string()));
+        assert_eq!(pairs[1].0, "b");
+        assert_eq!(pairs[1].1, AttributeValue::S("x".to_string()));
+    }
+
+    #[test]
+    fn convert_attributes_appends_the_caller_context() {
+        let err = convert_attributes(
+            Some(&json!([{"key": "id", "value": "1"}])),
+            " in 'put' at index 2",
+        )
+        .unwrap_err();
+        assert!(
+            err.contains("attribute 'id' in 'put' at index 2 has no 'type'"),
+            "{err}"
+        );
     }
 
     #[test]
