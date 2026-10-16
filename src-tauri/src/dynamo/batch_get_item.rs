@@ -1,4 +1,4 @@
-use crate::common::dynamodb_utils::convert_attr_value_to_json;
+use crate::common::dynamodb_utils::{convert_attr_value_to_json, resolve_json_argument};
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::types::{AttributeValue, KeysAndAttributes};
@@ -14,8 +14,8 @@ pub async fn batch_get_item(
     client: &Client,
     input: BatchGetInput<'_>,
 ) -> Result<ApiResponse, String> {
-    let request_items_obj = input
-        .request_items
+    let resolved_request_items = resolve_json_argument(input.request_items)?;
+    let request_items_obj = resolved_request_items
         .as_object()
         .ok_or("request_items must be a JSON object with table names as keys")?;
 

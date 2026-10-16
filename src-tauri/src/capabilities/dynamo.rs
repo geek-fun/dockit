@@ -7,6 +7,7 @@ use data_studio_agent::capabilities::types::{
     Capability, CapabilityHandler, RiskLevel, SourceKind,
 };
 
+use crate::common::dynamodb_utils::resolve_json_argument;
 use crate::dynamo::batch_get_item::{batch_get_item, BatchGetInput};
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
@@ -475,11 +476,15 @@ impl CapabilityHandler for DynamoBatchWriteItems {
             .and_then(|v| v.as_str())
             .ok_or("Missing table_name")?;
         let client = self.factory.create_client(config).await?;
-        let items = args
-            .get("items")
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default();
+        // The tool schema declares `items` as a string, so agents may send either the JSON
+        // array or its string encoding. A malformed value must not look like "nothing to do".
+        let items = match args.get("items") {
+            None => Vec::new(),
+            Some(raw) => resolve_json_argument(raw)?
+                .as_array()
+                .cloned()
+                .ok_or_else(|| "items must be a JSON array".to_string())?,
+        };
         let input = BatchWriteInput {
             table_name,
             items: &items,
@@ -1534,32 +1539,43 @@ impl CapabilityHandler for DynamoTagResource {
 // Registration
 // ---------------------------------------------------------------------------
 
+/// Builds the input schema for a DynamoDB capability. Declaring the JSON-shaped arguments
+/// as `array`/`object` (instead of the default `string`) keeps agents from encoding them as
+/// strings, which the handlers could not read before this change.
+fn dynamo_input_schema(props: &[(&str, &str, &str, bool)]) -> Value {
+    let mut properties = serde_json::Map::new();
+    properties.insert(
+        "connection_id".to_string(),
+        serde_json::json!({"type": "string", "description": "ID of the target connection from the session"}),
+    );
+    for (name, json_type, desc, _required) in props {
+        properties.insert(
+            name.to_string(),
+            serde_json::json!({"type": json_type, "description": desc}),
+        );
+    }
+    let required: Vec<String> = std::iter::once("connection_id".to_string())
+        .chain(
+            props
+                .iter()
+                .filter(|(_, _, _, required)| *required)
+                .map(|(name, _, _, _)| name.to_string()),
+        )
+        .collect();
+    serde_json::json!({
+        "type": "object",
+        "properties": properties,
+        "required": required,
+    })
+}
+
 pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     let dynamo_schema = |props: &[(&str, &str, bool)]| -> Value {
-        let mut properties = serde_json::Map::new();
-        properties.insert(
-            "connection_id".to_string(),
-            serde_json::json!({"type": "string", "description": "ID of the target connection from the session"}),
-        );
-        for (name, desc, _required) in props {
-            properties.insert(
-                name.to_string(),
-                serde_json::json!({"type": "string", "description": desc}),
-            );
-        }
-        let required: Vec<String> = std::iter::once("connection_id".to_string())
-            .chain(
-                props
-                    .iter()
-                    .filter(|(_, _, r)| *r)
-                    .map(|(n, _, _)| n.to_string()),
-            )
+        let typed: Vec<(&str, &str, &str, bool)> = props
+            .iter()
+            .map(|(name, desc, required)| (*name, "string", *desc, *required))
             .collect();
-        serde_json::json!({
-            "type": "object",
-            "properties": properties,
-            "required": required,
-        })
+        dynamo_input_schema(&typed)
     };
 
     macro_rules! reg {
@@ -1694,20 +1710,23 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         "dynamo__create_item",
         "Create a new item in a DynamoDB table.",
         DynamoCreateItem::new(),
-        dynamo_schema(&[
-            ("table_name", "DynamoDB table name", true),
+        dynamo_input_schema(&[
+            ("table_name", "string", "DynamoDB table name", true),
             (
                 "attributes",
+                "array",
                 "JSON array of attribute objects with key, value, and type",
                 true
             ),
             (
                 "skip_existing",
+                "string",
                 "If true, skip item creation if it already exists",
                 false
             ),
             (
                 "partition_key",
+                "string",
                 "Partition key attribute name (required when skip_existing is true)",
                 false
             ),
@@ -1721,19 +1740,26 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         "dynamo__batch_write_items",
         "Batch write multiple items to a DynamoDB table (max 25 per call).",
         DynamoBatchWriteItems::new(),
-        dynamo_schema(&[
-            ("table_name", "DynamoDB table name", true),
+        dynamo_input_schema(&[
+            ("table_name", "string", "DynamoDB table name", true),
             (
                 "items",
+                "array",
                 "JSON array of items, each with attributes array containing key, value, and type",
                 true
             ),
             (
                 "skip_existing",
+                "string",
                 "If true, skip items that already exist",
                 false
             ),
-            ("partition_key", "Partition key attribute name", false),
+            (
+                "partition_key",
+                "string",
+                "Partition key attribute name",
+                false
+            ),
         ]),
         RiskLevel::Elevated,
         "create",
@@ -1744,9 +1770,10 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         "dynamo__batch_get_items",
         "Batch retrieve multiple items from one or more DynamoDB tables by primary key. Use this to efficiently fetch many items in a single request without scanning or querying each item individually. Example: request_items is a JSON object mapping table names to { keys: [{id: '123'}, {id: '456'}] }.",
         DynamoBatchGetItems::new(),
-        dynamo_schema(&[
+        dynamo_input_schema(&[
             (
                 "request_items",
+                "object",
                 "JSON object mapping table names to { keys: [ {attr: val, ...}, ...] }",
                 true
             ),
@@ -1760,15 +1787,17 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         "dynamo__update_item",
         "Update attributes of an existing DynamoDB item.",
         DynamoUpdateItem::new(),
-        dynamo_schema(&[
-            ("table_name", "DynamoDB table name", true),
+        dynamo_input_schema(&[
+            ("table_name", "string", "DynamoDB table name", true),
             (
                 "keys",
+                "array",
                 "JSON array of key objects with key, value, and type",
                 true
             ),
             (
                 "attributes",
+                "array",
                 "JSON array of attribute objects with key, value, and type to update",
                 true
             ),
@@ -1782,10 +1811,11 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         "dynamo__delete_item",
         "Delete an item from a DynamoDB table by its keys.",
         DynamoDeleteItem::new(),
-        dynamo_schema(&[
-            ("table_name", "DynamoDB table name", true),
+        dynamo_input_schema(&[
+            ("table_name", "string", "DynamoDB table name", true),
             (
                 "keys",
+                "array",
                 "JSON array of key objects with key, value, and type",
                 true
             ),
@@ -1799,9 +1829,10 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         "dynamo__transact_write_items",
         "Execute multiple write operations (put, update, delete) in a single ACID transaction across one or more DynamoDB tables. All operations either succeed together or all roll back — ideal for maintaining data consistency across related items. Example: transact_items is a JSON array of objects each with op (put/update/delete), table_name, and operation-specific fields (attributes for put, keys+attributes for update, keys for delete).",
         DynamoTransactWriteItems::new(),
-        dynamo_schema(&[
+        dynamo_input_schema(&[
             (
                 "transact_items",
+                "array",
                 "JSON array of transact items, each with op, table_name, and operation-specific fields",
                 true
             ),
@@ -2637,7 +2668,7 @@ mod tests {
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
-            .contains("request_items must be a JSON object"));
+            .contains("expected JSON, got a string that is not valid JSON"));
     }
 
     #[tokio::test]
@@ -3438,6 +3469,208 @@ mod tests {
             dynamo_agent.len(),
             33,
             "expected all 33 DynamoDB capabilities tagged for agent"
+        );
+    }
+
+    // ── Agent / MCP boundary ───────────────────────────────────────────────
+
+    /// Points the DynamoDB client at a mock server so agent-shaped calls can be asserted
+    /// all the way down to the request body.
+    struct ServerDynamoFactory {
+        endpoint: String,
+    }
+
+    #[async_trait::async_trait]
+    impl DynamoClientFactory for ServerDynamoFactory {
+        async fn create_client(&self, _config: &Value) -> Result<aws_sdk_dynamodb::Client, String> {
+            let config = json!({
+                "region": "us-east-1",
+                "authKind": "accessKey",
+                "accessKeyId": "test",
+                "secretAccessKey": "test",
+                "endpointUrl": self.endpoint,
+            });
+            crate::common::dynamo::create_dynamo_client(&config, None).await
+        }
+    }
+
+    fn agent_create_item_handler(server: &wiremock::MockServer) -> DynamoCreateItem {
+        DynamoCreateItem::with_factory(Box::new(ServerDynamoFactory {
+            endpoint: server.uri(),
+        }))
+    }
+
+    #[tokio::test]
+    async fn test_agent_create_item_accepts_string_encoded_attributes() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.PutItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .mount(&server)
+            .await;
+
+        // Exactly what the tool schema asks the model for: the attributes array as a string.
+        let result = agent_create_item_handler(&server)
+            .handle(
+                &json!({
+                    "table_name": "users",
+                    "attributes": r#"[{"key":"id","value":"42","type":"N"}]"#,
+                }),
+                Some(&json!({"id": "conn"})),
+            )
+            .await
+            .expect("agent call succeeds");
+
+        let parsed: Value = serde_json::from_str(&result).expect("tool output is JSON");
+        assert_eq!(parsed["status"], 200, "{result}");
+
+        let requests = server.received_requests().await.expect("requests");
+        let body: Value = serde_json::from_slice(&requests[0].body).expect("json body");
+        assert_eq!(body["TableName"], "users");
+        assert_eq!(body["Item"]["id"]["N"], "42");
+    }
+
+    #[tokio::test]
+    async fn test_agent_create_item_reports_attribute_without_type() {
+        let server = wiremock::MockServer::start().await;
+        let result = agent_create_item_handler(&server)
+            .handle(
+                &json!({
+                    "table_name": "users",
+                    "attributes": [{"key": "id", "value": "42"}],
+                }),
+                Some(&json!({"id": "conn"})),
+            )
+            .await
+            .expect("a missing type is reported inside the tool output");
+
+        let parsed: Value = serde_json::from_str(&result).expect("tool output is JSON");
+        assert_eq!(parsed["status"], 400);
+        let message = parsed["message"].as_str().unwrap_or_default();
+        assert!(
+            message.contains("attribute 'id' has no 'type'"),
+            "{message}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_agent_create_item_rejects_empty_set() {
+        let server = wiremock::MockServer::start().await;
+        let result = agent_create_item_handler(&server)
+            .handle(
+                &json!({
+                    "table_name": "users",
+                    "attributes": [
+                        {"key": "id", "value": "1", "type": "S"},
+                        {"key": "tags", "value": "[]", "type": "SS"}
+                    ],
+                }),
+                Some(&json!({"id": "conn"})),
+            )
+            .await
+            .expect("an empty set is reported inside the tool output");
+
+        let parsed: Value = serde_json::from_str(&result).expect("tool output is JSON");
+        assert_eq!(parsed["status"], 400);
+        let message = parsed["message"].as_str().unwrap_or_default();
+        assert!(message.contains("empty sets"), "{message}");
+    }
+
+    #[tokio::test]
+    async fn test_agent_batch_write_accepts_string_encoded_items() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchWriteItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"UnprocessedItems": {}})))
+            .mount(&server)
+            .await;
+
+        let handler = DynamoBatchWriteItems::with_factory(Box::new(ServerDynamoFactory {
+            endpoint: server.uri(),
+        }));
+        let result = handler
+            .handle(
+                &json!({
+                    "table_name": "users",
+                    "items": r#"[{"attributes":[{"key":"id","value":"1","type":"N"}]}]"#,
+                }),
+                Some(&json!({"id": "conn"})),
+            )
+            .await
+            .expect("agent call succeeds");
+
+        let parsed: Value = serde_json::from_str(&result).expect("tool output is JSON");
+        assert_eq!(parsed["status"], 200, "{result}");
+        assert_eq!(parsed["data"]["inserted"], 1, "{result}");
+        assert_eq!(parsed["data"]["error_count"], 0, "{result}");
+
+        let requests = server.received_requests().await.expect("requests");
+        let body: Value = serde_json::from_slice(&requests[0].body).expect("json body");
+        let writes = body["RequestItems"]["users"].as_array().expect("writes");
+        assert_eq!(writes.len(), 1);
+        assert_eq!(writes[0]["PutRequest"]["Item"]["id"]["N"], "1");
+    }
+
+    #[tokio::test]
+    async fn test_agent_batch_write_rejects_non_array_items() {
+        let handler = DynamoBatchWriteItems::with_factory(Box::new(ServerDynamoFactory {
+            endpoint: "http://127.0.0.1:1".to_string(),
+        }));
+        let result = handler
+            .handle(
+                &json!({"table_name": "users", "items": "{}"}),
+                Some(&json!({"id": "conn"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("items must be a JSON array"));
+    }
+
+    #[test]
+    fn test_write_tools_declare_json_arguments_as_json() {
+        let mut reg = CapabilityRegistry::new();
+        super::register_all(&mut reg);
+        let tools = reg.agent_tools();
+        let prop_type = |tool: &str, prop: &str| -> String {
+            tools
+                .iter()
+                .find(|c| c.name == tool)
+                .unwrap_or_else(|| panic!("missing tool {tool}"))
+                .input_schema["properties"][prop]["type"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string()
+        };
+
+        assert_eq!(prop_type("dynamo__create_item", "attributes"), "array");
+        assert_eq!(prop_type("dynamo__update_item", "keys"), "array");
+        assert_eq!(prop_type("dynamo__update_item", "attributes"), "array");
+        assert_eq!(prop_type("dynamo__delete_item", "keys"), "array");
+        assert_eq!(prop_type("dynamo__batch_write_items", "items"), "array");
+        assert_eq!(
+            prop_type("dynamo__transact_write_items", "transact_items"),
+            "array"
+        );
+        assert_eq!(
+            prop_type("dynamo__batch_get_items", "request_items"),
+            "object"
+        );
+
+        // Scalars keep their string type.
+        assert_eq!(prop_type("dynamo__create_item", "table_name"), "string");
+        assert_eq!(prop_type("dynamo__create_item", "skip_existing"), "string");
+        assert_eq!(prop_type("dynamo__create_item", "partition_key"), "string");
+        assert_eq!(
+            prop_type("dynamo__batch_write_items", "partition_key"),
+            "string"
         );
     }
 }

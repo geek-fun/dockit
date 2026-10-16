@@ -92,7 +92,10 @@
               </GridItem>
               <GridItem :span="4">
                 <FormItem :error="getAttributeError(index, 'type')">
-                  <Select v-model="attrEntry.type">
+                  <Select
+                    :model-value="attrEntry.type"
+                    @update:model-value="val => onAttributeTypeChange(attrEntry, val as string)"
+                  >
                     <SelectTrigger>
                       <SelectValue :placeholder="$t('editor.dynamo.type')" />
                     </SelectTrigger>
@@ -110,8 +113,36 @@
               </GridItem>
               <GridItem :span="11">
                 <FormItem :error="getAttributeError(index, 'value')">
+                  <div v-if="attrEntry.type === 'B'" class="flex w-full items-center gap-1">
+                    <Input
+                      v-model="attrEntry.value as string"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      class="flex-1"
+                      autocomplete="off"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-6 w-6 shrink-0"
+                      :title="$t('editor.dynamo.loadBinaryFile')"
+                      @click="loadBinaryValue(attrEntry)"
+                    >
+                      <span class="i-carbon-upload h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    v-else-if="isStructuredType(attrEntry.type)"
+                    :model-value="(attrEntry.value as string) ?? ''"
+                    readonly
+                    class="cursor-pointer"
+                    :placeholder="typeValueTemplate(attrEntry.type)"
+                    @click="openStructuredEditor(index)"
+                  />
                   <InputNumber
-                    v-if="attrEntry.type === 'N'"
+                    v-else-if="attrEntry.type === 'N'"
                     v-model:model-value="attrEntry.value as number"
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
                     class="w-full"
@@ -148,6 +179,14 @@
         </Form>
       </div>
 
+      <StructuredValueDialog
+        :open="structuredEditor.open"
+        :attribute-type="structuredEditorType"
+        :value="structuredEditorValue"
+        @update:open="structuredEditor.open = $event"
+        @apply="handleStructuredApply"
+      />
+
       <DialogFooter>
         <Button variant="outline" @click="handleClose">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="loading" @click="handleSubmit">
@@ -162,6 +201,13 @@
 <script setup lang="ts">
 import { X, Loader2 } from 'lucide-vue-next';
 import { useLang } from '../../../../lang';
+import { useMessageService } from '@/composables';
+import StructuredValueDialog from './structured-value-dialog.vue';
+import {
+  isStructuredType,
+  pickBinaryFileAsBase64,
+  typeValueTemplate,
+} from '../utils/dynamo-attribute';
 
 import {
   Dialog,
@@ -250,6 +296,39 @@ const getAttributeError = (index: number, field: 'key' | 'type' | 'value') => {
   return errors.value.attributes[index]?.[field];
 };
 
+const message = useMessageService();
+
+const onAttributeTypeChange = (attr: AttributeItem, type: string) => {
+  attr.type = type;
+  attr.value = null;
+};
+
+const loadBinaryValue = async (attr: AttributeItem) => {
+  try {
+    const base64 = await pickBinaryFileAsBase64();
+    if (base64 !== null) attr.value = base64;
+  } catch (error) {
+    message.error(String(error));
+  }
+};
+
+const structuredEditor = ref<{ open: boolean; index: number }>({ open: false, index: -1 });
+const structuredEditorType = computed(
+  () => editForm.value.attributes[structuredEditor.value.index]?.type ?? 'L',
+);
+const structuredEditorValue = computed(
+  () => (editForm.value.attributes[structuredEditor.value.index]?.value as string) ?? null,
+);
+
+const openStructuredEditor = (index: number) => {
+  structuredEditor.value = { open: true, index };
+};
+
+const handleStructuredApply = (value: string) => {
+  const target = editForm.value.attributes[structuredEditor.value.index];
+  if (target) target.value = value;
+};
+
 const inferType = (value: unknown): string => {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'string') return 'S';
@@ -333,6 +412,7 @@ const removeAttribute = (index: number) => {
 };
 
 const handleClose = () => {
+  structuredEditor.value = { open: false, index: -1 };
   showModal.value = false;
 };
 
