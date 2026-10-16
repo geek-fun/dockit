@@ -190,14 +190,10 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 ## Community
 
 <p align="center">
-  <img src="https://www.geekfun.club/wechat-group.jpg" width="140" alt="WeChat Group">
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <img src="docs/images/wechat_official.png" width="300" alt="WeChat Official Account">
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord" /></a>
-  &nbsp;&nbsp;&nbsp;
   <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white" alt="X / Twitter" /></a>
   &nbsp;&nbsp;&nbsp;
   <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white" alt="YouTube" /></a>
