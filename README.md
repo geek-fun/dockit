@@ -209,16 +209,6 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
   <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_Support-EA4AAA?logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" /></a>
 </p>
 
-## Star History
-
-<a href="https://star-history.dera.page/#geek-fun/dockit&type=date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=geek-fun/dockit&type=date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=geek-fun/dockit&type=date" />
-    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=geek-fun/dockit&type=date" />
-  </picture>
-</a>
-
 ## License
 
 [Apache 2.0](LICENSE) © GEEKFUN
