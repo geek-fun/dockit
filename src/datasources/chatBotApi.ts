@@ -10,6 +10,7 @@ export enum ProviderEnum {
   REQUESTY = 'REQUESTY',
   OPPER = 'OPPER',
   ATLAS_CLOUD = 'ATLAS_CLOUD',
+  API_ROUTE = 'API_ROUTE',
   OLLAMA = 'OLLAMA',
   LM_STUDIO = 'LM_STUDIO',
 }
