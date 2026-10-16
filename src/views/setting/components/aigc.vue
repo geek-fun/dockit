@@ -686,6 +686,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.atlascloud.ai/v1',
     apiCompatibility: 'openai-compatible',
   },
+  'api-route': {
+    label: 'API Route',
+    authMode: 'api-key',
+    baseUrl: 'https://global.api-route.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',

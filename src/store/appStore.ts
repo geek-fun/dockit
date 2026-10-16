@@ -31,6 +31,7 @@ export type ProviderKind =
   | 'requesty'
   | 'opper'
   | 'atlascloud'
+  | 'api-route'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -182,6 +183,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
   },
   {
+    kind: 'api-route',
+    apiCompatibility: 'openai-compatible',
+    label: 'API Route',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://global.api-route.com/v1',
+    enabled: true,
+    defaultModels: ['gpt-6.1-sol'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -289,6 +299,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   requesty: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   opper: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
   atlascloud: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
+  'api-route': ['gpt-6.1-sol'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -397,6 +408,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'opper';
     case ProviderEnum.ATLAS_CLOUD:
       return 'atlascloud';
+    case ProviderEnum.API_ROUTE:
+      return 'api-route';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:
