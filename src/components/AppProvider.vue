@@ -131,6 +131,9 @@ onMounted(async () => {
     await rotateStaleSession();
     entitlementStore.refreshEntitlement(true);
     deviceStore.ensureActivated();
+  } else {
+    // A cached plan must not outlive the session.
+    void entitlementStore.clearCachedEntitlement();
   }
 
   // Cold start: a deep link can arrive before these listeners exist — Rust

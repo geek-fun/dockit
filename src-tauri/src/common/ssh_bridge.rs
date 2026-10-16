@@ -123,10 +123,41 @@ pub async fn resolve_connection_target(
     }
 }
 
+/// SSH tunnels need a confirmed session and an active plan; without both, the
+/// tunnel is dropped so the caller connects directly.
+pub fn effective_ssh_tunnel(app: &AppHandle, ssh_tunnel: Option<Value>) -> Option<Value> {
+    if ssh_tunnel_allowed(app) {
+        return ssh_tunnel;
+    }
+    let enabled = ssh_tunnel
+        .as_ref()
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if enabled {
+        None
+    } else {
+        ssh_tunnel
+    }
+}
+
+pub(crate) fn ssh_tunnel_allowed(app: &AppHandle) -> bool {
+    use tauri::Manager;
+    let entitlement = app.state::<crate::entitlement::EntitlementState>();
+    entitlement.session_confirmed() && entitlement.local_entitled()
+}
+
 /// Resolve the SSH tunnel for a connection config in place: when enabled,
 /// `host`/`port`/`endpointUrl` are rewritten to the local tunnel endpoint
 /// and `sshTunnel` is removed; when disabled, `sshTunnel` is removed.
 pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result<(), String> {
+    if !ssh_tunnel_allowed(app) {
+        if let Some(obj) = config.as_object_mut() {
+            obj.remove("sshTunnel");
+        }
+        return Ok(());
+    }
+
     let ssh = config.get("sshTunnel").cloned();
     let enabled = ssh
         .as_ref()

@@ -12,6 +12,9 @@
         <Alert v-if="isError" variant="destructive" class="alert-container">
           <AlertTitle>{{ $t('connection.connectionError') }}</AlertTitle>
           <AlertDescription>{{ message }}</AlertDescription>
+          <p v-if="errorHint" class="alert-hint">
+            {{ errorHint }}
+          </p>
           <button class="alert-close-btn" @click="resetResult()">
             <X class="w-4 h-4" />
           </button>
@@ -54,6 +57,7 @@ const { isError, isIdle, message, fail, reset: resetResult } = useDialogResult()
 const showModal = ref(false);
 const connectionName = ref('');
 const warning = ref<string | null>(null);
+const errorHint = ref<string | null>(null);
 const cancelCallback = ref<(() => void) | null>(null);
 const retryCallback = ref<(() => void) | null>(null);
 
@@ -62,6 +66,7 @@ const show = (name: string, onCancel: () => void, onRetry: () => void, warn?: st
   cancelCallback.value = onCancel;
   retryCallback.value = onRetry;
   warning.value = warn ?? null;
+  errorHint.value = null;
   resetResult();
   showModal.value = true;
 };
@@ -70,12 +75,14 @@ const hide = () => {
   showModal.value = false;
   connectionName.value = '';
   warning.value = null;
+  errorHint.value = null;
   resetResult();
   cancelCallback.value = null;
   retryCallback.value = null;
 };
 
-const showError = (error: string) => {
+const showError = (error: string, hint?: string | null) => {
+  errorHint.value = hint ?? null;
   fail(error);
 };
 
@@ -128,6 +135,12 @@ defineExpose({
   margin-bottom: 24px;
   width: 100%;
   position: relative;
+}
+
+.alert-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.9;
 }
 
 .alert-close-btn {

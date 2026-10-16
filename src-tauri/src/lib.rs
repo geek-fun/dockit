@@ -257,41 +257,8 @@ pub fn run() {
             let executor: Arc<dyn lib::ToolExecutor> = Arc::new(DocKitToolExecutor);
             app.manage(executor);
 
-            {
-                let app_data_dir = app
-                    .path()
-                    .app_data_dir()
-                    .map_err(|e| format!("{}", e))?
-                    .to_path_buf();
-                let config = crate::mcp_bridge::McpConfig::load(&app_data_dir);
-                let mcp_entitled = app
-                    .state::<crate::entitlement::EntitlementState>()
-                    .local_entitled();
-                if config.auto_start && mcp_entitled {
-                    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-                    let server_handle: tauri::State<'_, crate::mcp_bridge::McpServerHandle> =
-                        app.state();
-                    {
-                        let mut tx = server_handle.shutdown_tx.lock().unwrap();
-                        *tx = Some(shutdown_tx);
-                    }
-                    let bridge_handle = app.handle().clone();
-                    let data_dir = app_data_dir.clone();
-                    let preferred = config.port.unwrap_or(9120);
-                    tauri::async_runtime::spawn(async move {
-                        if let Err(e) = crate::mcp_bridge::start(
-                            bridge_handle,
-                            data_dir,
-                            preferred,
-                            shutdown_rx,
-                        )
-                        .await
-                        {
-                            log::error!("MCP bridge failed to start: {}", e);
-                        }
-                    });
-                }
-            }
+            // The MCP bridge starts from the entitlement path, never at setup
+            // (a disk cache alone says nothing about the current session).
 
             use tauri::{Emitter, Listener};
 

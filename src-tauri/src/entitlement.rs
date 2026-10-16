@@ -9,6 +9,7 @@
 //! `ultimateActive` regardless of the version lock.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -215,6 +216,8 @@ pub struct EntitlementState {
     cache: Mutex<Option<SubscriptionCache>>,
     last_success_ms: Mutex<i64>,
     cache_path: Mutex<Option<PathBuf>>,
+    /// A persisted cache proves nothing about the current session.
+    session_confirmed: AtomicBool,
 }
 
 impl EntitlementState {
@@ -228,7 +231,16 @@ impl EntitlementState {
             cache: Mutex::new(cache),
             last_success_ms: Mutex::new(0),
             cache_path: Mutex::new(cache_path),
+            session_confirmed: AtomicBool::new(false),
         }
+    }
+
+    pub fn confirm_session(&self) {
+        self.session_confirmed.store(true, Ordering::SeqCst);
+    }
+
+    pub fn session_confirmed(&self) -> bool {
+        self.session_confirmed.load(Ordering::SeqCst)
     }
 
     fn set_cache(&self, cache: SubscriptionCache) {
@@ -283,6 +295,7 @@ impl EntitlementState {
             .last_success_ms
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = 0;
+        self.session_confirmed.store(false, Ordering::SeqCst);
         if let Ok(path) = self.cache_path.lock() {
             if let Some(path) = path.as_ref() {
                 let _ = std::fs::remove_file(path);
@@ -376,6 +389,16 @@ fn parse_subscriptions_payload(
     }
 }
 
+/// No session means no entitlement: drop the cache rather than serve it.
+fn anonymous_view(state: &EntitlementState) -> EntitlementView {
+    state.clear();
+    state.view(
+        true,
+        Some("not logged in".to_string()),
+        SESSION_PHASE_ANONYMOUS,
+    )
+}
+
 /// Transport-level entitlement refresh: classify the network outcome and
 /// resolve it onto a view. A transparent rotation never blocks the caller —
 /// the rotated successor rides back as `Some(session)` so the command layer
@@ -391,15 +414,9 @@ async fn refresh_entitlement_core(
     identity: &crate::device_activation::DeviceIdentityState,
 ) -> Result<(EntitlementView, Option<crate::session::RefreshedSession>), String> {
     if token.trim().is_empty() {
-        return Ok((
-            state.view(
-                true,
-                Some("not logged in".to_string()),
-                SESSION_PHASE_ANONYMOUS,
-            ),
-            None,
-        ));
+        return Ok((anonymous_view(state), None));
     }
+    state.confirm_session();
     if !force && state.refresh_throttled() {
         return Ok((state.view(true, None, SESSION_PHASE_SIGNED_IN), None));
     }
@@ -485,11 +502,22 @@ pub async fn refresh_entitlement(
             }),
         );
     }
+    if view.session_phase != SESSION_PHASE_EXPIRED {
+        crate::mcp_bridge::sync_with_entitlement(&app);
+    }
     Ok(view)
 }
 
 #[tauri::command]
-pub fn get_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
+pub fn get_entitlement(
+    token_present: Option<bool>,
+    state: State<'_, EntitlementState>,
+    app: AppHandle,
+) -> EntitlementView {
+    if token_present == Some(true) {
+        state.confirm_session();
+        crate::mcp_bridge::sync_with_entitlement(&app);
+    }
     // Cached read without a session verdict — the frontend derives the phase
     // from token facts and the next refresh corrects it.
     state.view(true, None, SESSION_PHASE_SIGNED_IN)
@@ -533,8 +561,9 @@ fn seed_cache(
 /// must not outlive the session (a different account on the same machine
 /// must not inherit the previous account's version lock).
 #[tauri::command]
-pub fn clear_entitlement(state: State<'_, EntitlementState>) -> EntitlementView {
+pub fn clear_entitlement(state: State<'_, EntitlementState>, app: AppHandle) -> EntitlementView {
     state.clear();
+    crate::mcp_bridge::sync_with_entitlement(&app);
     state.view(true, None, SESSION_PHASE_ANONYMOUS)
 }
 
@@ -730,6 +759,30 @@ mod tests {
 
         let reloaded = EntitlementState::load(Some(path));
         assert!(reloaded.local_entitled(), "seeded cache survives a restart");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_persisted_cache_alone_is_not_a_session() {
+        let dir = temp_dir("session-claim");
+        let path = dir.join("cache.json");
+        let state = EntitlementState::load(Some(path.clone()));
+        seed_cache(
+            &state,
+            Some("2999-01-01T00:00:00.000Z".to_string()),
+            None,
+            None,
+        );
+
+        assert!(state.local_entitled());
+        assert!(!state.session_confirmed());
+
+        state.confirm_session();
+        assert!(state.session_confirmed());
+
+        let view = anonymous_view(&state);
+        assert!(!state.session_confirmed());
+        assert!(!view.local_ultimate);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

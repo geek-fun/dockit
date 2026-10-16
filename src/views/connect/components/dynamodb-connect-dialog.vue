@@ -1263,6 +1263,8 @@ const isFormValid = computed(() => {
   }
 });
 
+const tunnelSkipped = () => sshConfig.value.enabled && !entitlementStore.isLocalUltimate;
+
 const testConnect = async () => {
   resetResult();
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') {
@@ -1303,9 +1305,17 @@ const testConnect = async () => {
     if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
     if (result.success) {
-      succeed(lang.t('connection.testSuccess'));
+      succeed(
+        tunnelSkipped()
+          ? `${lang.t('connection.testSuccess')} · ${lang.t('connection.ssh.tunnelSkippedOnConnect')}`
+          : lang.t('connection.testSuccess'),
+      );
     } else {
-      fail(result.message);
+      fail(
+        tunnelSkipped()
+          ? `${result.message} — ${lang.t('connection.ssh.tunnelSkippedHint')}`
+          : result.message,
+      );
     }
   } catch (error: unknown) {
     const elapsed = Date.now() - startTime;

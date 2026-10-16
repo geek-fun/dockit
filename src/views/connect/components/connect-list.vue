@@ -330,8 +330,6 @@ import {
   useEntitlementStore,
   SshProfile,
 } from '../../../store';
-import { open } from '@tauri-apps/plugin-shell';
-import { UPGRADE_URL } from '../../../common';
 import { openUpgradeDialog, ProBadge } from '@/components/upgrade';
 import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
@@ -626,15 +624,7 @@ const getMongoTls = (connection: Connection): boolean => {
   return mongo.tls === true;
 };
 
-// an SSH-bound saved connection is only operable with Ultimate — instead of
-// attempting a connect that dies with a raw 403, route to the pricing site
-const PROTECTED_ACTIONS = new Set(['connect', 'edit', 'clone', 'remove']);
-
 const handleSelect = (key: string, connection: Connection) => {
-  if (PROTECTED_ACTIONS.has(key) && hasSsh(connection) && !entitlementStore.isLocalUltimate) {
-    open(UPGRADE_URL);
-    return;
-  }
   switch (key) {
     case 'connect':
       establishConnect(connection);
@@ -653,6 +643,8 @@ const handleSelect = (key: string, connection: Connection) => {
 
 const establishConnect = async (connection: Connection) => {
   connectionCancelled.value = false;
+
+  const sshTunnelSkipped = hasSsh(connection) && !entitlementStore.isLocalUltimate;
 
   // When the tunnel is set to use the system proxy, warn if none is
   // currently detected — the backend silently falls back to a direct
@@ -695,7 +687,7 @@ const establishConnect = async (connection: Connection) => {
       connectionCancelled.value = true;
     },
     () => establishConnect(connection),
-    proxyWarning,
+    proxyWarning ?? (sshTunnelSkipped ? lang.t('connection.ssh.tunnelSkipped') : null),
   );
 
   const startTime = Date.now();
@@ -763,7 +755,10 @@ const establishConnect = async (connection: Connection) => {
       errorMessage = String(err);
     }
 
-    connectingModal.value.showError(errorMessage);
+    connectingModal.value.showError(
+      errorMessage,
+      sshTunnelSkipped ? lang.t('connection.ssh.tunnelSkippedHint') : undefined,
+    );
   }
 };
 

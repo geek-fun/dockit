@@ -704,6 +704,8 @@ const testConnect = async (event: MouseEvent) => {
   testConnectConfirm();
 };
 
+const tunnelSkipped = () => sshConfig.value.enabled && !entitlementStore.isLocalUltimate;
+
 const testConnectConfirm = async () => {
   testLoading.value = true;
   resetResult();
@@ -718,7 +720,11 @@ const testConnectConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    succeed(lang.t('connection.mongodb.connectSuccess'));
+    succeed(
+      tunnelSkipped()
+        ? `${lang.t('connection.mongodb.connectSuccess')} · ${lang.t('connection.ssh.tunnelSkippedOnConnect')}`
+        : lang.t('connection.mongodb.connectSuccess'),
+    );
   } catch (e) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -727,7 +733,8 @@ const testConnectConfirm = async () => {
     }
 
     const error = e as CustomError;
-    fail(error.details || `Connection failed (status: ${error.status})`);
+    const detail = error.details || `Connection failed (status: ${error.status})`;
+    fail(tunnelSkipped() ? `${detail} — ${lang.t('connection.ssh.tunnelSkippedHint')}` : detail);
   } finally {
     testLoading.value = false;
   }
