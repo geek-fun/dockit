@@ -1,4 +1,4 @@
-use crate::common::dynamodb_utils::convert_json_to_attr_value;
+use crate::common::dynamodb_utils::{convert_attributes, resolve_json_argument};
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::types::AttributeValue;
@@ -14,8 +14,8 @@ pub async fn transact_write_items(
     client: &Client,
     input: TransactWriteInput<'_>,
 ) -> Result<ApiResponse, String> {
-    let items_array = input
-        .transact_items
+    let resolved_items = resolve_json_argument(input.transact_items)?;
+    let items_array = resolved_items
         .as_array()
         .ok_or("transact_items must be a JSON array")?;
 
@@ -45,24 +45,17 @@ pub async fn transact_write_items(
 
         let transact_item = match op {
             "put" => {
-                let attributes = item
-                    .get("attributes")
-                    .and_then(|v| v.as_array())
-                    .ok_or_else(|| {
-                        format!("Missing 'attributes' array for 'put' at index {}", idx)
-                    })?;
+                let attributes = item.get("attributes").ok_or_else(|| {
+                    format!("Missing 'attributes' array for 'put' at index {}", idx)
+                })?;
 
-                let mut item_map: HashMap<String, AttributeValue> = HashMap::new();
-                for attr in attributes {
-                    if let (Some(key), Some(value), Some(attr_type)) = (
-                        attr.get("key").and_then(|v| v.as_str()),
-                        attr.get("value"),
-                        attr.get("type").and_then(|v| v.as_str()),
-                    ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            item_map.insert(key.to_string(), av);
-                        }
-                    }
+                let item_map: HashMap<String, AttributeValue> =
+                    convert_attributes(Some(attributes), &format!(" in 'put' at index {idx}"))?
+                        .into_iter()
+                        .collect();
+
+                if item_map.is_empty() {
+                    return Err(format!("No attributes provided for 'put' at index {idx}"));
                 }
 
                 let put = aws_sdk_dynamodb::types::Put::builder()
@@ -78,50 +71,40 @@ pub async fn transact_write_items(
             "update" => {
                 let keys = item
                     .get("keys")
-                    .and_then(|v| v.as_array())
                     .ok_or_else(|| format!("Missing 'keys' array for 'update' at index {}", idx))?;
-                let attributes = item
-                    .get("attributes")
-                    .and_then(|v| v.as_array())
-                    .ok_or_else(|| {
-                        format!("Missing 'attributes' array for 'update' at index {}", idx)
-                    })?;
+                let attributes = item.get("attributes").ok_or_else(|| {
+                    format!("Missing 'attributes' array for 'update' at index {}", idx)
+                })?;
 
-                let mut key_map: HashMap<String, AttributeValue> = HashMap::new();
-                for key_attr in keys {
-                    if let (Some(key), Some(value), Some(attr_type)) = (
-                        key_attr.get("key").and_then(|v| v.as_str()),
-                        key_attr.get("value"),
-                        key_attr.get("type").and_then(|v| v.as_str()),
-                    ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            key_map.insert(key.to_string(), av);
-                        }
-                    }
+                let context = format!(" in 'update' at index {idx}");
+                let keys =
+                    convert_attributes(Some(keys), &context).map_err(|e| format!("key {e}"))?;
+                let attributes = convert_attributes(Some(attributes), &context)?;
+
+                if keys.is_empty() {
+                    return Err(format!("No keys provided for 'update' at index {idx}"));
                 }
+                if attributes.is_empty() {
+                    return Err(format!(
+                        "No attributes provided for 'update' at index {idx}"
+                    ));
+                }
+
+                let key_map: HashMap<String, AttributeValue> = keys.into_iter().collect();
 
                 let mut update_expression_parts: Vec<String> = Vec::new();
                 let mut expression_attribute_names: HashMap<String, String> = HashMap::new();
                 let mut expression_attribute_values: HashMap<String, AttributeValue> =
                     HashMap::new();
 
-                for (attr_idx, attr) in attributes.iter().enumerate() {
-                    if let (Some(key), Some(value), Some(attr_type)) = (
-                        attr.get("key").and_then(|v| v.as_str()),
-                        attr.get("value"),
-                        attr.get("type").and_then(|v| v.as_str()),
-                    ) {
-                        let name_placeholder = format!("#attr{}", attr_idx);
-                        let value_placeholder = format!(":val{}", attr_idx);
+                for (attr_idx, (key, value)) in attributes.into_iter().enumerate() {
+                    let name_placeholder = format!("#attr{}", attr_idx);
+                    let value_placeholder = format!(":val{}", attr_idx);
 
-                        expression_attribute_names
-                            .insert(name_placeholder.clone(), key.to_string());
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            expression_attribute_values.insert(value_placeholder.clone(), av);
-                            update_expression_parts
-                                .push(format!("{} = {}", name_placeholder, value_placeholder));
-                        }
-                    }
+                    expression_attribute_names.insert(name_placeholder.clone(), key);
+                    expression_attribute_values.insert(value_placeholder.clone(), value);
+                    update_expression_parts
+                        .push(format!("{} = {}", name_placeholder, value_placeholder));
                 }
 
                 let update_expression = format!("SET {}", update_expression_parts.join(", "));
@@ -149,20 +132,16 @@ pub async fn transact_write_items(
             "delete" => {
                 let keys = item
                     .get("keys")
-                    .and_then(|v| v.as_array())
                     .ok_or_else(|| format!("Missing 'keys' array for 'delete' at index {}", idx))?;
 
-                let mut key_map: HashMap<String, AttributeValue> = HashMap::new();
-                for key_attr in keys {
-                    if let (Some(key), Some(value), Some(attr_type)) = (
-                        key_attr.get("key").and_then(|v| v.as_str()),
-                        key_attr.get("value"),
-                        key_attr.get("type").and_then(|v| v.as_str()),
-                    ) {
-                        if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            key_map.insert(key.to_string(), av);
-                        }
-                    }
+                let key_map: HashMap<String, AttributeValue> =
+                    convert_attributes(Some(keys), &format!(" in 'delete' at index {idx}"))
+                        .map_err(|e| format!("key {e}"))?
+                        .into_iter()
+                        .collect();
+
+                if key_map.is_empty() {
+                    return Err(format!("No keys provided for 'delete' at index {idx}"));
                 }
 
                 let delete = aws_sdk_dynamodb::types::Delete::builder()
@@ -524,5 +503,217 @@ mod tests {
         let result = transact_write_items(&client, input).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unknown operation 'upsert'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_put_invalid_attribute() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "put",
+            "table_name": "t",
+            "attributes": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "age", "value": "x", "type": "N"}
+            ]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("attribute 'age' in 'put' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_update_invalid_key() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "update",
+            "table_name": "t",
+            "keys": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "sk", "value": "x", "type": "N"}
+            ],
+            "attributes": [{"key": "name", "value": "a", "type": "S"}]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("key attribute 'sk' in 'update' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_update_invalid_attribute() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "update",
+            "table_name": "t",
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "attributes": [
+                {"key": "name", "value": "a", "type": "S"},
+                {"key": "flag", "value": "maybe", "type": "BOOL"}
+            ]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("attribute 'flag' in 'update' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_delete_invalid_key() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "delete",
+            "table_name": "t",
+            "keys": [{"key": "id", "value": "nope", "type": "BOOL"}]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("key attribute 'id' in 'delete' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_conversion_failure_sends_nothing() {
+        let server = wiremock::MockServer::start().await;
+        let client = make_mock_client(&server).await;
+        let items = serde_json::json!([{
+            "op": "put",
+            "table_name": "t",
+            "attributes": [
+                {"key": "id", "value": "1", "type": "S"},
+                {"key": "age", "value": "x", "type": "N"}
+            ]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(err.contains("attribute 'age' in 'put' at index 0"));
+
+        // A transaction is all-or-nothing: nothing may reach the wire.
+        let requests = server.received_requests().await.expect("recorded requests");
+        assert!(requests.is_empty(), "no request should be sent");
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_numeric_string_key_reaches_the_body() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.TransactWriteItems",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .mount(&server)
+            .await;
+        let client = make_mock_client(&server).await;
+
+        let items = serde_json::json!([{
+            "op": "put",
+            "table_name": "t",
+            "attributes": [{"key": "id", "value": "42", "type": "N"}]
+        }]);
+        let response = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .expect("transact returns an ApiResponse");
+
+        assert_eq!(response.status, 200);
+        let requests = server.received_requests().await.expect("recorded requests");
+        assert_eq!(requests.len(), 1);
+        let body: serde_json::Value =
+            serde_json::from_slice(&requests[0].body).expect("request body is JSON");
+        assert_eq!(body["TransactItems"][0]["Put"]["Item"]["id"]["N"], "42");
+        assert_eq!(body["TransactItems"][0]["Put"]["TableName"], "t");
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_put_attribute_without_type() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{
+            "op": "put",
+            "table_name": "t",
+            "attributes": [{"key": "id", "value": "1"}]
+        }]);
+        let err = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            err.contains("attribute 'id' in 'put' at index 0 has no 'type'"),
+            "{err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_accepts_string_encoded_items() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.TransactWriteItems",
+            ))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .mount(&server)
+            .await;
+        let client = make_mock_client(&server).await;
+
+        // The agent tool schema declares transact_items as a string.
+        let items = serde_json::json!(
+            "[{\"op\":\"put\",\"table_name\":\"t\",\"attributes\":[{\"key\":\"id\",\"value\":\"42\",\"type\":\"N\"}]}]"
+        );
+        let response = transact_write_items(
+            &client,
+            TransactWriteInput {
+                transact_items: &items,
+            },
+        )
+        .await
+        .expect("transact returns an ApiResponse");
+
+        assert_eq!(response.status, 200);
+        let requests = server.received_requests().await.expect("recorded requests");
+        let body: serde_json::Value = serde_json::from_slice(&requests[0].body).expect("json");
+        assert_eq!(body["TransactItems"][0]["Put"]["Item"]["id"]["N"], "42");
     }
 }
