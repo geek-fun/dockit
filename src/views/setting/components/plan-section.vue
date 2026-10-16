@@ -7,7 +7,13 @@
     <Card>
       <CardContent class="px-5 py-4 space-y-4">
         <div class="flex items-center gap-3 flex-wrap">
-          <Badge :variant="entitlementStore.isLocalUltimate ? 'default' : 'secondary'">
+          <Badge
+            :variant="
+              entitlementStore.isLocalUltimate && !entitlementStore.sessionExpired
+                ? 'default'
+                : 'secondary'
+            "
+          >
             <Loader2 v-if="planState === 'checking'" class="mr-1 h-3 w-3 animate-spin" />
             {{ $t(`plan.state.${planState}`) }}
           </Badge>
@@ -108,7 +114,6 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
-import { invoke } from '@tauri-apps/api/core';
 import { storeToRefs } from 'pinia';
 import { Check, Loader2, RefreshCw, X } from 'lucide-vue-next';
 import { Card, CardContent } from '@/components/ui/card';
@@ -160,6 +165,9 @@ const versionStateText = computed(() => {
 });
 
 const expiryText = computed(() => {
+  // Hide the "active until" banner while the session is dead — the cached
+  // benefit must not contradict the re-login instruction next to it.
+  if (entitlementStore.sessionExpired) return '';
   const expiresAt = view.value?.ultimateExpiresAt;
   if (!expiresAt || !entitlementStore.isCloudUltimate) return '';
   return lang.global.t('plan.section.expiresAt', {
@@ -182,10 +190,7 @@ const handleUpgrade = () => {
 
 // account-scoped — revoke the lease server-side (best-effort) before clearing
 const handleLogout = async () => {
-  await invoke('revoke_session', { refreshToken: userStore.refreshToken || null }).catch(() => {});
-  await entitlementStore.clearCachedEntitlement();
-  userStore.resetToken();
-  deviceStore.$reset();
+  await entitlementStore.clearSessionState();
 };
 
 const handleGeekfunLogin = async () => {
