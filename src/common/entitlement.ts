@@ -22,6 +22,8 @@ export type EntitlementView = {
   cancelScheduledAt: string | null;
   cached: boolean;
   fetchedAtMs: number | null;
+  /** Structured session verdict from the last refresh — see common/sessionPhase. */
+  sessionPhase: string | null;
   lastError: string | null;
 };
 

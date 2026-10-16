@@ -13,5 +13,6 @@ export * from './scrollStickiness';
 export * from './asyncUtils';
 export * from './featureFlags';
 export * from './entitlement';
+export * from './sessionPhase';
 export * from './connectQuery';
 export * from './sessionExpiry';

@@ -1520,6 +1520,8 @@ export const enUS = {
       checkFailed:
         'Could not verify entitlements — showing cached state. Check your network and refresh.',
       sessionExpired: 'Session expired — log in again to verify your plan.',
+      sessionLostSignedOut:
+        'Your session can no longer be renewed — you have been signed out. Log in again any time.',
       deviceActivationFailed:
         'Device registration failed — automatic session renewal is unavailable.',
       notLoggedIn: 'You are not logged in.',
