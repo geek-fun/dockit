@@ -1,6 +1,7 @@
 import {
   buildDynamoEditForm,
   changedDynamoAttributes,
+  removedDynamoAttributes,
   formatDynamoCell,
 } from '../../../../src/views/editor/dynamo-editor/utils';
 
@@ -129,4 +130,31 @@ it('renders structured readback containing large integers without rounding or th
   expect(formatDynamoCell({ numbers: [1, 9223372036854775808n], nested: { enabled: false } })).toBe(
     '{"numbers":[1,9223372036854775808],"nested":{"enabled":false}}',
   );
+});
+
+it('reports dropped and renamed attributes for the update payload', () => {
+  const original = [
+    { key: 'keep', type: 'S', value: 'a' },
+    { key: 'drop', type: 'S', value: 'b' },
+    { key: 'rename', type: 'S', value: 'c' },
+  ];
+  const current = [
+    { key: 'keep', type: 'S', value: 'a' },
+    { key: 'renamed', type: 'S', value: 'c' },
+  ];
+  expect(removedDynamoAttributes(current, original)).toEqual(['drop', 'rename']);
+  expect(changedDynamoAttributes(current, original)).toEqual([
+    { key: 'renamed', type: 'S', value: 'c' },
+  ]);
+});
+
+it('reports no removals for an unchanged or empty form', () => {
+  const original = [{ key: 'value', type: 'S', value: 'a' }];
+  expect(
+    removedDynamoAttributes(
+      original.map(attr => ({ ...attr })),
+      original,
+    ),
+  ).toEqual([]);
+  expect(removedDynamoAttributes([], [])).toEqual([]);
 });

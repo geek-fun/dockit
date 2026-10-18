@@ -11,11 +11,13 @@ jest.mock('../src/store/connectionStore', () => ({
 jest.mock('../src/datasources', () => ({ dynamoApi: { executeStatement: jest.fn() } }));
 const connection = { id: 1, type: 'DYNAMODB' } as DynamoDBConnection;
 const queryTable = jest.fn();
+const deleteItem = jest.fn();
 beforeEach(() => {
   setActivePinia(createPinia());
   jest.clearAllMocks();
   (useConnectionStore as unknown as jest.Mock).mockReturnValue({
     queryTable,
+    deleteItem,
     getDynamoIndexOrTableOption: () => [
       { label: 'Table - qa', value: 'qa', partitionKeyName: 'id' },
     ],
@@ -133,4 +135,65 @@ it('clears Query UI type metadata when a subsequent response omits it', async ()
   await store.getDynamoData(connection, { tableName: 'qa', index: 'Table - qa' });
   expect(store.dynamoData.queryData.data).toEqual([{ id: 2 }]);
   expect(store.dynamoData.queryData.attributeTypes).toBeUndefined();
+});
+
+it('keeps per-row type metadata aligned after a query row is deleted', async () => {
+  queryTable.mockResolvedValue({
+    items: [
+      { id: 1, tags: ['a'] },
+      { id: 2, tags: 'b' },
+      { id: 3, tags: ['c'] },
+    ],
+    attribute_types: [
+      { id: 'N', tags: 'SS' },
+      { id: 'N', tags: 'S' },
+      { id: 'N', tags: 'BS' },
+    ],
+    count: 3,
+  });
+  const store = useDbDataStore();
+  await store.getDynamoData(connection, { tableName: 'qa', index: 'Table - qa' });
+  await store.deleteItem(connection, 'qa', [{ key: 'id', type: 'N', value: 2 }]);
+  expect(store.dynamoData.queryData.data?.map(row => row.id)).toEqual([1, 3]);
+  expect(store.dynamoData.queryData.attributeTypes).toEqual([
+    { id: 'N', tags: 'SS' },
+    { id: 'N', tags: 'BS' },
+  ]);
+});
+
+it('keeps PartiQL type metadata aligned and counts rows after a delete', async () => {
+  const execute = dynamoApi.executeStatement as jest.Mock;
+  execute.mockResolvedValue({
+    items: [
+      { id: 1, binary: 'YQ==' },
+      { id: 2, binary: 'Yg==' },
+    ],
+    attribute_types: [
+      { id: 'N', binary: 'B' },
+      { id: 'N', binary: 'S' },
+    ],
+    count: 2,
+    next_token: null,
+  });
+  const store = useDbDataStore();
+  await store.executePartiqlStatement(connection, 'qa', 'SELECT * FROM qa');
+  await store.deleteItem(connection, 'qa', [{ key: 'id', type: 'N', value: 1 }]);
+  expect(store.dynamoData.partiqlData.data).toEqual([{ id: 2, binary: 'Yg==' }]);
+  expect(store.dynamoData.partiqlData.attributeTypes).toEqual([{ id: 'N', binary: 'S' }]);
+  expect(store.dynamoData.partiqlData.count).toBe(1);
+});
+
+it('matches numeric cache rows when the delete key is an exact string', async () => {
+  queryTable.mockResolvedValue({
+    items: [{ id: 9223372036854775808n }],
+    attribute_types: [{ id: 'N' }],
+    count: 1,
+  });
+  const store = useDbDataStore();
+  await store.getDynamoData(connection, { tableName: 'qa', index: 'Table - qa' });
+  await store.deleteItem(connection, 'qa', [
+    { key: 'id', type: 'N', value: '9223372036854775808' },
+  ]);
+  expect(store.dynamoData.queryData.data).toEqual([]);
+  expect(store.dynamoData.queryData.attributeTypes).toEqual([]);
 });

@@ -51,3 +51,14 @@ it('surfaces backend validation errors through the real response parser', async 
     "attribute 'id' has no 'type'",
   );
 });
+
+it('forwards attribute removals to the update capability', async () => {
+  (invoke as jest.Mock).mockResolvedValueOnce(JSON.stringify({ status: 200, data: {} }));
+  await expect(dynamoApi.updateItem(connection, 'qa', keys, [], ['legacy'])).resolves.toEqual({});
+  expect(invoke).toHaveBeenCalledWith('invoke_capability', {
+    name: 'dynamo__update_item',
+    args: { table_name: 'qa', keys, attributes: [], removed: ['legacy'] },
+    connectionId: '1',
+    config: null,
+  });
+});

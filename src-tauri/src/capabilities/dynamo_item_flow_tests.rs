@@ -383,13 +383,16 @@ async fn dynamo_local_item_flow() {
         .item
         .unwrap();
     assert_eq!(
-        before["ss"],
-        AttributeValue::Ss(vec!["".into(), "a".into()])
-    );
-    assert_eq!(
         before["bs"],
         AttributeValue::Bs(vec![aws_sdk_dynamodb::primitives::Blob::new(vec![])])
     );
+    if let AttributeValue::Ss(values) = &before["ss"] {
+        let mut sorted = values.clone();
+        sorted.sort();
+        assert_eq!(sorted, vec!["".to_string(), "a".to_string()]);
+    } else {
+        panic!("ss should be a string set: {:?}", before["ss"]);
+    }
     let response = call!(
         DynamoExecuteQuery,
         json!({"statement":format!("SELECT * FROM \"{numeric}\" WHERE id = 1000")})
@@ -428,6 +431,29 @@ async fn dynamo_local_item_flow() {
         .item
         .unwrap();
     assert_eq!(before, after);
+
+    let response = call!(
+        DynamoUpdateItem,
+        json!({
+            "table_name": numeric,
+            "keys": [{"key":"id","type":"N","value":"1000"}],
+            "removed": ["nil", "binary"]
+        })
+    );
+    assert_eq!(response["status"], 200, "{response}");
+    let after_removal = client
+        .get_item()
+        .table_name(&numeric)
+        .key("id", AttributeValue::N("1000".into()))
+        .consistent_read(true)
+        .send()
+        .await
+        .unwrap()
+        .item
+        .unwrap();
+    assert!(!after_removal.contains_key("nil"));
+    assert!(!after_removal.contains_key("binary"));
+    assert_eq!(after_removal["ss"], before["ss"]);
 
     for encoded in [false, true] {
         let base = if encoded { 2004 } else { 2001 };

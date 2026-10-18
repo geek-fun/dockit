@@ -5,6 +5,7 @@ import {
   createDynamoItemForm,
   validateDynamoItemForm,
   defaultAttributeValue,
+  describeSchemaError,
 } from '../../../../src/views/editor/dynamo-editor/utils';
 import type { DynamoDBConnection, DynamoTableSummary } from '../../../../src/store';
 
@@ -258,5 +259,21 @@ describe('Create Item validation and payload', () => {
     expect(defaultAttributeValue('BOOL')).toBe(false);
     expect(defaultAttributeValue('NULL')).toBeNull();
     expect(defaultAttributeValue('M')).toBeNull();
+  });
+});
+
+describe('Schema error description', () => {
+  it.each([
+    ['a plain string', 'no connection established', 'no connection established'],
+    ['an Error', new Error('denied'), 'denied'],
+    ['a CustomError', { status: 403, details: 'access denied' }, 'access denied'],
+    ['an object with a message', { message: 'boom' }, 'boom'],
+  ])('describes %s', (_label, error, expected) => {
+    expect(describeSchemaError(error)).toBe(expected);
+  });
+
+  it('renders nothing for a missing error', () => {
+    expect(describeSchemaError(null)).toBe('');
+    expect(describeSchemaError(undefined)).toBe('');
   });
 });

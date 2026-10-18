@@ -26,23 +26,25 @@ The original UI also displayed no pending state while DescribeTable was in fligh
 - Use text-backed decimal inputs for DynamoDB numbers so browser number conversion cannot round large integers before submission.
 - Return explicit creation/skipped outcomes and non-null write response data. Report duplicate creation as skipped. Escape partition key names in the conditional expression, require metadata when duplicate protection is requested, and accept legacy string boolean flags.
 - Retain top-level attribute type metadata alongside Query UI and PartiQL rows, including pagination. Both edit dialogs use the same form builder; reopening discards unsaved drafts, NULL updates are retained, and unchanged attributes are not rewritten. Saving an unchanged/key-only item closes without an invalid empty update.
-- Preserve u64 numeric strings and readback. Use bigint-aware JSON formatting in structured editors and result cells.
+- Removing an attribute in the edit dialog now sends a DynamoDB `REMOVE` expression (renaming removes the old name), so the trash action no longer closes with a silent no-op. Deleting a row from the local result cache also drops its type metadata so later edits stay aligned.
+- Preserve exact numeric values beyond f64: u64 integers, 38-digit numbers, and long decimals are written and returned as strings instead of being silently rounded. Deleting items with large numeric keys sends the exact string through IPC instead of a bigint. Use bigint-aware JSON formatting in structured editors and result cells.
 
 ## Shared-code impact
 
-| Changed path                  | Consumers traced                                                                    | Compatibility and checks                                                                                                                                                 |
-| ----------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `convert_attributes`          | Create, update keys/attributes, delete, batch writes, transaction put/update/delete | Valid payloads retain their ordering/types. Duplicate names now fail before any request, including transaction context. Existing write-path regressions pass.            |
-| Number conversion             | N and NS through every shared write path; query/scan/PartiQL/batch-get readback     | Added exact unsigned-integer handling; nonfinite values still rejected. Listed decimal formats and both requested large integer examples checked against DynamoDB Local. |
-| Read response metadata        | Query, Scan, PartiQL → API types → dbDataStore → both edit parents                  | Additive optional `attribute_types`; ordinary items remain unchanged. Append/reset tests check alignment.                                                                |
-| ResultPanel object formatting | Elasticsearch, MongoDB, DynamoDB and document browsing                              | Uses the existing bigint-aware serializer. Normal JSON rendering is unchanged. Relevant result/editor/JSON tests pass.                                                   |
-| Successful write data         | UI parser and agent/MCP create/update/delete                                        | Non-null response objects satisfy the existing strict parser. Conditional skip stays successful for callers, with an explicit skipped marker for UI.                     |
+| Changed path                  | Consumers traced                                                                    | Compatibility and checks                                                                                                                                                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `convert_attributes`          | Create, update keys/attributes, delete, batch writes, transaction put/update/delete | Valid payloads retain their ordering/types. Duplicate names now fail before any request, including transaction context. Existing write-path regressions pass.                                                                                               |
+| `update_item`                 | UI edit dialog and agent/MCP `dynamo__update_item`                                  | Optional `removed` array emits a `REMOVE` clause (or a removal-only update). Overlapping set/remove names and empty updates fail before any request.                                                                                                        |
+| Number conversion             | N and NS through every shared write path; query/scan/PartiQL/batch-get readback     | Exact u64 handling plus a string fallback for 38-digit/surplus-precision values; nonfinite values still rejected. Short formats keep their existing normalization. JSON-typed numbers are already rounded by the parser, so string input is the exact path. |
+| Read response metadata        | Query, Scan, PartiQL → API types → dbDataStore → both edit parents                  | Additive optional `attribute_types`; ordinary items remain unchanged. Append/reset/local-delete tests check alignment.                                                                                                                                      |
+| ResultPanel object formatting | Elasticsearch, MongoDB, DynamoDB and document browsing                              | Uses the existing bigint-aware serializer. Normal JSON rendering is unchanged. Relevant result/editor/JSON tests pass.                                                                                                                                      |
+| Successful write data         | UI parser and agent/MCP create/update/delete                                        | Non-null response objects satisfy the existing strict parser. Conditional skip stays successful for callers, with an explicit skipped marker for UI.                                                                                                        |
 
 ## Checks performed
 
 - Frontend tests: schema arrival after mount; connection/table switches; stale response rejection; load failure/retry; unmount cleanup; Reset; primary/index keys; NULL/BOOL; empty values; invalid sets/base64/numbers; duplicate names; large numbers; shared edit form; Query UI and PartiQL metadata pagination; real write-response parser; relevant ES/Mongo/result regressions.
 - Rust DynamoDB suite: existing shared conversion, agent boundary, create/update/delete, batch and transaction tests, plus duplicate names, unsigned precision, and conditional-expression escaping.
-- Disposable DynamoDB Local at `127.0.0.1:18000`: numeric key roundtrip, structured/string-encoded arguments, missing key/type/value rejection, no partial update, empty sets rejected, empty set members accepted, all ten top-level types, exact requested numeric examples, PartiQL type metadata, update roundtrip, batch inserted/skipped/error counts, malformed transaction with zero changes, delete readback. Tables are created with unique QA names and deleted by the test.
+- Disposable DynamoDB Local at `127.0.0.1:18000`: numeric key roundtrip, structured/string-encoded arguments, missing key/type/value rejection, no partial update, empty sets rejected, empty set members accepted, all ten top-level types, exact requested numeric examples, PartiQL type metadata, update roundtrip, attribute removal (set and removal-only), batch inserted/skipped/error counts, malformed transaction with zero changes, delete readback. Tables are created with unique QA names and deleted by the test.
 - Browser harness with real Vue components/stores and mocked IPC: select table after mount; numeric and composite primary key rendering/submission; loading and denied schema states; default false BOOL and NULL payloads; empty set rejection; empty SS member acceptance; padded/unpadded BS validation; Cancel/reopen draft isolation; skipped-create warning.
 - Original investigation results: 369 frontend/store/result checks and 282 Rust checks passed, including the opt-in DynamoDB Local flow. TypeScript, targeted ESLint, production frontend build, and macOS application packaging passed.
 - The resulting Apple Silicon app was installed to `/Applications/DocKit.app`; its executable checksum matches the packaged app, and the app was relaunched.
@@ -62,12 +64,25 @@ The DynamoDB changes were checked in an isolated worktree based on `origin/maste
 
 ## Coverage follow-up (2026-10-18)
 
-- Added 25 frontend regression cases and five Rust tests that run in the normal CI suite.
+- Added frontend regression cases and Rust tests that run in the normal CI suite.
 - HTTP-mocked Query, Scan, and PartiQL responses now exercise all ten DynamoDB attribute types, mixed per-row types, pagination, exact unsigned numeric-set values, and the SDK's unknown-variant fallback. These checks do not require DynamoDB Local.
 - Added coverage for empty metadata rows, skipped duplicate creation, legacy edit-form type inference and precedence, BigInt result rendering, missing attribute names/types, stale schema failures, and pagination when either page omits type metadata.
 - The full JavaScript suite passed: 1,859 tests across 55 suites. The instrumented DynamoDB Rust suite passed: 286 tests, with the existing opt-in local flow left ignored.
 - Local Istanbul coverage is 100% for statements, lines, functions, and branches in `dynamo-edit-form.ts`, `dynamo-attribute.ts`, `dynamo-item-form.ts`, and `useDynamoItemForm.ts`. Local LLVM coverage executes every measured line in `item_attribute_types`, including its unknown-type fallback.
 - ESLint, Vue/TypeScript checks, and formatting of the changed Rust files passed. Codecov's combined patch percentage is calculated by CI and may differ from local per-file results.
+
+## Review follow-up (2026-10-18)
+
+Review of this PR surfaced six follow-ups; all are addressed in this branch:
+
+- Deleting a row from the local result cache now drops its `attributeTypes` entry too, so the surviving rows keep their own type metadata and later edits do not pick up a stale type.
+- `describeSchemaError` normalizes string rejections, `Error`, and `CustomError` before rendering, so a capability-level failure shows the Retry state instead of throwing during render.
+- `N`/`NS` values f64 cannot represent exactly (integers above u64::MAX, long decimals) are written and returned as exact strings; short formats keep the previous normalization. A new test covers 38-digit values.
+- `buildDynamoKeys` serializes numeric keys as exact strings, so delete no longer hands a bigint to the IPC serializer (and the cache predicate compares key string forms).
+- Removing an attribute in the edit dialog now emits a `REMOVE` expression end to end (renames remove the old name); removal-only updates are supported and overlapping set/remove names are rejected before any request.
+- Create Item renders validation errors only after a submit attempt, while Create stays disabled until table key metadata is available.
+
+Validation for this follow-up: `npx jest --runInBand` (1,873 tests across 56 suites), `cargo test --lib` (693 passed, 1 ignored), `npx tsc --noEmit`, `npm run lint:check`, `npx vite build`, and `rustfmt --check` on all changed Rust files passed. The opt-in DynamoDB Local flow now also exercises attribute removal; it was not re-run locally during this follow-up.
 
 ## Repeat
 
