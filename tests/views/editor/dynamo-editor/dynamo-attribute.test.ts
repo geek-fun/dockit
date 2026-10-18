@@ -6,7 +6,7 @@ import {
   resolveTableKeyLabels,
   typeValueTemplate,
   validateStructuredValue,
-} from '../../../../src/views/editor/dynamo-editor/utils/dynamo-attribute';
+} from '../../../../src/views/editor/dynamo-editor/utils';
 
 jest.mock('@tauri-apps/plugin-dialog', () => ({
   open: jest.fn(),

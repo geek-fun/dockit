@@ -94,7 +94,7 @@ pub async fn update_item(
         Ok(_) => Ok(ApiResponse {
             status: 200,
             message: "Item updated successfully".to_string(),
-            data: None,
+            data: Some(serde_json::json!({})),
         }),
         Err(e) => {
             let error_code = e.code().unwrap_or("UnknownError");

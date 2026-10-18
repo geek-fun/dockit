@@ -42,7 +42,7 @@ pub async fn delete_item(
         Ok(_) => Ok(ApiResponse {
             status: 200,
             message: "Item deleted successfully".to_string(),
-            data: None,
+            data: Some(serde_json::json!({})),
         }),
         Err(e) => {
             let error_code = e.code().unwrap_or("UnknownError");

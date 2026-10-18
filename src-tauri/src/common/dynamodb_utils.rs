@@ -11,6 +11,8 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
             // Try to parse as integer first, then as float
             if let Ok(i) = n.parse::<i64>() {
                 json!(i)
+            } else if let Ok(u) = n.parse::<u64>() {
+                json!(u)
             } else if let Ok(f) = n.parse::<f64>() {
                 json!(f)
             } else {
@@ -33,6 +35,8 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
                 .map(|n| {
                     if let Ok(i) = n.parse::<i64>() {
                         json!(i)
+                    } else if let Ok(u) = n.parse::<u64>() {
+                        json!(u)
                     } else if let Ok(f) = n.parse::<f64>() {
                         json!(f)
                     } else {
@@ -51,6 +55,34 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
         ),
         _ => Value::Null,
     }
+}
+
+pub fn item_attribute_types(items: &[HashMap<String, AttributeValue>]) -> Vec<Value> {
+    items
+        .iter()
+        .map(|item| {
+            let types: serde_json::Map<String, Value> = item
+                .iter()
+                .map(|(key, value)| {
+                    let kind = match value {
+                        AttributeValue::S(_) => "S",
+                        AttributeValue::N(_) => "N",
+                        AttributeValue::B(_) => "B",
+                        AttributeValue::Bool(_) => "BOOL",
+                        AttributeValue::Null(_) => "NULL",
+                        AttributeValue::Ss(_) => "SS",
+                        AttributeValue::Ns(_) => "NS",
+                        AttributeValue::Bs(_) => "BS",
+                        AttributeValue::L(_) => "L",
+                        AttributeValue::M(_) => "M",
+                        _ => "UNKNOWN",
+                    };
+                    (key.clone(), json!(kind))
+                })
+                .collect();
+            Value::Object(types)
+        })
+        .collect()
 }
 
 /// Converts a JSON value to a DynamoDB AttributeValue based on the specified type.
@@ -240,7 +272,7 @@ pub fn convert_attributes(
         )
     })?;
 
-    entries
+    let attributes = entries
         .iter()
         .enumerate()
         .map(|(index, entry)| {
@@ -270,7 +302,14 @@ pub fn convert_attributes(
                 .map(|av| (key.to_string(), av))
                 .map_err(|e| format!("attribute '{key}'{context}: {e}"))
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+    let mut names = std::collections::HashSet::new();
+    for (key, _) in &attributes {
+        if !names.insert(key) {
+            return Err(format!("duplicate attribute '{key}'{context}"));
+        }
+    }
+    Ok(attributes)
 }
 
 /// Accepts JSON numbers and numeric strings (the text-input encoding).
@@ -291,6 +330,7 @@ fn json_number_to_string(value: &serde_json::Value) -> Option<String> {
             .parse::<i64>()
             .ok()
             .map(|n| n.to_string())
+            .or_else(|| trimmed.parse::<u64>().ok().map(|n| n.to_string()))
             .or_else(|| {
                 trimmed
                     .parse::<f64>()
@@ -804,5 +844,34 @@ mod tests {
     #[test]
     fn structured_json_string_is_trimmed() {
         assert!(convert_json_to_attr_value(&json!("  [1]  "), "L").is_ok());
+    }
+    #[test]
+    fn number_strings_above_i64_remain_exact() {
+        for value in [
+            "9007199254740993",
+            "9223372036854775808",
+            "18446744073709551615",
+        ] {
+            assert_eq!(
+                convert_json_to_attr_value(&json!(value), "N").unwrap(),
+                AttributeValue::N(value.to_string())
+            );
+            assert_eq!(
+                convert_attr_value_to_json(&AttributeValue::N(value.to_string())).to_string(),
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn duplicate_attributes_fail_before_a_write_is_built() {
+        let error = convert_attributes(
+            Some(&json!([
+                {"key":"id","type":"S","value":"first"}, {"key":"id","type":"S","value":"second"}
+            ])),
+            " in 'put' at index 0",
+        )
+        .unwrap_err();
+        assert!(error.contains("duplicate attribute 'id' in 'put' at index 0"));
     }
 }

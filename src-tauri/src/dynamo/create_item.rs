@@ -2,7 +2,7 @@ use crate::common::dynamodb_utils::convert_attributes;
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 pub struct CreateItemInput<'a> {
     pub table_name: &'a str,
@@ -46,18 +46,28 @@ pub async fn create_item(
 
     // Add condition expression to prevent overwriting if skip_existing is true
     if skip_existing {
-        // Get partition key name from payload
-        if let Some(partition_key) = input.payload.get("partitionKey").and_then(|v| v.as_str()) {
-            put_item =
-                put_item.condition_expression(format!("attribute_not_exists({})", partition_key));
-        }
+        let Some(partition_key) = input
+            .payload
+            .get("partitionKey")
+            .and_then(|v| v.as_str())
+            .filter(|key| !key.is_empty())
+        else {
+            return Ok(ApiResponse {
+                status: 400,
+                message: "partitionKey is required when skipExisting is true".to_string(),
+                data: None,
+            });
+        };
+        put_item = put_item
+            .condition_expression("attribute_not_exists(#pk)")
+            .expression_attribute_names("#pk", partition_key);
     }
 
     match put_item.send().await {
         Ok(_) => Ok(ApiResponse {
             status: 200,
             message: "Item created successfully".to_string(),
-            data: None,
+            data: Some(json!({"created": true, "skipped": false})),
         }),
         Err(e) => {
             let error_code = e.code().unwrap_or("UnknownError");
@@ -68,7 +78,7 @@ pub async fn create_item(
                 return Ok(ApiResponse {
                     status: 200,
                     message: "Item already exists, skipped".to_string(),
-                    data: None,
+                    data: Some(json!({"created": false, "skipped": true})),
                 });
             }
 
@@ -308,5 +318,44 @@ mod tests {
 
         assert_eq!(response.status, 200);
         assert_eq!(sent_body(&server).await["Item"]["id"]["N"], "42");
+    }
+    #[tokio::test]
+    async fn duplicate_protection_escapes_reserved_and_special_key_names() {
+        let server = wiremock::MockServer::start().await;
+        mount_put_item_ok().mount(&server).await;
+        let client = make_mock_client(&server).await;
+        let payload = serde_json::json!({"attributes":[{"key":"size.value","type":"S","value":"a"}],"skipExisting":true,"partitionKey":"size.value"});
+        let response = create_item(
+            &client,
+            CreateItemInput {
+                table_name: "qa",
+                payload: &payload,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status, 200);
+        assert_eq!(response.data.unwrap()["created"], true);
+        let body = sent_body(&server).await;
+        assert_eq!(body["ConditionExpression"], "attribute_not_exists(#pk)");
+        assert_eq!(body["ExpressionAttributeNames"]["#pk"], "size.value");
+    }
+
+    #[tokio::test]
+    async fn duplicate_protection_requires_partition_key_metadata() {
+        let server = wiremock::MockServer::start().await;
+        let client = make_mock_client(&server).await;
+        let payload = serde_json::json!({"attributes":[{"key":"id","type":"N","value":"1"}],"skipExisting":true});
+        let response = create_item(
+            &client,
+            CreateItemInput {
+                table_name: "qa",
+                payload: &payload,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status, 400);
+        assert!(server.received_requests().await.unwrap().is_empty());
     }
 }

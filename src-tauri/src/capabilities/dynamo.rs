@@ -428,10 +428,20 @@ impl CapabilityHandler for DynamoCreateItem {
             .get("table_name")
             .and_then(|v| v.as_str())
             .ok_or("Missing table_name")?;
+        let skip_existing = match args.get("skip_existing") {
+            None | Some(Value::Null) => false,
+            Some(Value::Bool(value)) => *value,
+            Some(Value::String(value)) => value
+                .trim()
+                .to_ascii_lowercase()
+                .parse::<bool>()
+                .map_err(|_| "skip_existing must be a boolean")?,
+            _ => return Err("skip_existing must be a boolean".to_string()),
+        };
         let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "attributes": args.get("attributes"),
-            "skipExisting": args.get("skip_existing").and_then(|v| v.as_bool()).unwrap_or(false),
+            "skipExisting": skip_existing,
             "partitionKey": args.get("partition_key"),
         });
         let input = CreateItemInput {
@@ -1720,7 +1730,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
             ),
             (
                 "skip_existing",
-                "string",
+                "boolean",
                 "If true, skip item creation if it already exists",
                 false
             ),
@@ -3666,7 +3676,7 @@ mod tests {
 
         // Scalars keep their string type.
         assert_eq!(prop_type("dynamo__create_item", "table_name"), "string");
-        assert_eq!(prop_type("dynamo__create_item", "skip_existing"), "string");
+        assert_eq!(prop_type("dynamo__create_item", "skip_existing"), "boolean");
         assert_eq!(prop_type("dynamo__create_item", "partition_key"), "string");
         assert_eq!(
             prop_type("dynamo__batch_write_items", "partition_key"),
@@ -3674,3 +3684,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "dynamo_item_flow_tests.rs"]
+mod item_flow_tests;

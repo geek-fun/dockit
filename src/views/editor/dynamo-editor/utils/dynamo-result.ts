@@ -1,3 +1,4 @@
+import { jsonify } from '@/common';
 import type { ColumnDef } from '@/components/result';
 import type { DataTableColumn } from '@/types';
 
@@ -58,6 +59,6 @@ export const buildDynamoKeys = (
 
 export const formatDynamoCell = (value: unknown): string => {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'object') return jsonify.stringify(value);
   return String(value);
 };

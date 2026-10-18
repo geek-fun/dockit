@@ -49,13 +49,7 @@
               </GridItem>
               <GridItem :span="12">
                 <FormItem>
-                  <InputNumber
-                    v-if="keyEntry.type === 'N'"
-                    v-model:model-value="keyEntry.value as number"
-                    class="w-full"
-                    disabled
-                  />
-                  <Input v-else v-model="keyEntry.value as string" disabled />
+                  <Input v-model="keyEntry.value as string" disabled />
                 </FormItem>
               </GridItem>
             </Grid>
@@ -141,12 +135,13 @@
                     :placeholder="typeValueTemplate(attrEntry.type)"
                     @click="openStructuredEditor(index)"
                   />
-                  <InputNumber
+                  <Input
                     v-else-if="attrEntry.type === 'N'"
-                    v-model:model-value="attrEntry.value as number"
+                    v-model="attrEntry.value as string"
+                    inputmode="decimal"
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
-                    class="w-full"
                   />
+                  <Input v-else-if="attrEntry.type === 'NULL'" model-value="null" disabled />
                   <Switch
                     v-else-if="attrEntry.type === 'BOOL'"
                     :checked="attrEntry.value as boolean"
@@ -207,7 +202,11 @@ import {
   isStructuredType,
   pickBinaryFileAsBase64,
   typeValueTemplate,
-} from '../utils/dynamo-attribute';
+  defaultAttributeValue,
+  validateAttributeValue,
+  buildDynamoEditForm,
+  changedDynamoAttributes,
+} from '../utils';
 
 import {
   Dialog,
@@ -218,7 +217,6 @@ import {
 } from '@/components/ui/dialog';
 import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -243,6 +241,7 @@ type AttributeItem = {
 const props = defineProps<{
   show: boolean;
   item: Record<string, unknown> | null;
+  attributeTypes?: Record<string, string>;
   partitionKeyName: string;
   partitionKeyType: string;
   sortKeyName?: string;
@@ -291,6 +290,7 @@ const editForm = ref<{
 const errors = ref<{
   attributes: Array<{ key?: string; type?: string; value?: string }>;
 }>({ attributes: [] });
+const originalAttributes = ref<AttributeItem[]>([]);
 
 const getAttributeError = (index: number, field: 'key' | 'type' | 'value') => {
   return errors.value.attributes[index]?.[field];
@@ -300,7 +300,7 @@ const message = useMessageService();
 
 const onAttributeTypeChange = (attr: AttributeItem, type: string) => {
   attr.type = type;
-  attr.value = null;
+  attr.value = defaultAttributeValue(type);
 };
 
 const loadBinaryValue = async (attr: AttributeItem) => {
@@ -329,86 +329,30 @@ const handleStructuredApply = (value: string) => {
   if (target) target.value = value;
 };
 
-const inferType = (value: unknown): string => {
-  if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'string') return 'S';
-  if (typeof value === 'number') return 'N';
-  if (typeof value === 'boolean') return 'BOOL';
-  if (Array.isArray(value)) return 'L';
-  if (typeof value === 'object') return 'M';
-  return 'S';
-};
-
-const formatValue = (value: unknown, type: string): string | number | boolean | null => {
-  if (type === 'N' && typeof value === 'number') return value;
-  if (type === 'BOOL' && typeof value === 'boolean') return value;
-  if (type === 'NULL') return null;
-  if (type === 'L' || type === 'M' || type === 'SS' || type === 'NS' || type === 'BS') {
-    return JSON.stringify(value);
-  }
-  return String(value ?? '');
-};
-
 watch(
-  () => props.item,
-  newItem => {
-    if (newItem) {
-      const keys: AttributeItem[] = [];
-      const attributes: AttributeItem[] = [];
-
-      // Extract partition key - check if the key name exists and is not empty
-      if (props.partitionKeyName && props.partitionKeyName.trim() !== '') {
-        const partitionValue = newItem[props.partitionKeyName];
-
-        if (partitionValue !== undefined) {
-          keys.push({
-            key: props.partitionKeyName,
-            value: formatValue(partitionValue, props.partitionKeyType),
-            type: props.partitionKeyType,
-          });
-        }
-      }
-
-      // Extract sort key if present
-      if (props.sortKeyName && props.sortKeyType && props.sortKeyName.trim() !== '') {
-        const sortValue = newItem[props.sortKeyName];
-
-        if (sortValue !== undefined) {
-          keys.push({
-            key: props.sortKeyName,
-            value: formatValue(sortValue, props.sortKeyType),
-            type: props.sortKeyType,
-          });
-        }
-      }
-
-      // Extract other attributes from the item
-      for (const [attrKey, attrValue] of Object.entries(newItem)) {
-        if (attrKey !== props.partitionKeyName && attrKey !== props.sortKeyName) {
-          const type = inferType(attrValue);
-          attributes.push({
-            key: attrKey,
-            value: formatValue(attrValue, type),
-            type,
-          });
-        }
-      }
-
-      editForm.value = { keys, attributes };
-      errors.value = { attributes: attributes.map(() => ({})) };
-    }
+  [() => props.show, () => props.item, () => props.attributeTypes],
+  ([show, item]) => {
+    structuredEditor.value = { open: false, index: -1 };
+    if (!show || !item) return;
+    editForm.value = buildDynamoEditForm(item, props.attributeTypes ?? {}, [
+      { name: props.partitionKeyName, type: props.partitionKeyType },
+      ...(props.sortKeyName ? [{ name: props.sortKeyName, type: props.sortKeyType ?? 'S' }] : []),
+    ]);
+    originalAttributes.value = editForm.value.attributes.map(attr => ({ ...attr }));
+    errors.value = { attributes: [] };
   },
   { immediate: true },
 );
 
 const addAttribute = () => {
-  editForm.value.attributes.push({ key: '', value: null, type: 'NULL' });
-  errors.value.attributes.push({});
+  editForm.value.attributes = [...editForm.value.attributes, { key: '', value: '', type: 'S' }];
+  errors.value.attributes = [...errors.value.attributes, {}];
 };
 
 const removeAttribute = (index: number) => {
-  editForm.value.attributes.splice(index, 1);
-  errors.value.attributes.splice(index, 1);
+  structuredEditor.value = { open: false, index: -1 };
+  editForm.value.attributes = editForm.value.attributes.filter((_, i) => i !== index);
+  errors.value.attributes = errors.value.attributes.filter((_, i) => i !== index);
 };
 
 const handleClose = () => {
@@ -433,22 +377,24 @@ const validateForm = (): boolean => {
       isValid = false;
     }
 
-    // Validate value based on type
-    if (attr.type !== 'NULL') {
-      if (attr.type === 'N' && typeof attr.value !== 'number') {
-        attrErrors.value = lang.t('editor.dynamo.attributeValueRequired');
-        isValid = false;
-      } else if (attr.type === 'BOOL' && typeof attr.value !== 'boolean') {
-        attrErrors.value = lang.t('editor.dynamo.attributeValueRequired');
-        isValid = false;
-      } else if (
-        attr.type !== 'N' &&
-        attr.type !== 'BOOL' &&
-        (attr.value === null || attr.value === undefined || attr.value === '')
-      ) {
-        attrErrors.value = lang.t('editor.dynamo.attributeValueRequired');
-        isValid = false;
-      }
+    const duplicates = [...editForm.value.keys, ...editForm.value.attributes].filter(
+      entry => entry.key === attr.key,
+    );
+    if (duplicates.length > 1) {
+      attrErrors.key = lang.t('editor.dynamo.duplicateAttribute');
+      isValid = false;
+    }
+    const issue = validateAttributeValue(attr.type, attr.value);
+    if (issue) {
+      attrErrors.value =
+        issue.kind === 'required'
+          ? lang.t('editor.dynamo.attributeValueRequired')
+          : issue.kind === 'emptySet'
+            ? lang.t('editor.dynamo.emptySetNotAllowed')
+            : issue.kind === 'syntax'
+              ? lang.t('editor.dynamo.jsonInvalidSyntax', { reason: issue.reason })
+              : lang.t('editor.dynamo.jsonInvalidShape', { type: attr.type });
+      isValid = false;
     }
 
     errors.value.attributes[index] = attrErrors;
@@ -462,7 +408,11 @@ const handleSubmit = async () => {
     return;
   }
 
-  const attributes = editForm.value.attributes.filter(attr => attr.type !== 'NULL');
+  const attributes = changedDynamoAttributes(editForm.value.attributes, originalAttributes.value);
+  if (!attributes.length) {
+    handleClose();
+    return;
+  }
   loading.value = true;
   try {
     emit('submit', editForm.value.keys, attributes);

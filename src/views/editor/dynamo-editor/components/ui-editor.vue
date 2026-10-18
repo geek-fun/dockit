@@ -228,6 +228,7 @@
   <edit-item
     v-model:show="showEditModal"
     :item="editingItem"
+    :attribute-types="editingAttributeTypes"
     :partition-key-name="partitionKeyName"
     :partition-key-type="partitionKeyType"
     :sort-key-name="sortKeyName"
@@ -286,12 +287,7 @@ import { ResultPanel } from '@/components/result';
 import { inferColumnTypes } from '@/components/result/columnTypes';
 import type { ColumnDef } from '@/components/result';
 import { Empty } from '@/components/ui/empty';
-import {
-  buildDynamoKeys,
-  flattenDynamoColumns,
-  formatDynamoCell,
-  type DynamoKey,
-} from '../utils/dynamo-result';
+import { buildDynamoKeys, flattenDynamoColumns, formatDynamoCell, type DynamoKey } from '../utils';
 
 const lang = useLang();
 
@@ -368,6 +364,7 @@ watch(
 // Edit state
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
+const editingAttributeTypes = ref<Record<string, string>>({});
 
 const indexSelectDisabled = computed(() => !activePanel.value?.activeTable);
 
@@ -553,6 +550,10 @@ const sortKeyType = computed(() => activeTableSummary.value?.sortKey?.valueType 
 
 const handleEdit = (row: Record<string, unknown>) => {
   editingItem.value = row;
+  editingAttributeTypes.value =
+    dynamoData.value.queryData.attributeTypes?.[
+      dynamoData.value.queryData.data?.indexOf(row) ?? -1
+    ] ?? {};
   showEditModal.value = true;
 };
 

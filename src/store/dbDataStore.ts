@@ -50,6 +50,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
         showResultPanel: boolean;
         columns: Array<DynamoColumn>;
         data: Array<Record<string, unknown>> | undefined;
+        attributeTypes?: Record<string, string>[];
         pagination: {
           page: number;
           pageSize: number;
@@ -65,6 +66,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
         errorMessage: string | null;
         columns: Array<DynamoColumn>;
         data: Array<Record<string, unknown>>;
+        attributeTypes?: Record<string, string>[];
         count: number;
         nextToken: string | null;
         lastExecutedStatement: string | null;
@@ -183,6 +185,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
       this.dynamoData.queryData.columns = columns;
       this.dynamoData.queryData.data = columnsData;
+      this.dynamoData.queryData.attributeTypes = data.attribute_types;
 
       if (data.last_evaluated_key) {
         this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page] =
@@ -294,6 +297,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
         this.dynamoData.partiqlData.errorMessage = null;
         this.dynamoData.partiqlData.columns = [];
         this.dynamoData.partiqlData.data = [];
+        this.dynamoData.partiqlData.attributeTypes = [];
         this.dynamoData.partiqlData.count = 0;
         this.dynamoData.partiqlData.nextToken = null;
         this.dynamoData.partiqlData.lastExecutedStatement = statement;
@@ -388,6 +392,11 @@ export const useDbDataStore = defineStore('dbDataStore', {
             ];
           }
 
+          this.dynamoData.partiqlData.attributeTypes = [
+            ...(this.dynamoData.partiqlData.attributeTypes ??
+              this.dynamoData.partiqlData.data.map(() => ({}))),
+            ...(result.attribute_types ?? result.items.map(() => ({}))),
+          ];
           this.dynamoData.partiqlData.data = [...this.dynamoData.partiqlData.data, ...columnsData];
           this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
           this.dynamoData.partiqlData.nextToken = result.next_token;
@@ -395,6 +404,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
           // Set new results
           this.dynamoData.partiqlData.columns = columns;
           this.dynamoData.partiqlData.data = columnsData;
+          this.dynamoData.partiqlData.attributeTypes = result.attribute_types;
           this.dynamoData.partiqlData.count = result.count;
           this.dynamoData.partiqlData.nextToken = result.next_token;
         }
