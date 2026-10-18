@@ -576,6 +576,7 @@ impl CapabilityHandler for DynamoUpdateItem {
         let payload = serde_json::json!({
             "keys": args.get("keys"),
             "attributes": args.get("attributes"),
+            "removed": args.get("removed"),
         });
         let input = UpdateItemInput {
             table_name,
@@ -1808,8 +1809,14 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
             (
                 "attributes",
                 "array",
-                "JSON array of attribute objects with key, value, and type to update",
-                true
+                "JSON array of attribute objects with key, value, and type to set",
+                false
+            ),
+            (
+                "removed",
+                "array",
+                "JSON array of attribute names to remove from the item",
+                false
             ),
         ]),
         RiskLevel::Elevated,
@@ -3663,6 +3670,7 @@ mod tests {
         assert_eq!(prop_type("dynamo__create_item", "attributes"), "array");
         assert_eq!(prop_type("dynamo__update_item", "keys"), "array");
         assert_eq!(prop_type("dynamo__update_item", "attributes"), "array");
+        assert_eq!(prop_type("dynamo__update_item", "removed"), "array");
         assert_eq!(prop_type("dynamo__delete_item", "keys"), "array");
         assert_eq!(prop_type("dynamo__batch_write_items", "items"), "array");
         assert_eq!(

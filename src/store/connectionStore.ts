@@ -1085,8 +1085,9 @@ export const useConnectionStore = defineStore('connectionStore', {
       tableName: string,
       keys: DynamoAttributeItem[],
       attributes: DynamoAttributeItem[],
+      removed?: string[],
     ) {
-      return await dynamoApi.updateItem(con, tableName, keys, attributes);
+      return await dynamoApi.updateItem(con, tableName, keys, attributes, removed);
     },
 
     async deleteItem(con: DynamoDBConnection, tableName: string, keys: DynamoAttributeItem[]) {

@@ -13,6 +13,16 @@ export const changedDynamoAttributes = (
       ),
   );
 
+/**
+ * Names deleted from the form. Renaming an attribute removes its previous name
+ * and sets the new one.
+ */
+export const removedDynamoAttributes = (
+  attributes: DynamoAttributeItem[],
+  original: DynamoAttributeItem[],
+): string[] =>
+  original.map(attr => attr.key).filter(key => !attributes.some(attr => attr.key === key));
+
 const inferType = (value: unknown): string => {
   if (value === null || value === undefined) return 'NULL';
   if (typeof value === 'string') return 'S';

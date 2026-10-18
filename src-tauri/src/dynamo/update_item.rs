@@ -10,6 +10,36 @@ pub struct UpdateItemInput<'a> {
     pub payload: &'a Value,
 }
 
+/// Attribute names to REMOVE. Agents may pass them JSON-encoded as a string,
+/// matching the other array arguments.
+fn removed_attribute_names(payload: &Value) -> Result<Vec<String>, String> {
+    let raw = match payload.get("removed") {
+        None | Some(Value::Null) => return Ok(Vec::new()),
+        Some(value) => value,
+    };
+    let resolved = match raw {
+        Value::String(encoded) => serde_json::from_str::<Value>(encoded.trim())
+            .map_err(|e| format!("removed is not valid JSON: {e}"))?,
+        other => other.clone(),
+    };
+    let entries = resolved
+        .as_array()
+        .ok_or_else(|| "removed must be a JSON array of attribute names".to_string())?;
+    let mut names = entries
+        .iter()
+        .map(|entry| {
+            entry
+                .as_str()
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| "removed entries must be non-empty attribute names".to_string())
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    names.sort();
+    names.dedup();
+    Ok(names)
+}
+
 pub async fn update_item(
     client: &Client,
     input: UpdateItemInput<'_>,
@@ -33,16 +63,24 @@ pub async fn update_item(
         }
     };
 
-    // Extract attributes from the payload
-    let attributes = match convert_attributes(input.payload.get("attributes"), "") {
-        Ok(attributes) if attributes.is_empty() => {
-            return Ok(ApiResponse {
-                status: 400,
-                message: "At least one attribute is required for update".to_string(),
-                data: None,
-            });
+    // A removal-only update has no attributes to SET.
+    let attributes = if matches!(input.payload.get("attributes"), None | Some(Value::Null)) {
+        Vec::new()
+    } else {
+        match convert_attributes(input.payload.get("attributes"), "") {
+            Ok(attributes) => attributes,
+            Err(e) => {
+                return Ok(ApiResponse {
+                    status: 400,
+                    message: format!("Failed to update item: {e}"),
+                    data: None,
+                });
+            }
         }
-        Ok(attributes) => attributes,
+    };
+
+    let removed = match removed_attribute_names(input.payload) {
+        Ok(names) => names,
         Err(e) => {
             return Ok(ApiResponse {
                 status: 400,
@@ -52,6 +90,25 @@ pub async fn update_item(
         }
     };
 
+    if attributes.is_empty() && removed.is_empty() {
+        return Ok(ApiResponse {
+            status: 400,
+            message: "At least one attribute is required for update".to_string(),
+            data: None,
+        });
+    }
+
+    if let Some(name) = removed
+        .iter()
+        .find(|name| attributes.iter().any(|(key, _)| key == *name))
+    {
+        return Ok(ApiResponse {
+            status: 400,
+            message: format!("attribute '{name}' cannot be both updated and removed"),
+            data: None,
+        });
+    }
+
     // Build the update request
     let mut update_item = client.update_item().table_name(input.table_name);
 
@@ -60,7 +117,8 @@ pub async fn update_item(
     }
 
     // Build update expression and expression attribute values
-    let mut update_expression_parts: Vec<String> = Vec::new();
+    let mut set_parts: Vec<String> = Vec::new();
+    let mut remove_parts: Vec<String> = Vec::new();
     let mut expression_attribute_names: std::collections::HashMap<String, String> =
         std::collections::HashMap::new();
     let mut expression_attribute_values: std::collections::HashMap<String, AttributeValue> =
@@ -73,10 +131,31 @@ pub async fn update_item(
         expression_attribute_names.insert(name_placeholder.clone(), key);
 
         expression_attribute_values.insert(value_placeholder.clone(), value);
-        update_expression_parts.push(format!("{} = {}", name_placeholder, value_placeholder));
+        set_parts.push(format!("{} = {}", name_placeholder, value_placeholder));
     }
 
-    let update_expression = format!("SET {}", update_expression_parts.join(", "));
+    for (index, name) in removed.into_iter().enumerate() {
+        let name_placeholder = format!("#rem{}", index);
+        expression_attribute_names.insert(name_placeholder.clone(), name);
+        remove_parts.push(name_placeholder);
+    }
+
+    let update_expression = match (set_parts.is_empty(), remove_parts.is_empty()) {
+        (false, false) => format!(
+            "SET {} REMOVE {}",
+            set_parts.join(", "),
+            remove_parts.join(", ")
+        ),
+        (false, true) => format!("SET {}", set_parts.join(", ")),
+        (true, false) => format!("REMOVE {}", remove_parts.join(", ")),
+        (true, true) => {
+            return Ok(ApiResponse {
+                status: 400,
+                message: "At least one attribute is required for update".to_string(),
+                data: None,
+            });
+        }
+    };
 
     // Add expression attribute names
     for (placeholder, name) in expression_attribute_names {
@@ -276,5 +355,122 @@ mod tests {
             "{}",
             response.message
         );
+    }
+
+    async fn mount_update_ok(server: &wiremock::MockServer) {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header("x-amz-target", "DynamoDB_20120810.UpdateItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
+            .mount(server)
+            .await;
+    }
+
+    async fn sent_body(server: &wiremock::MockServer) -> serde_json::Value {
+        let requests = server.received_requests().await.expect("recorded requests");
+        serde_json::from_slice(&requests[0].body).expect("request body is JSON")
+    }
+
+    #[tokio::test]
+    async fn removals_are_expressed_as_remove_not_set() {
+        let server = wiremock::MockServer::start().await;
+        mount_update_ok(&server).await;
+        let client = make_mock_client(&server).await;
+        let payload = serde_json::json!({
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "attributes": [{"key": "name", "value": "b", "type": "S"}],
+            "removed": ["legacy", "old.value"]
+        });
+        let response = update_item(
+            &client,
+            UpdateItemInput {
+                table_name: "users",
+                payload: &payload,
+            },
+        )
+        .await
+        .expect("update_item returns an ApiResponse");
+
+        assert_eq!(response.status, 200);
+        let body = sent_body(&server).await;
+        assert_eq!(
+            body["UpdateExpression"],
+            "SET #attr0 = :val0 REMOVE #rem0, #rem1".to_string()
+        );
+        assert_eq!(body["ExpressionAttributeNames"]["#rem0"], "legacy");
+        assert_eq!(body["ExpressionAttributeNames"]["#rem1"], "old.value");
+        assert_eq!(body["ExpressionAttributeValues"][":val0"]["S"], "b");
+    }
+
+    #[tokio::test]
+    async fn removal_only_updates_are_allowed() {
+        let server = wiremock::MockServer::start().await;
+        mount_update_ok(&server).await;
+        let client = make_mock_client(&server).await;
+        let payload = serde_json::json!({
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "removed": "[\"legacy\"]"
+        });
+        let response = update_item(
+            &client,
+            UpdateItemInput {
+                table_name: "users",
+                payload: &payload,
+            },
+        )
+        .await
+        .expect("update_item returns an ApiResponse");
+
+        assert_eq!(response.status, 200);
+        let body = sent_body(&server).await;
+        assert_eq!(body["UpdateExpression"], "REMOVE #rem0".to_string());
+        assert_eq!(body["ExpressionAttributeNames"]["#rem0"], "legacy");
+        assert!(body["ExpressionAttributeValues"].is_null());
+    }
+
+    #[tokio::test]
+    async fn empty_updates_and_overlapping_removals_are_rejected() {
+        let server = wiremock::MockServer::start().await;
+        let client = make_mock_client(&server).await;
+
+        let empty = serde_json::json!({
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "attributes": [],
+            "removed": []
+        });
+        let response = update_item(
+            &client,
+            UpdateItemInput {
+                table_name: "users",
+                payload: &empty,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status, 400);
+
+        let overlapping = serde_json::json!({
+            "keys": [{"key": "id", "value": "1", "type": "S"}],
+            "attributes": [{"key": "name", "value": "b", "type": "S"}],
+            "removed": ["name"]
+        });
+        let response = update_item(
+            &client,
+            UpdateItemInput {
+                table_name: "users",
+                payload: &overlapping,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status, 400);
+        assert!(response
+            .message
+            .contains("attribute 'name' cannot be both updated and removed"));
+
+        assert!(server.received_requests().await.unwrap().is_empty());
     }
 }

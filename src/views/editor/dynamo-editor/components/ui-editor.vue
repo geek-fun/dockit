@@ -605,7 +605,11 @@ type AttributeItem = {
   type: string;
 };
 
-const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
+const handleEditSubmit = async (
+  keys: AttributeItem[],
+  attributes: AttributeItem[],
+  removed: string[],
+) => {
   if (!activeConnection.value) return;
   const tableName = activePanel.value?.activeTable;
   if (!tableName) return;
@@ -613,7 +617,13 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
   try {
     loadingRef.value.queryResult = true;
     loadingBar.start();
-    await updateItem(activeConnection.value as DynamoDBConnection, tableName, keys, attributes);
+    await updateItem(
+      activeConnection.value as DynamoDBConnection,
+      tableName,
+      keys,
+      attributes,
+      removed,
+    );
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
     showEditModal.value = false;
     await refreshDynamoData();

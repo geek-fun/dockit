@@ -303,7 +303,7 @@
       >
         {{ $t('dialogOps.reset') }}
       </Button>
-      <Button :disabled="!validationPassed || loadingRef.createItem" @click="handleSubmit">
+      <Button :disabled="createDisabled" @click="handleSubmit">
         <Loader2 v-if="loadingRef.createItem" class="mr-2 h-4 w-4 animate-spin" />
         {{ $t('dialogOps.create') }}
       </Button>
@@ -338,6 +338,7 @@ import {
   defaultAttributeValue,
   validateDynamoItemForm,
   buildDynamoItemAttributes,
+  describeSchemaError,
   type AttributeValueIssue,
 } from '../utils';
 import { useDynamoItemForm } from '../composables';
@@ -408,28 +409,33 @@ const valueError = (issue: AttributeValueIssue | null | undefined, type: string)
     return lang.t('editor.dynamo.jsonInvalidSyntax', { reason: issue.reason });
   return lang.t('editor.dynamo.jsonInvalidShape', { type });
 };
-const errors = computed(() => ({
-  partitionKey: valueError(
-    validation.value.partitionKey,
-    table.value?.partitionKey?.valueType ?? '',
-  ),
-  sortKey: valueError(validation.value.sortKey, table.value?.sortKey?.valueType ?? ''),
-  attributes: validation.value.attributes.map((attr, index) => ({
-    key: attr.key
-      ? lang.t(
-          attr.key === 'duplicate'
-            ? 'editor.dynamo.duplicateAttribute'
-            : 'editor.dynamo.attributeNameRequired',
-        )
+const submitted = ref(false);
+const errors = computed(() => {
+  const visible = submitted.value;
+  return {
+    partitionKey: visible
+      ? valueError(validation.value.partitionKey, table.value?.partitionKey?.valueType ?? '')
       : undefined,
-    type: attr.type ? lang.t('editor.dynamo.attributeTypeRequired') : undefined,
-    value: valueError(attr.value, dynamoRecordForm.value.attributes[index].type),
-  })),
-}));
-const schemaErrorDetails = computed(() => {
-  const error = schemaError.value as CustomError | Error | null;
-  return error && ('details' in error ? error.details : (error.message ?? String(error)));
+    sortKey: visible
+      ? valueError(validation.value.sortKey, table.value?.sortKey?.valueType ?? '')
+      : undefined,
+    attributes: validation.value.attributes.map((attr, index) => ({
+      key:
+        visible && attr.key
+          ? lang.t(
+              attr.key === 'duplicate'
+                ? 'editor.dynamo.duplicateAttribute'
+                : 'editor.dynamo.attributeNameRequired',
+            )
+          : undefined,
+      type: visible && attr.type ? lang.t('editor.dynamo.attributeTypeRequired') : undefined,
+      value: visible
+        ? valueError(attr.value, dynamoRecordForm.value.attributes[index].type)
+        : undefined,
+    })),
+  };
 });
+const schemaErrorDetails = computed(() => describeSchemaError(schemaError.value));
 
 const addAttributeItem = () => {
   dynamoRecordForm.value.attributes = [
@@ -490,13 +496,14 @@ const handleStructuredApply = (value: string) => {
 };
 
 const selectedTable = computed(() => resolveTableKeyLabels(table.value));
-const validationPassed = computed(
-  () => !schemaLoading.value && !schemaError.value && validation.value.valid,
+const createDisabled = computed(
+  () => schemaLoading.value || !!schemaError.value || !table.value || loadingRef.value.createItem,
 );
 
 watch(
   table,
   () => {
+    submitted.value = false;
     structuredEditor.value = { open: false, index: -1 };
   },
   { flush: 'sync' },
@@ -509,7 +516,8 @@ const handleSubmit = async (event: MouseEvent) => {
     return;
   }
   if (loadingRef.value.createItem) return;
-  if (!validationPassed.value || !table.value) {
+  submitted.value = true;
+  if (!table.value || !validation.value.valid) {
     message.error(lang.t('connection.validationFailed'));
     return;
   }
@@ -554,6 +562,7 @@ const handleSubmit = async (event: MouseEvent) => {
 };
 
 const handleReset = () => {
+  submitted.value = false;
   structuredEditor.value = { open: false, index: -1 };
   reset();
 };

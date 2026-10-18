@@ -41,6 +41,33 @@ const defaultUiQueryForm: UiQueryFormState = {
   selectedIndexOrTable: undefined,
 };
 
+type DynamoKey = { key: string; value: string | number | boolean | null; type: string };
+
+// Numeric keys are sent as exact strings (see buildDynamoKeys), while cached rows
+// keep them as numbers/bigints, so compare their string forms.
+const keyValueMatches = (left: unknown, right: DynamoKey['value']): boolean =>
+  left === right || (left != null && right != null && String(left) === String(right));
+
+// Rows and their per-row attribute type metadata are parallel arrays; both must
+// stay aligned when rows are removed from the local cache.
+const dropDeletedRows = (
+  rows: Array<Record<string, unknown>>,
+  types: Record<string, string>[] | undefined,
+  keys: DynamoKey[],
+) => {
+  const kept = rows
+    .map((item, index) => ({
+      item,
+      types: types?.[index] ?? {},
+      deleted: keys.length > 0 && keys.every(key => keyValueMatches(item[key.key], key.value)),
+    }))
+    .filter(entry => !entry.deleted);
+  return {
+    rows: kept.map(entry => entry.item),
+    types: types ? kept.map(entry => entry.types) : undefined,
+  };
+};
+
 export const useDbDataStore = defineStore('dbDataStore', {
   state: (): {
     dynamoData: {
@@ -255,29 +282,32 @@ export const useDbDataStore = defineStore('dbDataStore', {
       }
     },
 
-    async deleteItem(
-      connection: DynamoDBConnection,
-      tableName: string,
-      keys: Array<{ key: string; value: string | number | boolean | null; type: string }>,
-    ) {
+    async deleteItem(connection: DynamoDBConnection, tableName: string, keys: DynamoKey[]) {
       const { deleteItem } = useConnectionStore();
 
       await deleteItem(connection, tableName, keys);
 
       // Remove item from queryData cache (UI editor mode)
       if (this.dynamoData.queryData.data && this.dynamoData.queryData.data.length > 0) {
-        this.dynamoData.queryData.data = this.dynamoData.queryData.data.filter(item => {
-          // Check if all keys match - if they do, filter out this item
-          return !keys.every(k => item[k.key] === k.value);
-        });
+        const kept = dropDeletedRows(
+          this.dynamoData.queryData.data,
+          this.dynamoData.queryData.attributeTypes,
+          keys,
+        );
+        this.dynamoData.queryData.data = kept.rows;
+        if (kept.types) this.dynamoData.queryData.attributeTypes = kept.types;
       }
 
       // Remove item from partiqlData cache (SQL editor mode)
       if (this.dynamoData.partiqlData.data && this.dynamoData.partiqlData.data.length > 0) {
-        this.dynamoData.partiqlData.data = this.dynamoData.partiqlData.data.filter(item => {
-          return !keys.every(k => item[k.key] === k.value);
-        });
-        this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.data.length;
+        const kept = dropDeletedRows(
+          this.dynamoData.partiqlData.data,
+          this.dynamoData.partiqlData.attributeTypes,
+          keys,
+        );
+        this.dynamoData.partiqlData.data = kept.rows;
+        if (kept.types) this.dynamoData.partiqlData.attributeTypes = kept.types;
+        this.dynamoData.partiqlData.count = kept.rows.length;
       }
     },
 

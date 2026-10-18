@@ -1,6 +1,6 @@
-import { JSONParse } from 'json-with-bigint';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readFile } from '@tauri-apps/plugin-fs';
+import { jsonify } from '@/common';
 
 export const STRUCTURED_TYPES = ['SS', 'NS', 'BS', 'L', 'M'] as const;
 
@@ -63,7 +63,7 @@ export const validateStructuredValue = (
 ): StructuredValueIssue | null => {
   let parsed: unknown;
   try {
-    parsed = JSONParse(text);
+    parsed = jsonify.parse(text);
   } catch (error) {
     return { kind: 'syntax', reason: (error as Error).message };
   }

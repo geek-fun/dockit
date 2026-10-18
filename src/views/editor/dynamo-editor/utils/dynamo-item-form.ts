@@ -78,3 +78,17 @@ export const buildDynamoItemAttributes = (
     ? [{ key: table.sortKey.name, type: table.sortKey.valueType, value: form.sortKey }]
     : []),
 ];
+
+// Tauri capability failures reject with a plain string, while API failures throw
+// CustomError/Error, so normalize both before rendering the schema error.
+export const describeSchemaError = (error: unknown): string => {
+  if (error == null) return '';
+  if (typeof error === 'string') return error;
+  if (typeof error === 'object') {
+    const details = (error as { details?: unknown }).details;
+    if (typeof details === 'string') return details;
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string') return message;
+  }
+  return String(error);
+};

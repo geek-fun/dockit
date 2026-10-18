@@ -206,6 +206,7 @@ import {
   validateAttributeValue,
   buildDynamoEditForm,
   changedDynamoAttributes,
+  removedDynamoAttributes,
 } from '../utils';
 
 import {
@@ -250,7 +251,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
-  (e: 'submit', keys: AttributeItem[], attributes: AttributeItem[]): void;
+  (e: 'submit', keys: AttributeItem[], attributes: AttributeItem[], removed: string[]): void;
 }>();
 
 const showModal = computed({
@@ -409,13 +410,14 @@ const handleSubmit = async () => {
   }
 
   const attributes = changedDynamoAttributes(editForm.value.attributes, originalAttributes.value);
-  if (!attributes.length) {
+  const removed = removedDynamoAttributes(editForm.value.attributes, originalAttributes.value);
+  if (!attributes.length && !removed.length) {
     handleClose();
     return;
   }
   loading.value = true;
   try {
-    emit('submit', editForm.value.keys, attributes);
+    emit('submit', editForm.value.keys, attributes, removed);
   } finally {
     loading.value = false;
   }

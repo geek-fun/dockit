@@ -329,6 +329,7 @@ const dynamoApi = {
     tableName: string,
     keys: DynamoAttributeItem[],
     attributes: DynamoAttributeItem[],
+    removed?: string[],
   ) => {
     const raw = await invokeCapability(
       'dynamo__update_item',
@@ -336,6 +337,7 @@ const dynamoApi = {
         table_name: tableName,
         keys,
         attributes,
+        removed,
       },
       String(con.id),
     );

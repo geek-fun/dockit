@@ -31,6 +31,13 @@ const toColumnDef = (col: DataTableColumn): ColumnDef => ({
 
 export type DynamoKey = { key: string; value: string | number | boolean | null; type: string };
 
+// IPC args go through JSON.stringify, which throws on bigint. Numeric keys also
+// need their exact decimal text, and Rust accepts N as a string.
+const keyValue = (value: unknown, type: string): DynamoKey['value'] =>
+  type === 'N' && (typeof value === 'number' || typeof value === 'bigint')
+    ? String(value)
+    : (value as DynamoKey['value']);
+
 /** Build DynamoDB key(s) from a result row for delete/edit operations. */
 export const buildDynamoKeys = (
   row: Record<string, unknown>,
@@ -41,17 +48,14 @@ export const buildDynamoKeys = (
 ): DynamoKey[] => {
   const keys: DynamoKey[] = [];
   if (partitionKeyName && row[partitionKeyName] !== undefined) {
-    keys.push({
-      key: partitionKeyName,
-      value: row[partitionKeyName] as DynamoKey['value'],
-      type: partitionKeyType || 'S',
-    });
+    const type = partitionKeyType || 'S';
+    keys.push({ key: partitionKeyName, type, value: keyValue(row[partitionKeyName], type) });
   }
   if (sortKeyName && sortKeyType && row[sortKeyName] !== undefined) {
     keys.push({
       key: sortKeyName,
-      value: row[sortKeyName] as DynamoKey['value'],
       type: sortKeyType,
+      value: keyValue(row[sortKeyName], sortKeyType),
     });
   }
   return keys;

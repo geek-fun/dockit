@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
-import { JSONParse, JSONStringify } from 'json-with-bigint';
+import { jsonify } from '../../../../common';
 import { monaco, type Editor } from '../../../../common/monaco';
 import { useAppStore } from '../../../../store';
 import { useLang } from '../../../../lang';
@@ -101,7 +101,7 @@ const handleOpenChange = (open: boolean) => {
 
 const handleApply = () => {
   if (!editor || validationError.value) return;
-  emit('apply', JSONStringify(JSONParse(editor.getValue())));
+  emit('apply', jsonify.stringify(jsonify.parse(editor.getValue())));
   emit('update:open', false);
 };
 
