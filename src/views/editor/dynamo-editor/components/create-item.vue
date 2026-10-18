@@ -40,9 +40,14 @@
               {{ $t('editor.dynamo.retryTableSchema') }}
             </Button>
           </div>
-          <p v-else-if="!table" class="text-sm text-muted-foreground">
+          <div
+            v-else-if="!table"
+            role="status"
+            class="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400"
+          >
+            <span class="i-carbon-warning-alt h-4 w-4 shrink-0" aria-hidden="true" />
             {{ $t('editor.dynamo.selectTableFirst') }}
-          </p>
+          </div>
           <Grid v-else :cols="24" :x-gap="12">
             <GridItem :span="10">
               <FormItem
@@ -53,11 +58,13 @@
               >
                 <Input
                   v-model="dynamoRecordForm.partitionKey"
+                  :inputmode="partitionKeyValueType === 'N' ? 'decimal' : 'text'"
                   :placeholder="$t('editor.dynamo.enterPartitionKey')"
                   autocomplete="off"
                   autocorrect="off"
                   autocapitalize="off"
                   spellcheck="false"
+                  @blur="touchedKeys.partitionKey = true"
                 />
               </FormItem>
             </GridItem>
@@ -71,11 +78,13 @@
               >
                 <Input
                   v-model="dynamoRecordForm.sortKey"
+                  :inputmode="sortKeyValueType === 'N' ? 'decimal' : 'text'"
                   :placeholder="$t('editor.dynamo.enterSortKey')"
                   autocomplete="off"
                   autocorrect="off"
                   autocapitalize="off"
                   spellcheck="false"
+                  @blur="touchedKeys.sortKey = true"
                 />
               </FormItem>
             </GridItem>
@@ -401,24 +410,33 @@ const {
 );
 
 const validation = computed(() => validateDynamoItemForm(dynamoRecordForm.value, table.value));
+const partitionKeyValueType = computed(() => table.value?.partitionKey?.valueType ?? 'S');
+const sortKeyValueType = computed(() => table.value?.sortKey?.valueType ?? 'S');
 const valueError = (issue: AttributeValueIssue | null | undefined, type: string) => {
   if (!issue) return undefined;
   if (issue.kind === 'required') return lang.t('editor.dynamo.attributeValueRequired');
   if (issue.kind === 'emptySet') return lang.t('editor.dynamo.emptySetNotAllowed');
   if (issue.kind === 'syntax')
     return lang.t('editor.dynamo.jsonInvalidSyntax', { reason: issue.reason });
+  if (type === 'N') return lang.t('editor.dynamo.invalidNumber');
+  if (type === 'B') return lang.t('editor.dynamo.invalidBase64');
   return lang.t('editor.dynamo.jsonInvalidShape', { type });
 };
 const submitted = ref(false);
+// Key errors appear once the field has been left (or Create was pressed) so a
+// pristine form stays quiet while a wrong key type is reported immediately.
+const touchedKeys = ref({ partitionKey: false, sortKey: false });
 const errors = computed(() => {
   const visible = submitted.value;
   return {
-    partitionKey: visible
-      ? valueError(validation.value.partitionKey, table.value?.partitionKey?.valueType ?? '')
-      : undefined,
-    sortKey: visible
-      ? valueError(validation.value.sortKey, table.value?.sortKey?.valueType ?? '')
-      : undefined,
+    partitionKey:
+      visible || touchedKeys.value.partitionKey
+        ? valueError(validation.value.partitionKey, partitionKeyValueType.value)
+        : undefined,
+    sortKey:
+      visible || touchedKeys.value.sortKey
+        ? valueError(validation.value.sortKey, sortKeyValueType.value)
+        : undefined,
     attributes: validation.value.attributes.map((attr, index) => ({
       key:
         visible && attr.key
@@ -504,6 +522,7 @@ watch(
   table,
   () => {
     submitted.value = false;
+    touchedKeys.value = { partitionKey: false, sortKey: false };
     structuredEditor.value = { open: false, index: -1 };
   },
   { flush: 'sync' },
@@ -563,6 +582,7 @@ const handleSubmit = async (event: MouseEvent) => {
 
 const handleReset = () => {
   submitted.value = false;
+  touchedKeys.value = { partitionKey: false, sortKey: false };
   structuredEditor.value = { open: false, index: -1 };
   reset();
 };

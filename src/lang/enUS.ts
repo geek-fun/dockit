@@ -1232,6 +1232,8 @@ export const enUS = {
       attributeNameRequired: 'Attribute name is required',
       attributeTypeRequired: 'Attribute type is required',
       attributeValueRequired: 'Attribute value is required',
+      invalidNumber: 'Enter a valid number',
+      invalidBase64: 'Enter valid Base64',
       selectTypeFirst: 'Select type first',
       editStructuredValue: 'Edit attribute value',
       jsonInvalidSyntax: 'Invalid JSON: {reason}',

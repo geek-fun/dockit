@@ -1193,6 +1193,8 @@ export const zhCN = {
       attributeNameRequired: '请输入属性名称',
       attributeTypeRequired: '请输入属性类型',
       attributeValueRequired: '请输入属性值',
+      invalidNumber: '请输入有效的数字',
+      invalidBase64: '请输入有效的 Base64',
       selectTypeFirst: '请先选择类型',
       editStructuredValue: '编辑属性值',
       jsonInvalidSyntax: 'JSON 无效：{reason}',
