@@ -358,4 +358,43 @@ mod tests {
         assert_eq!(response.status, 400);
         assert!(server.received_requests().await.unwrap().is_empty());
     }
+
+    #[tokio::test]
+    async fn duplicate_protection_returns_a_skipped_outcome() {
+        use wiremock::matchers::{header, method};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(header("x-amz-target", "DynamoDB_20120810.PutItem"))
+            .respond_with(ResponseTemplate::new(400).set_body_json(json!({
+                "__type": "com.amazonaws.dynamodb.v20120810#ConditionalCheckFailedException",
+                "message": "The conditional request failed"
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = make_mock_client(&server).await;
+        let payload = json!({
+            "attributes": [{"key": "id", "type": "S", "value": "existing"}],
+            "skipExisting": true,
+            "partitionKey": "id"
+        });
+        let response = create_item(
+            &client,
+            CreateItemInput {
+                table_name: "qa",
+                payload: &payload,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(response.status, 200);
+        assert_eq!(
+            response.data,
+            Some(json!({"created": false, "skipped": true}))
+        );
+        let request = sent_body(&server).await;
+        assert_eq!(request["ConditionExpression"], "attribute_not_exists(#pk)");
+    }
 }

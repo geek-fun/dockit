@@ -152,10 +152,43 @@ describe('Create Item table selection', () => {
     await flush();
     expect(state.table.value).toBeUndefined();
   });
+
+  it('ignores a rejected schema request after the selected table changes', async () => {
+    const request = deferred<DynamoTableSummary>();
+    const selected = ref('old');
+    const load = jest.fn().mockReturnValueOnce(request.promise).mockResolvedValueOnce(table('new'));
+    const scope = effectScope();
+    const state = scope.run(() =>
+      useDynamoItemForm(
+        () => ({ id: 1 }) as DynamoDBConnection,
+        () => selected.value,
+        load,
+      ),
+    )!;
+    selected.value = 'new';
+    await flush();
+    request.reject(new Error('stale schema failure'));
+    await flush();
+    expect(state.table.value?.name).toBe('new');
+    expect(state.schemaError.value).toBeNull();
+    expect(state.schemaLoading.value).toBe(false);
+    scope.stop();
+  });
 });
 
 describe('Create Item validation and payload', () => {
   const validForm = () => ({ ...createDynamoItemForm(table('a')), partitionKey: '42' });
+  it('reports missing attribute names and types without accepting an incomplete form', () => {
+    const validation = validateDynamoItemForm(
+      { ...validForm(), attributes: [{ key: '', type: '', value: null }] },
+      table('a'),
+    );
+    expect(validation.valid).toBe(false);
+    expect(validation.attributes).toEqual([
+      { key: 'required', type: 'required', value: { kind: 'required' } },
+    ]);
+  });
+
   it.each([
     ['S', ''],
     ['B', ''],

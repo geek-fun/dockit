@@ -1,4 +1,5 @@
 use super::*;
+use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::types::{
     AttributeDefinition, AttributeValue, BillingMode, KeySchemaElement, KeyType,
     ScalarAttributeType,
@@ -14,6 +15,144 @@ impl DynamoClientFactory for LocalFactory {
             "region": "us-east-1", "authKind": "accessKey", "accessKeyId": "test", "secretAccessKey": "test", "endpointUrl": self.0,
         }), None).await
     }
+}
+
+async fn mock_typed_read(server: &wiremock::MockServer, operation: &str) {
+    use wiremock::matchers::{header, method, path};
+    use wiremock::{Mock, ResponseTemplate};
+
+    Mock::given(method("POST"))
+        .and(path("/"))
+        .and(header(
+            "x-amz-target",
+            format!("DynamoDB_20120810.{operation}"),
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "Items": [
+                {
+                    "id": {"S": "first"},
+                    "number": {"N": "9223372036854775808"},
+                    "binary": {"B": "YQ=="},
+                    "enabled": {"BOOL": false},
+                    "nil": {"NULL": true},
+                    "strings": {"SS": ["a", "b"]},
+                    "numbers": {"NS": ["1", "9223372036854775808"]},
+                    "binaries": {"BS": ["YQ==", "Yg=="]},
+                    "list": {"L": [{"N": "42"}]},
+                    "map": {"M": {"nested": {"BOOL": true}}},
+                    "future": {"FUTURE_TYPE": "unrecognized by this SDK"}
+                },
+                {"id": {"S": "second"}, "strings": {"L": [{"S": "a"}]}}
+            ],
+            "Count": 2,
+            "ScannedCount": 2,
+            "LastEvaluatedKey": {"id": {"S": "second"}},
+            "NextToken": "next-page"
+        })))
+        .expect(1)
+        .mount(server)
+        .await;
+}
+
+fn assert_typed_read(response: &ApiResponse) {
+    assert_eq!(response.status, 200, "{}", response.message);
+    let data = response.data.as_ref().unwrap();
+    assert_eq!(data["count"], 2);
+    assert_eq!(
+        data["attribute_types"],
+        json!([
+            {"id": "S", "number": "N", "binary": "B", "enabled": "BOOL", "nil": "NULL",
+             "strings": "SS", "numbers": "NS", "binaries": "BS", "list": "L", "map": "M", "future": "UNKNOWN"},
+            {"id": "S", "strings": "L"}
+        ])
+    );
+    assert_eq!(
+        data["items"][0],
+        json!({
+            "id": "first", "number": 9223372036854775808u64, "binary": "YQ==", "enabled": false,
+            "nil": null, "strings": ["a", "b"], "numbers": [1, 9223372036854775808u64],
+            "binaries": ["YQ==", "Yg=="], "list": [42], "map": {"nested": true}, "future": null
+        })
+    );
+    assert_eq!(data["items"][1], json!({"id": "second", "strings": ["a"]}));
+}
+
+#[tokio::test]
+async fn query_response_preserves_typed_metadata_and_pagination() {
+    let server = wiremock::MockServer::start().await;
+    mock_typed_read(&server, "Query").await;
+    let client = LocalFactory(server.uri())
+        .create_client(&json!({}))
+        .await
+        .unwrap();
+    let payload = json!({"partition_key": {"name": "id", "value": "first"}, "limit": 2});
+    let response = query_table(
+        &client,
+        QueryTableInput {
+            table_name: "qa",
+            payload: &payload,
+        },
+    )
+    .await
+    .unwrap();
+    assert_typed_read(&response);
+    assert_eq!(
+        response.data.unwrap()["last_evaluated_key"],
+        json!({"id": "second"})
+    );
+}
+
+#[tokio::test]
+async fn scan_response_preserves_typed_metadata_and_pagination() {
+    let server = wiremock::MockServer::start().await;
+    mock_typed_read(&server, "Scan").await;
+    let client = LocalFactory(server.uri())
+        .create_client(&json!({}))
+        .await
+        .unwrap();
+    let payload = json!({"limit": 2});
+    let response = scan_table(
+        &client,
+        ScanTableInput {
+            table_name: "qa",
+            payload: &payload,
+        },
+    )
+    .await
+    .unwrap();
+    assert_typed_read(&response);
+    assert_eq!(
+        response.data.unwrap()["last_evaluated_key"],
+        json!({"id": "second"})
+    );
+}
+
+#[tokio::test]
+async fn partiql_response_preserves_typed_metadata_and_pagination() {
+    use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
+
+    let server = wiremock::MockServer::start().await;
+    mock_typed_read(&server, "ExecuteStatement").await;
+    let client = LocalFactory(server.uri())
+        .create_client(&json!({}))
+        .await
+        .unwrap();
+    let response = execute_statement(
+        &client,
+        ExecuteStatementInput {
+            statement: "SELECT * FROM qa",
+            next_token: Some("previous-page"),
+            limit: Some(2),
+        },
+    )
+    .await
+    .unwrap();
+    assert_typed_read(&response);
+    assert_eq!(response.data.unwrap()["next_token"], "next-page");
+    let requests = server.received_requests().await.unwrap();
+    let request: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(request["NextToken"], "previous-page");
+    assert_eq!(request["Limit"], 2);
 }
 
 #[tokio::test]

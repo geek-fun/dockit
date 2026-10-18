@@ -60,6 +60,15 @@ The DynamoDB changes were checked in an isolated worktree based on `origin/maste
 - Browser harness recheck: no initial table disables Create; selecting an empty numeric-key table shows the loading state and then its primary-key input. Submitting `9007199254740993` retains that exact numeric string in the typed request and enables duplicate protection.
 - All changed Rust files pass `rustfmt --check`. The repository-wide `cargo fmt --check` reports existing formatting differences in unchanged `src-tauri/src/lib.rs` and `src-tauri/src/session.rs`.
 
+## Coverage follow-up (2026-10-18)
+
+- Added 25 frontend regression cases and five Rust tests that run in the normal CI suite.
+- HTTP-mocked Query, Scan, and PartiQL responses now exercise all ten DynamoDB attribute types, mixed per-row types, pagination, exact unsigned numeric-set values, and the SDK's unknown-variant fallback. These checks do not require DynamoDB Local.
+- Added coverage for empty metadata rows, skipped duplicate creation, legacy edit-form type inference and precedence, BigInt result rendering, missing attribute names/types, stale schema failures, and pagination when either page omits type metadata.
+- The full JavaScript suite passed: 1,859 tests across 55 suites. The instrumented DynamoDB Rust suite passed: 286 tests, with the existing opt-in local flow left ignored.
+- Local Istanbul coverage is 100% for statements, lines, functions, and branches in `dynamo-edit-form.ts`, `dynamo-attribute.ts`, `dynamo-item-form.ts`, and `useDynamoItemForm.ts`. Local LLVM coverage executes every measured line in `item_attribute_types`, including its unknown-type fallback.
+- ESLint, Vue/TypeScript checks, and formatting of the changed Rust files passed. Codecov's combined patch percentage is calculated by CI and may differ from local per-file results.
+
 ## Repeat
 
 ```sh

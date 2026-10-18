@@ -874,4 +874,18 @@ mod tests {
         .unwrap_err();
         assert!(error.contains("duplicate attribute 'id' in 'put' at index 0"));
     }
+
+    #[test]
+    fn item_type_metadata_keeps_empty_items_in_row_order() {
+        assert!(item_attribute_types(&[]).is_empty());
+        let items = [
+            HashMap::new(),
+            HashMap::from([("nil".to_string(), AttributeValue::Null(true))]),
+            HashMap::new(),
+        ];
+        assert_eq!(
+            item_attribute_types(&items),
+            vec![json!({}), json!({"nil": "NULL"}), json!({})]
+        );
+    }
 }
