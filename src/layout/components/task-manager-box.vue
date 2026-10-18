@@ -1,93 +1,98 @@
 <template>
   <div class="task-manager-container">
-    <div class="task-manager-header">
-      <div class="header-title">{{ $t('aside.taskManager') }}</div>
-      <button
-        class="clear-btn"
-        :disabled="!hasDismissable"
-        @click="importExportStore.clearCompletedTasks()"
-      >
-        {{ $t('taskManager.clearCompleted') }}
-      </button>
-    </div>
+    <PaidGate feature="import_export" compact class="h-full w-full">
+      <div class="task-manager-header">
+        <div class="header-title">{{ $t('aside.taskManager') }}</div>
+        <button
+          class="clear-btn"
+          :disabled="!hasDismissable"
+          @click="importExportStore.clearCompletedTasks()"
+        >
+          {{ $t('taskManager.clearCompleted') }}
+        </button>
+      </div>
 
-    <div class="task-list">
-      <ScrollArea class="h-full">
-        <div v-if="runningTasks.length === 0" class="empty-state">
-          <span class="i-carbon-task h-10 w-10 empty-icon" />
-          <p class="empty-text">{{ $t('taskManager.noTasks') }}</p>
-        </div>
+      <div class="task-list">
+        <ScrollArea class="h-full">
+          <div v-if="runningTasks.length === 0" class="empty-state">
+            <span class="i-carbon-task h-10 w-10 empty-icon" />
+            <p class="empty-text">{{ $t('taskManager.noTasks') }}</p>
+          </div>
 
-        <div v-for="task in runningTasks" :key="task.id" class="task-card">
-          <div class="task-card-header">
-            <div class="task-title-row">
-              <span :class="kindIconClass(task.kind)" class="h-4 w-4 task-kind-icon" />
-              <span class="task-title">{{ taskTitle(task) }}</span>
+          <div v-for="task in runningTasks" :key="task.id" class="task-card">
+            <div class="task-card-header">
+              <div class="task-title-row">
+                <span :class="kindIconClass(task.kind)" class="h-4 w-4 task-kind-icon" />
+                <span class="task-title">{{ taskTitle(task) }}</span>
+              </div>
+              <button
+                v-if="task.status !== 'running'"
+                class="dismiss-btn"
+                @click="importExportStore.removeTask(task.id)"
+              >
+                <span class="i-carbon-close h-4 w-4" />
+              </button>
             </div>
-            <button
-              v-if="task.status !== 'running'"
-              class="dismiss-btn"
-              @click="importExportStore.removeTask(task.id)"
+
+            <div class="task-meta-row">
+              <span :class="statusClass(task.status)" class="status-badge">
+                {{ $t(`taskManager.status.${task.status}`) }}
+              </span>
+              <span class="task-direction">{{ task.index }}</span>
+            </div>
+
+            <div
+              v-if="task.status === 'running' || task.progress.complete > 0"
+              class="task-progress"
             >
-              <span class="i-carbon-close h-4 w-4" />
-            </button>
-          </div>
+              <Progress
+                :percentage="progressPct(task)"
+                :status="
+                  task.status === 'failed'
+                    ? 'error'
+                    : task.status === 'completed'
+                      ? 'success'
+                      : 'info'
+                "
+              />
+              <p class="progress-label">
+                {{ task.progress.complete.toLocaleString() }} /
+                {{ task.progress.total.toLocaleString() }}
+                {{ $t('export.documents') }}
+                <span class="progress-pct">{{ progressPct(task) }}%</span>
+              </p>
+            </div>
 
-          <div class="task-meta-row">
-            <span :class="statusClass(task.status)" class="status-badge">
-              {{ $t(`taskManager.status.${task.status}`) }}
-            </span>
-            <span class="task-direction">{{ task.index }}</span>
-          </div>
+            <div
+              v-if="task.kind === 'import' && (task.inserted != null || task.skipped != null)"
+              class="task-stats"
+            >
+              <span v-if="task.inserted != null" class="stat inserted">
+                {{ $t('import.inserted') }}: {{ (task.inserted ?? 0).toLocaleString() }}
+              </span>
+              <span v-if="task.updated != null && task.updated > 0" class="stat updated">
+                {{ $t('import.updated') }}: {{ task.updated.toLocaleString() }}
+              </span>
+              <span v-if="task.skipped != null && task.skipped > 0" class="stat skipped">
+                {{ $t('import.skipped') }}: {{ task.skipped.toLocaleString() }}
+              </span>
+            </div>
 
-          <div v-if="task.status === 'running' || task.progress.complete > 0" class="task-progress">
-            <Progress
-              :percentage="progressPct(task)"
-              :status="
-                task.status === 'failed'
-                  ? 'error'
-                  : task.status === 'completed'
-                    ? 'success'
-                    : 'info'
-              "
-            />
-            <p class="progress-label">
-              {{ task.progress.complete.toLocaleString() }} /
-              {{ task.progress.total.toLocaleString() }}
-              {{ $t('export.documents') }}
-              <span class="progress-pct">{{ progressPct(task) }}%</span>
-            </p>
-          </div>
+            <div v-if="task.status === 'failed' && task.error" class="task-error">
+              {{ task.error }}
+            </div>
 
-          <div
-            v-if="task.kind === 'import' && (task.inserted != null || task.skipped != null)"
-            class="task-stats"
-          >
-            <span v-if="task.inserted != null" class="stat inserted">
-              {{ $t('import.inserted') }}: {{ (task.inserted ?? 0).toLocaleString() }}
-            </span>
-            <span v-if="task.updated != null && task.updated > 0" class="stat updated">
-              {{ $t('import.updated') }}: {{ task.updated.toLocaleString() }}
-            </span>
-            <span v-if="task.skipped != null && task.skipped > 0" class="stat skipped">
-              {{ $t('import.skipped') }}: {{ task.skipped.toLocaleString() }}
-            </span>
+            <div class="task-footer">
+              <span class="task-time">{{ formatTime(task.startTime) }}</span>
+              <button class="goto-btn" @click="goToImportExport(task)">
+                {{ $t('taskManager.goToTask') }}
+                <span class="i-carbon-arrow-right h-3 w-3 ml-1" />
+              </button>
+            </div>
           </div>
-
-          <div v-if="task.status === 'failed' && task.error" class="task-error">
-            {{ task.error }}
-          </div>
-
-          <div class="task-footer">
-            <span class="task-time">{{ formatTime(task.startTime) }}</span>
-            <button class="goto-btn" @click="goToImportExport(task)">
-              {{ $t('taskManager.goToTask') }}
-              <span class="i-carbon-arrow-right h-3 w-3 ml-1" />
-            </button>
-          </div>
-        </div>
-      </ScrollArea>
-    </div>
+        </ScrollArea>
+      </div>
+    </PaidGate>
   </div>
 </template>
 
@@ -96,6 +101,7 @@ import { storeToRefs } from 'pinia';
 import { useImportExportStore, BackgroundTask, TaskStatus, TaskKind } from '../../store';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { PaidGate } from '@/components/upgrade';
 
 const router = useRouter();
 const importExportStore = useImportExportStore();

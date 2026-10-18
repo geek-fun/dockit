@@ -1455,6 +1455,7 @@ export const enUS = {
       detail: {
         ai: 'Works with any model — cloud, local or custom',
         mcp: 'Connects to your favorite MCP clients',
+        importExport: 'Import and export data, and track background tasks with Ultimate.',
       },
       tiles: {
         aiQueryT: 'Natural-language queries',
@@ -1539,7 +1540,7 @@ export const enUS = {
       deviceActivationFailed:
         'Device registration failed — automatic session renewal is unavailable.',
       notLoggedIn: 'You are not logged in.',
-      loginLink: 'Log in with Geekfun',
+      loginLink: 'Log in with GEEKFUN',
       refresh: 'Refresh',
       logout: 'Log out',
       manage: 'Manage subscription',

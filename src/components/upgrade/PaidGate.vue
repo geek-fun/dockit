@@ -37,9 +37,17 @@
         <div class="gate-card__content">
           <div class="gate-card__heading">
             <h3 class="gate-card__title">{{ $t(`plan.gate.headline.${feature}`) }}</h3>
-            <p class="gate-card__sub">{{ $t('plan.gate.additive') }}</p>
+            <p class="gate-card__sub">
+              {{
+                $t(
+                  feature === 'import_export'
+                    ? 'plan.gate.detail.importExport'
+                    : 'plan.gate.additive',
+                )
+              }}
+            </p>
           </div>
-          <div class="gate-card__tiles">
+          <div v-if="tiles.length" class="gate-card__tiles">
             <div v-for="tile in tiles" :key="tile.titleKey" class="gate-tile">
               <span class="gate-tile__icon">
                 <component :is="tile.icon" class="h-4 w-4" />
