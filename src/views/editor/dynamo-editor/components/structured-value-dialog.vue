@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { jsonify } from '../../../../common';
 import { monaco, type Editor } from '../../../../common/monaco';
 import { useAppStore } from '../../../../store';
 import { useLang } from '../../../../lang';
@@ -36,11 +37,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import {
-  TYPE_VALUE_TEMPLATES,
-  validateStructuredValue,
-  type StructuredValueIssue,
-} from '../utils/dynamo-attribute';
+import { TYPE_VALUE_TEMPLATES, validateStructuredValue, type StructuredValueIssue } from '../utils';
 
 const props = defineProps<{
   open: boolean;
@@ -104,7 +101,7 @@ const handleOpenChange = (open: boolean) => {
 
 const handleApply = () => {
   if (!editor || validationError.value) return;
-  emit('apply', JSON.stringify(JSON.parse(editor.getValue())));
+  emit('apply', jsonify.stringify(jsonify.parse(editor.getValue())));
   emit('update:open', false);
 };
 
@@ -113,7 +110,10 @@ watch(
   async open => {
     if (open) {
       await nextTick();
-      setupEditor();
+      if (props.open) {
+        disposeEditor();
+        setupEditor();
+      }
     } else {
       disposeEditor();
     }

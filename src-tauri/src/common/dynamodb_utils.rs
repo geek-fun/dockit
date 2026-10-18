@@ -3,20 +3,70 @@ use base64::{engine::general_purpose, Engine as _};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
+/// Digits that carry the value's precision, ignoring sign, decimal point,
+/// exponent and zero padding: `001.2300` and `123` share the same digits.
+fn significant_digits(value: &str) -> String {
+    let mantissa = value.split(['e', 'E']).next().unwrap_or(value);
+    let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+    let trimmed = digits.trim_start_matches('0').trim_end_matches('0');
+    if trimmed.is_empty() {
+        "0".to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// Rewrites a numeric string into a DynamoDB-safe literal without changing its
+/// value: strips the sign's plus, zero-pads a missing integer part and removes
+/// redundant zeros.
+fn canonical_decimal(value: &str) -> String {
+    let trimmed = value.trim();
+    let (sign, rest) = match trimmed.strip_prefix('-') {
+        Some(rest) => ("-", rest),
+        None => ("", trimmed.strip_prefix('+').unwrap_or(trimmed)),
+    };
+    let (mantissa, exponent) = match rest.find(['e', 'E']) {
+        Some(index) => (&rest[..index], &rest[index..]),
+        None => (rest, ""),
+    };
+    let (integer, fraction) = match mantissa.split_once('.') {
+        Some((integer, fraction)) => (integer, fraction),
+        None => (mantissa, ""),
+    };
+    let integer = integer.trim_start_matches('0');
+    let integer = if integer.is_empty() { "0" } else { integer };
+    let fraction = fraction.trim_end_matches('0');
+    let number = if fraction.is_empty() {
+        integer.to_string()
+    } else {
+        format!("{integer}.{fraction}")
+    };
+    format!("{sign}{number}{exponent}")
+}
+
+/// Renders an `N`/`NS` value without rounding. f64 carries ~15 significant
+/// digits, so longer DynamoDB decimals and integers above u64::MAX are emitted
+/// as exact strings instead of silently losing precision.
+fn number_to_json(value: &str) -> Value {
+    if let Ok(i) = value.parse::<i64>() {
+        return json!(i);
+    }
+    if let Ok(u) = value.parse::<u64>() {
+        return json!(u);
+    }
+    if let Ok(f) = value.parse::<f64>() {
+        if f.is_finite() && significant_digits(value) == significant_digits(&f.to_string()) {
+            return json!(f);
+        }
+    }
+    json!(canonical_decimal(value))
+}
+
 /// Convert DynamoDB AttributeValue to JSON
 pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
     match av {
         AttributeValue::S(s) => json!(s),
-        AttributeValue::N(n) => {
-            // Try to parse as integer first, then as float
-            if let Ok(i) = n.parse::<i64>() {
-                json!(i)
-            } else if let Ok(f) = n.parse::<f64>() {
-                json!(f)
-            } else {
-                json!(n)
-            }
-        }
+        AttributeValue::N(n) => number_to_json(n),
         AttributeValue::Bool(b) => json!(b),
         AttributeValue::Null(_) => Value::Null,
         AttributeValue::M(m) => {
@@ -28,19 +78,7 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
         }
         AttributeValue::L(l) => Value::Array(l.iter().map(convert_attr_value_to_json).collect()),
         AttributeValue::Ss(ss) => Value::Array(ss.iter().map(|s| json!(s)).collect()),
-        AttributeValue::Ns(ns) => Value::Array(
-            ns.iter()
-                .map(|n| {
-                    if let Ok(i) = n.parse::<i64>() {
-                        json!(i)
-                    } else if let Ok(f) = n.parse::<f64>() {
-                        json!(f)
-                    } else {
-                        json!(n)
-                    }
-                })
-                .collect(),
-        ),
+        AttributeValue::Ns(ns) => Value::Array(ns.iter().map(|n| number_to_json(n)).collect()),
         AttributeValue::B(b) => {
             json!(general_purpose::STANDARD.encode(b.as_ref()))
         }
@@ -51,6 +89,34 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
         ),
         _ => Value::Null,
     }
+}
+
+pub fn item_attribute_types(items: &[HashMap<String, AttributeValue>]) -> Vec<Value> {
+    items
+        .iter()
+        .map(|item| {
+            let types: serde_json::Map<String, Value> = item
+                .iter()
+                .map(|(key, value)| {
+                    let kind = match value {
+                        AttributeValue::S(_) => "S",
+                        AttributeValue::N(_) => "N",
+                        AttributeValue::B(_) => "B",
+                        AttributeValue::Bool(_) => "BOOL",
+                        AttributeValue::Null(_) => "NULL",
+                        AttributeValue::Ss(_) => "SS",
+                        AttributeValue::Ns(_) => "NS",
+                        AttributeValue::Bs(_) => "BS",
+                        AttributeValue::L(_) => "L",
+                        AttributeValue::M(_) => "M",
+                        _ => "UNKNOWN",
+                    };
+                    (key.clone(), json!(kind))
+                })
+                .collect();
+            Value::Object(types)
+        })
+        .collect()
 }
 
 /// Converts a JSON value to a DynamoDB AttributeValue based on the specified type.
@@ -240,7 +306,7 @@ pub fn convert_attributes(
         )
     })?;
 
-    entries
+    let attributes = entries
         .iter()
         .enumerate()
         .map(|(index, entry)| {
@@ -270,7 +336,14 @@ pub fn convert_attributes(
                 .map(|av| (key.to_string(), av))
                 .map_err(|e| format!("attribute '{key}'{context}: {e}"))
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+    let mut names = std::collections::HashSet::new();
+    for (key, _) in &attributes {
+        if !names.insert(key) {
+            return Err(format!("duplicate attribute '{key}'{context}"));
+        }
+    }
+    Ok(attributes)
 }
 
 /// Accepts JSON numbers and numeric strings (the text-input encoding).
@@ -287,17 +360,20 @@ fn json_number_to_string(value: &serde_json::Value) -> Option<String> {
         n.is_finite().then(|| n.to_string())
     } else if let Some(s) = value.as_str() {
         let trimmed = s.trim();
-        trimmed
-            .parse::<i64>()
-            .ok()
-            .map(|n| n.to_string())
-            .or_else(|| {
-                trimmed
-                    .parse::<f64>()
-                    .ok()
-                    .filter(|n| n.is_finite())
-                    .map(|n| n.to_string())
-            })
+        if let Ok(n) = trimmed.parse::<i64>() {
+            return Some(n.to_string());
+        }
+        if let Ok(n) = trimmed.parse::<u64>() {
+            return Some(n.to_string());
+        }
+        let parsed = trimmed.parse::<f64>().ok().filter(|n| n.is_finite())?;
+        // f64 keeps ~15 significant digits; preserving the typed text for anything
+        // longer avoids silently rounding DynamoDB's 38-digit numbers.
+        if significant_digits(trimmed) == significant_digits(&parsed.to_string()) {
+            Some(parsed.to_string())
+        } else {
+            Some(canonical_decimal(trimmed))
+        }
     } else {
         None
     }
@@ -804,5 +880,87 @@ mod tests {
     #[test]
     fn structured_json_string_is_trimmed() {
         assert!(convert_json_to_attr_value(&json!("  [1]  "), "L").is_ok());
+    }
+    #[test]
+    fn number_strings_above_i64_remain_exact() {
+        for value in [
+            "9007199254740993",
+            "9223372036854775808",
+            "18446744073709551615",
+        ] {
+            assert_eq!(
+                convert_json_to_attr_value(&json!(value), "N").unwrap(),
+                AttributeValue::N(value.to_string())
+            );
+            assert_eq!(
+                convert_attr_value_to_json(&AttributeValue::N(value.to_string())).to_string(),
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn long_numbers_keep_their_decimal_precision() {
+        for value in [
+            "99999999999999999999",
+            "12345678901234567890123456789012345678",
+            "0.1234567890123456789",
+            "1234567890123456789.5",
+        ] {
+            assert_eq!(
+                convert_json_to_attr_value(&json!(value), "N").unwrap(),
+                AttributeValue::N(value.to_string())
+            );
+            assert_eq!(
+                convert_attr_value_to_json(&AttributeValue::N(value.to_string())),
+                json!(value)
+            );
+        }
+    }
+
+    #[test]
+    fn short_numbers_still_normalize_through_f64() {
+        for (value, expected) in [
+            ("+5", "5"),
+            (".5", "0.5"),
+            ("5.", "5"),
+            ("1e2", "100"),
+            ("0.10", "0.1"),
+        ] {
+            assert_eq!(
+                convert_json_to_attr_value(&json!(value), "N").unwrap(),
+                AttributeValue::N(expected.to_string())
+            );
+        }
+        assert_eq!(
+            convert_attr_value_to_json(&AttributeValue::N("1.5".into())),
+            json!(1.5)
+        );
+    }
+
+    #[test]
+    fn duplicate_attributes_fail_before_a_write_is_built() {
+        let error = convert_attributes(
+            Some(&json!([
+                {"key":"id","type":"S","value":"first"}, {"key":"id","type":"S","value":"second"}
+            ])),
+            " in 'put' at index 0",
+        )
+        .unwrap_err();
+        assert!(error.contains("duplicate attribute 'id' in 'put' at index 0"));
+    }
+
+    #[test]
+    fn item_type_metadata_keeps_empty_items_in_row_order() {
+        assert!(item_attribute_types(&[]).is_empty());
+        let items = [
+            HashMap::new(),
+            HashMap::from([("nil".to_string(), AttributeValue::Null(true))]),
+            HashMap::new(),
+        ];
+        assert_eq!(
+            item_attribute_types(&items),
+            vec![json!({}), json!({"nil": "NULL"}), json!({})]
+        );
     }
 }

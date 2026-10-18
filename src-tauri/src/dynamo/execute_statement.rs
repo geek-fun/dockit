@@ -1,4 +1,4 @@
-use crate::common::dynamodb_utils::convert_attr_value_to_json;
+use crate::common::dynamodb_utils::{convert_attr_value_to_json, item_attribute_types};
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::Client;
@@ -57,6 +57,7 @@ pub async fn execute_statement(
                 message: "Success".to_string(),
                 data: Some(json!({
                     "items": items,
+                    "attribute_types": item_attribute_types(output.items()),
                     "count": count,
                     "next_token": next_token,
                 })),

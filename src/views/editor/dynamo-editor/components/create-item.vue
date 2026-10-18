@@ -1,14 +1,54 @@
 <template>
-  <Card class="create-item-container flex flex-col overflow-hidden">
+  <Card class="create-item-container flex flex-col overflow-hidden" :aria-busy="schemaLoading">
     <CardHeader class="flex flex-row items-center justify-between pb-2">
       <CardTitle>{{ $t('editor.dynamo.addAttributesTitle') }}</CardTitle>
     </CardHeader>
     <CardContent class="form-container">
-      <Form class="flex flex-col h-full gap-3" @submit.prevent>
+      <div v-if="schemaLoading" class="flex flex-col h-full gap-3">
+        <p role="status" aria-live="polite" class="text-sm text-muted-foreground">
+          {{ $t('editor.dynamo.loadingTableSchema') }}
+        </p>
+        <div aria-hidden="true" class="border border-border rounded-lg p-3 shrink-0">
+          <div class="text-sm font-medium text-muted-foreground mb-3">Primary Key</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div v-for="key in 2" :key="key" class="flex flex-col gap-2">
+              <div class="skeleton h-3 w-2/5" />
+              <div class="skeleton h-8 w-full" />
+            </div>
+          </div>
+        </div>
+        <div
+          aria-hidden="true"
+          class="border border-border rounded-lg p-3 flex-1 min-h-0 flex flex-col gap-3"
+        >
+          <div class="text-sm font-medium text-muted-foreground">Additional Attributes</div>
+          <div v-for="row in 3" :key="row" class="skeleton-attribute-row">
+            <div class="skeleton h-8" />
+            <div class="skeleton h-8" />
+            <div class="skeleton h-8" />
+            <div class="skeleton h-8" />
+          </div>
+        </div>
+      </div>
+      <Form v-else class="flex flex-col h-full gap-3" @submit.prevent>
         <!-- Top box: Partition Key + Sort Key (fixed) -->
         <div class="border border-border rounded-lg p-3 shrink-0">
           <div class="text-sm font-medium text-muted-foreground mb-2">Primary Key</div>
-          <Grid :cols="24" :x-gap="12">
+          <div v-if="schemaError" role="alert" class="text-sm text-destructive">
+            <p>{{ $t('editor.dynamo.tableSchemaFailed') }} {{ schemaErrorDetails }}</p>
+            <Button variant="outline" class="mt-2" @click="retry">
+              {{ $t('editor.dynamo.retryTableSchema') }}
+            </Button>
+          </div>
+          <div
+            v-else-if="!table"
+            role="status"
+            class="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400"
+          >
+            <span class="i-carbon-warning-alt h-4 w-4 shrink-0" aria-hidden="true" />
+            {{ $t('editor.dynamo.selectTableFirst') }}
+          </div>
+          <Grid v-else :cols="24" :x-gap="12">
             <GridItem :span="10">
               <FormItem
                 v-if="selectedTable.partitionKeyLabel"
@@ -18,11 +58,13 @@
               >
                 <Input
                   v-model="dynamoRecordForm.partitionKey"
+                  :inputmode="partitionKeyValueType === 'N' ? 'decimal' : 'text'"
                   :placeholder="$t('editor.dynamo.enterPartitionKey')"
                   autocomplete="off"
                   autocorrect="off"
                   autocapitalize="off"
                   spellcheck="false"
+                  @blur="touchedKeys.partitionKey = true"
                 />
               </FormItem>
             </GridItem>
@@ -36,11 +78,13 @@
               >
                 <Input
                   v-model="dynamoRecordForm.sortKey"
+                  :inputmode="sortKeyValueType === 'N' ? 'decimal' : 'text'"
                   :placeholder="$t('editor.dynamo.enterSortKey')"
                   autocomplete="off"
                   autocorrect="off"
                   autocapitalize="off"
                   spellcheck="false"
+                  @blur="touchedKeys.sortKey = true"
                 />
               </FormItem>
             </GridItem>
@@ -89,7 +133,7 @@
                 </FormItem>
               </GridItem>
               <GridItem :span="10">
-                <FormItem>
+                <FormItem :error="valueError(validation.keyAttributes[index]?.value, item.type)">
                   <div v-if="item.type === 'B'" class="flex w-full items-center gap-1">
                     <Input
                       v-model="item.value as string"
@@ -110,12 +154,13 @@
                       <span class="i-carbon-upload h-4 w-4" />
                     </Button>
                   </div>
-                  <InputNumber
-                    v-else-if="calcType(item.type) === 'number'"
-                    v-model:model-value="item.value as number"
+                  <Input
+                    v-else-if="item.type === 'N'"
+                    v-model="item.value as string"
+                    inputmode="decimal"
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
-                    class="w-full"
                   />
+                  <Input v-else-if="item.type === 'NULL'" model-value="null" disabled />
                   <Switch
                     v-else-if="item.type === 'BOOL'"
                     :checked="item.value as boolean"
@@ -219,12 +264,13 @@
                     :placeholder="typeValueTemplate(item.type)"
                     @click="openStructuredEditor(index)"
                   />
-                  <InputNumber
+                  <Input
                     v-else-if="item.type === 'N'"
-                    v-model:model-value="item.value as number"
+                    v-model="item.value as string"
+                    inputmode="decimal"
                     :placeholder="$t('editor.dynamo.inputAttrValue')"
-                    class="w-full"
                   />
+                  <Input v-else-if="item.type === 'NULL'" model-value="null" disabled />
                   <Switch
                     v-else-if="item.type === 'BOOL'"
                     :checked="item.value as boolean"
@@ -259,10 +305,14 @@
       />
     </CardContent>
     <CardFooter class="card-footer shrink-0">
-      <Button variant="outline" @click="handleReset">
+      <Button
+        variant="outline"
+        :disabled="schemaLoading || loadingRef.createItem"
+        @click="handleReset"
+      >
         {{ $t('dialogOps.reset') }}
       </Button>
-      <Button :disabled="!validationPassed || loadingRef.createItem" @click="handleSubmit">
+      <Button :disabled="createDisabled" @click="handleSubmit">
         <Loader2 v-if="loadingRef.createItem" class="mr-2 h-4 w-4 animate-spin" />
         {{ $t('dialogOps.create') }}
       </Button>
@@ -275,19 +325,18 @@ import { storeToRefs } from 'pinia';
 import { Loader2 } from 'lucide-vue-next';
 import { useMessageService } from '@/composables';
 import {
-  Connection,
   DynamoDBConnection,
+  DatabaseType,
   useConnectionStore,
   useTabStore,
   findTable,
 } from '../../../../store';
-import { CustomError } from '../../../../common';
+import { CustomError, withLoadingDelay } from '../../../../common';
 import { useLang } from '../../../../lang';
 
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { InputNumber } from '@/components/ui/input-number';
 import { Switch } from '@/components/ui/switch';
 import StructuredValueDialog from './structured-value-dialog.vue';
 import {
@@ -295,7 +344,13 @@ import {
   pickBinaryFileAsBase64,
   resolveTableKeyLabels,
   typeValueTemplate,
-} from '../utils/dynamo-attribute';
+  defaultAttributeValue,
+  validateDynamoItemForm,
+  buildDynamoItemAttributes,
+  describeSchemaError,
+  type AttributeValueIssue,
+} from '../utils';
+import { useDynamoItemForm } from '../composables';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -332,31 +387,92 @@ const attributeType = ref([
 const message = useMessageService();
 const lang = useLang();
 
-const dynamoRecordForm = ref<{
-  partitionKey: string;
-  sortKey: string;
-  attributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
-  keyAttributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
-}>({ partitionKey: '', sortKey: '', attributes: [], keyAttributes: [] });
+const {
+  table,
+  form: dynamoRecordForm,
+  schemaLoading,
+  schemaError,
+  reset,
+  retry,
+} = useDynamoItemForm(
+  () =>
+    activeConnection.value?.type === DatabaseType.DYNAMODB
+      ? (activeConnection.value as DynamoDBConnection)
+      : undefined,
+  () => tabStore.activePanel?.activeTable,
+  async (connection, name) => {
+    await withLoadingDelay(fetchIndices(connection, name));
+    const stored = connectionStore.connections.find(
+      con => con.id === connection.id,
+    ) as DynamoDBConnection;
+    return findTable(stored, name);
+  },
+);
 
-const errors = ref<{
-  partitionKey?: string;
-  sortKey?: string;
-  attributes: Array<{ key?: string; type?: string; value?: string }>;
-}>({ attributes: [] });
+const validation = computed(() => validateDynamoItemForm(dynamoRecordForm.value, table.value));
+const partitionKeyValueType = computed(() => table.value?.partitionKey?.valueType ?? 'S');
+const sortKeyValueType = computed(() => table.value?.sortKey?.valueType ?? 'S');
+const valueError = (issue: AttributeValueIssue | null | undefined, type: string) => {
+  if (!issue) return undefined;
+  if (issue.kind === 'required') return lang.t('editor.dynamo.attributeValueRequired');
+  if (issue.kind === 'emptySet') return lang.t('editor.dynamo.emptySetNotAllowed');
+  if (issue.kind === 'syntax')
+    return lang.t('editor.dynamo.jsonInvalidSyntax', { reason: issue.reason });
+  if (type === 'N') return lang.t('editor.dynamo.invalidNumber');
+  if (type === 'B') return lang.t('editor.dynamo.invalidBase64');
+  return lang.t('editor.dynamo.jsonInvalidShape', { type });
+};
+const submitted = ref(false);
+// Key errors appear once the field has been left (or Create was pressed) so a
+// pristine form stays quiet while a wrong key type is reported immediately.
+const touchedKeys = ref({ partitionKey: false, sortKey: false });
+const errors = computed(() => {
+  const visible = submitted.value;
+  return {
+    partitionKey:
+      visible || touchedKeys.value.partitionKey
+        ? valueError(validation.value.partitionKey, partitionKeyValueType.value)
+        : undefined,
+    sortKey:
+      visible || touchedKeys.value.sortKey
+        ? valueError(validation.value.sortKey, sortKeyValueType.value)
+        : undefined,
+    attributes: validation.value.attributes.map((attr, index) => ({
+      key:
+        visible && attr.key
+          ? lang.t(
+              attr.key === 'duplicate'
+                ? 'editor.dynamo.duplicateAttribute'
+                : 'editor.dynamo.attributeNameRequired',
+            )
+          : undefined,
+      type: visible && attr.type ? lang.t('editor.dynamo.attributeTypeRequired') : undefined,
+      value: visible
+        ? valueError(attr.value, dynamoRecordForm.value.attributes[index].type)
+        : undefined,
+    })),
+  };
+});
+const schemaErrorDetails = computed(() => describeSchemaError(schemaError.value));
 
 const addAttributeItem = () => {
-  dynamoRecordForm.value.attributes.push({ key: '', value: null, type: '' });
-  errors.value.attributes.push({});
+  dynamoRecordForm.value.attributes = [
+    ...dynamoRecordForm.value.attributes,
+    { key: '', value: null, type: '' },
+  ];
 };
 
 const removeAttributeItem = (index: number) => {
-  dynamoRecordForm.value.attributes.splice(index, 1);
-  errors.value.attributes.splice(index, 1);
+  structuredEditor.value = { open: false, index: -1 };
+  dynamoRecordForm.value.attributes = dynamoRecordForm.value.attributes.filter(
+    (_, i) => i !== index,
+  );
 };
 
 const removeKeyAttributeItem = (index: number) => {
-  dynamoRecordForm.value.keyAttributes.splice(index, 1);
+  dynamoRecordForm.value.keyAttributes = dynamoRecordForm.value.keyAttributes.filter(
+    (_, i) => i !== index,
+  );
 };
 
 const getAttributeError = (index: number, field: 'key' | 'type' | 'value') => {
@@ -368,7 +484,7 @@ const onAttributeTypeChange = (
   type: string,
 ) => {
   item.type = type;
-  item.value = null;
+  item.value = defaultAttributeValue(type);
 };
 
 const loadBinaryValue = async (item: { value: string | number | boolean | null }) => {
@@ -397,92 +513,20 @@ const handleStructuredApply = (value: string) => {
   if (target) target.value = value;
 };
 
-const selectedTable = computed(() => {
-  const tableName = tabStore.activePanel?.activeTable;
-  if (!tableName) return resolveTableKeyLabels();
+const selectedTable = computed(() => resolveTableKeyLabels(table.value));
+const createDisabled = computed(
+  () => schemaLoading.value || !!schemaError.value || !table.value || loadingRef.value.createItem,
+);
 
-  return resolveTableKeyLabels(findTable(activeConnection.value as DynamoDBConnection, tableName));
-});
-
-const calcType = (type: string) => {
-  switch (type) {
-    case 'S':
-      return 'text';
-    case 'N':
-      return 'number';
-    case 'BOOL':
-      return 'checkbox';
-    case 'B':
-      return 'text';
-    case 'NULL':
-      return 'text';
-    case 'L':
-      return 'text';
-    case 'M':
-      return 'text';
-    case 'SS':
-      return 'text';
-    case 'NS':
-      return 'number';
-    case 'BS':
-      return 'text';
-    default:
-      return 'text';
-  }
-};
-
-const validateForm = () => {
-  let isValid = true;
-  errors.value = { attributes: [] };
-
-  // Validate partition key
-  if (selectedTable.value.partitionKeyLabel && !dynamoRecordForm.value.partitionKey) {
-    errors.value.partitionKey = lang.t('editor.dynamo.attributeValueRequired');
-    isValid = false;
-  }
-
-  // Validate sort key
-  if (selectedTable.value.sortKeyLabel && !dynamoRecordForm.value.sortKey) {
-    errors.value.sortKey = lang.t('editor.dynamo.attributeValueRequired');
-    isValid = false;
-  }
-
-  // Validate attributes
-  dynamoRecordForm.value.attributes.forEach((attr, index) => {
-    const attrErrors: { key?: string; type?: string; value?: string } = {};
-    if (!attr.key) {
-      attrErrors.key = lang.t('editor.dynamo.attributeNameRequired');
-      isValid = false;
-    }
-    if (!attr.type) {
-      attrErrors.type = lang.t('editor.dynamo.attributeTypeRequired');
-      isValid = false;
-    }
-    if (attr.value === null || attr.value === '') {
-      attrErrors.value = lang.t('editor.dynamo.attributeValueRequired');
-      isValid = false;
-    }
-    errors.value.attributes[index] = attrErrors;
-  });
-
-  return isValid;
-};
-
-const validationPassed = computed(() => {
-  // Simple validation check without setting error messages
-  if (selectedTable.value.partitionKeyLabel && !dynamoRecordForm.value.partitionKey) {
-    return false;
-  }
-  if (selectedTable.value.sortKeyLabel && !dynamoRecordForm.value.sortKey) {
-    return false;
-  }
-  for (const attr of dynamoRecordForm.value.attributes) {
-    if (!attr.key || !attr.type || attr.value === null || attr.value === '') {
-      return false;
-    }
-  }
-  return true;
-});
+watch(
+  table,
+  () => {
+    submitted.value = false;
+    touchedKeys.value = { partitionKey: false, sortKey: false };
+    structuredEditor.value = { open: false, index: -1 };
+  },
+  { flush: 'sync' },
+);
 
 const handleSubmit = async (event: MouseEvent) => {
   event.preventDefault();
@@ -490,7 +534,9 @@ const handleSubmit = async (event: MouseEvent) => {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
     return;
   }
-  if (!validateForm()) {
+  if (loadingRef.value.createItem) return;
+  submitted.value = true;
+  if (!table.value || !validation.value.valid) {
     message.error(lang.t('connection.validationFailed'));
     return;
   }
@@ -502,42 +548,26 @@ const handleSubmit = async (event: MouseEvent) => {
       message.error(lang.t('dialogOps.noActiveTable'));
       return;
     }
-    const tableSummary = findTable(activeConnection.value as DynamoDBConnection, tableName);
-    if (!tableSummary?.partitionKey) {
-      message.error(`Table ${tableName} has no partition key metadata`);
-      return;
-    }
-    const { partitionKey, sortKey } = tableSummary;
-    const pkRecord = {
-      key: partitionKey.name,
-      value: dynamoRecordForm.value.partitionKey,
-      type: partitionKey.valueType,
-    };
-    const skRecord = {
-      key: sortKey?.name,
-      value: dynamoRecordForm.value.sortKey,
-      type: sortKey?.valueType,
-    };
-
-    const attributes = [
-      ...dynamoRecordForm.value.attributes,
-      ...dynamoRecordForm.value.keyAttributes,
-      pkRecord,
-      ...(skRecord.key ? [skRecord] : []),
-    ].filter(({ value }) => value !== null) as Array<{
-      key: string;
-      value: string | number | boolean | null;
-      type: string;
-    }>;
+    const partitionKey = table.value.partitionKey!;
+    const attributes = buildDynamoItemAttributes(dynamoRecordForm.value, table.value);
 
     // Guard against silently overwriting an existing item: the Rust side adds
     // an attribute_not_exists(pk) condition when skipExisting is set, so a
-    // duplicate key fails loudly instead of replacing the record.
-    await createItem(activeConnection.value as DynamoDBConnection, tableName, attributes, {
-      skipExisting: true,
-      partitionKey: partitionKey.name,
-    });
-    message.success(lang.t('editor.dynamo.createItemSuccess'));
+    // duplicate key leaves the existing record intact.
+    const result = await createItem(
+      activeConnection.value as DynamoDBConnection,
+      tableName,
+      attributes,
+      {
+        skipExisting: true,
+        partitionKey: partitionKey.name,
+      },
+    );
+    if (result.skipped) {
+      message.warning(lang.t('editor.dynamo.itemAlreadyExists'));
+    } else {
+      message.success(lang.t('editor.dynamo.createItemSuccess'));
+    }
   } catch (error) {
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -551,25 +581,11 @@ const handleSubmit = async (event: MouseEvent) => {
 };
 
 const handleReset = () => {
-  dynamoRecordForm.value = { partitionKey: '', sortKey: '', attributes: [], keyAttributes: [] };
-  errors.value = { attributes: [] };
+  submitted.value = false;
+  touchedKeys.value = { partitionKey: false, sortKey: false };
+  structuredEditor.value = { open: false, index: -1 };
+  reset();
 };
-
-fetchIndices(activeConnection.value as Connection, tabStore.activePanel?.activeTable).then(() => {
-  const tableName = tabStore.activePanel?.activeTable;
-  if (!tableName) return;
-  const tableSummary = findTable(activeConnection.value as DynamoDBConnection, tableName);
-  if (!tableSummary?.partitionKey) return;
-  const { partitionKey, sortKey, attributeDefinitions } = tableSummary;
-
-  dynamoRecordForm.value.keyAttributes = (attributeDefinitions ?? [])
-    .map(({ attributeName, attributeType }) => ({
-      key: attributeName,
-      value: null,
-      type: attributeType,
-    }))
-    .filter(({ key }) => ![partitionKey.name, sortKey?.name].filter(Boolean).includes(key));
-});
 </script>
 
 <style scoped>
@@ -592,5 +608,38 @@ fetchIndices(activeConnection.value as Connection, tabStore.activePanel?.activeT
   justify-content: flex-end;
   gap: 12px;
   padding: 12px 16px;
+}
+
+.skeleton {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.6) 25%,
+    hsl(var(--muted) / 0.9) 50%,
+    hsl(var(--muted) / 0.6) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-attribute-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2.5fr) 2rem;
+  gap: 12px;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
 }
 </style>

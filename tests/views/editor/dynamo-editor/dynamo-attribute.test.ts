@@ -6,7 +6,9 @@ import {
   resolveTableKeyLabels,
   typeValueTemplate,
   validateStructuredValue,
-} from '../../../../src/views/editor/dynamo-editor/utils/dynamo-attribute';
+  validateAttributeValue,
+  defaultAttributeValue,
+} from '../../../../src/views/editor/dynamo-editor/utils';
 
 jest.mock('@tauri-apps/plugin-dialog', () => ({
   open: jest.fn(),
@@ -20,6 +22,40 @@ const openMock = open as jest.Mock;
 const readFileMock = readFile as jest.Mock;
 
 describe('dynamo attribute helpers', () => {
+  it.each(['S', 'B'])('initializes %s as an empty value', type => {
+    expect(defaultAttributeValue(type)).toBe('');
+  });
+
+  it.each([
+    ['N', 0, false, null],
+    ['N', Infinity, false, { kind: 'shape' }],
+    ['N', false, false, { kind: 'shape' }],
+    ['N', '42', true, null],
+    ['N', 'abc', true, { kind: 'shape' }],
+    ['S', 42, false, { kind: 'shape' }],
+    ['BOOL', 'false', false, { kind: 'shape' }],
+    ['B', false, false, { kind: 'shape' }],
+    ['B', 'YQ==', true, null],
+    ['B', 'abc', true, { kind: 'shape' }],
+    ['B', ' ', true, { kind: 'shape' }],
+    ['NULL', null, true, { kind: 'required' }],
+    ['UNKNOWN', 'value', false, { kind: 'shape' }],
+  ] as const)('validates %s value %p with key=%p', (type, value, isKey, expected) => {
+    expect(validateAttributeValue(type, value, isKey)).toEqual(expected);
+  });
+
+  it('accepts exact large integers in numeric sets', () => {
+    expect(validateStructuredValue('NS', '[9223372036854775808,1,"2.5"]')).toBeNull();
+    expect(validateStructuredValue('NS', '[true]')).toEqual({ kind: 'shape' });
+  });
+
+  it('allows empty non-key values while requiring a numeric value', () => {
+    expect(validateAttributeValue('S', '')).toBeNull();
+    expect(validateAttributeValue('B', '')).toBeNull();
+    expect(validateAttributeValue('NULL', null)).toBeNull();
+    expect(validateAttributeValue('N', null)).toEqual({ kind: 'required' });
+  });
+
   it('recognizes structured types and their templates', () => {
     expect(isStructuredType('SS')).toBe(true);
     expect(isStructuredType('N')).toBe(false);

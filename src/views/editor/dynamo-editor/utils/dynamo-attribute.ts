@@ -1,5 +1,6 @@
 import { open } from '@tauri-apps/plugin-dialog';
 import { readFile } from '@tauri-apps/plugin-fs';
+import { jsonify } from '@/common';
 
 export const STRUCTURED_TYPES = ['SS', 'NS', 'BS', 'L', 'M'] as const;
 
@@ -20,6 +21,8 @@ export type StructuredValueIssue =
   | { kind: 'syntax'; reason: string }
   | { kind: 'shape' }
   | { kind: 'emptySet' };
+
+export type AttributeValueIssue = StructuredValueIssue | { kind: 'required' };
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
@@ -60,7 +63,7 @@ export const validateStructuredValue = (
 ): StructuredValueIssue | null => {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(text);
+    parsed = jsonify.parse(text);
   } catch (error) {
     return { kind: 'syntax', reason: (error as Error).message };
   }
@@ -86,6 +89,7 @@ export const validateStructuredValue = (
   if (attributeType === 'NS') {
     return parsed.every(
       item =>
+        typeof item === 'bigint' ||
         (typeof item === 'number' && Number.isFinite(item)) ||
         (typeof item === 'string' && isNumericString(item)),
     )
@@ -95,6 +99,31 @@ export const validateStructuredValue = (
   return parsed.every(item => typeof item === 'string' && isCanonicalBase64(item))
     ? null
     : { kind: 'shape' };
+};
+
+export const defaultAttributeValue = (type: string): string | boolean | null =>
+  type === 'BOOL' ? false : ['S', 'B'].includes(type) ? '' : null;
+
+export const validateAttributeValue = (
+  type: string,
+  value: string | number | boolean | null,
+  isKey = false,
+): AttributeValueIssue | null => {
+  if (type === 'NULL' && !isKey) return null;
+  if (value === null || value === undefined || (isKey && value === '')) return { kind: 'required' };
+  if (isStructuredType(type)) return validateStructuredValue(type, String(value));
+  const valid =
+    type === 'S'
+      ? typeof value === 'string'
+      : type === 'B'
+        ? typeof value === 'string' && isCanonicalBase64(value) && (!isKey || !!value.trim())
+        : type === 'N'
+          ? (typeof value === 'number' && Number.isFinite(value)) ||
+            (typeof value === 'string' && isNumericString(value))
+          : type === 'BOOL'
+            ? typeof value === 'boolean'
+            : false;
+  return valid ? null : { kind: 'shape' };
 };
 
 export type TableKeyLabels = {

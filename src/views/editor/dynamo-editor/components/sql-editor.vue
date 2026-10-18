@@ -112,6 +112,7 @@
   <edit-item
     v-model:show="showEditModal"
     :item="editingItem"
+    :attribute-types="editingAttributeTypes"
     :partition-key-name="partitionKeyName"
     :partition-key-type="partitionKeyType"
     :sort-key-name="sortKeyName"
@@ -172,12 +173,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Empty } from '@/components/ui/empty';
 import EditItem from './edit-item.vue';
 import DeleteConfirmModal from './delete-confirm-modal.vue';
-import {
-  buildDynamoKeys,
-  flattenDynamoColumns,
-  formatDynamoCell,
-  type DynamoKey,
-} from '../utils/dynamo-result';
+import { buildDynamoKeys, flattenDynamoColumns, formatDynamoCell, type DynamoKey } from '../utils';
 
 const lang = useLang();
 const message = useMessageService();
@@ -660,9 +656,12 @@ const sortKeyType = computed(() => activeTableSummary.value?.sortKey?.valueType 
 // Edit/Delete state
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
+const editingAttributeTypes = ref<Record<string, string>>({});
 
 const handleEdit = async (row: Record<string, unknown>) => {
   editingItem.value = row;
+  editingAttributeTypes.value =
+    partiqlData.value.attributeTypes?.[partiqlData.value.data?.indexOf(row) ?? -1] ?? {};
   showEditModal.value = true;
 };
 
@@ -709,7 +708,11 @@ type AttributeItem = {
   type: string;
 };
 
-const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
+const handleEditSubmit = async (
+  keys: AttributeItem[],
+  attributes: AttributeItem[],
+  removed: string[],
+) => {
   if (!activeConnection.value) return;
   const tableName = activePanel.value?.activeTable;
   if (!tableName) return;
@@ -718,7 +721,13 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
     loadingRef.value = true;
     loadingBar.start();
     const { updateItem } = useConnectionStore();
-    await updateItem(activeConnection.value as DynamoDBConnection, tableName, keys, attributes);
+    await updateItem(
+      activeConnection.value as DynamoDBConnection,
+      tableName,
+      keys,
+      attributes,
+      removed,
+    );
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
     showEditModal.value = false;
     // Refresh results by re-executing the last statement

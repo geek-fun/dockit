@@ -1,6 +1,6 @@
 use crate::common::dynamodb_utils::{
-    build_filter_expression, convert_attr_value_to_json, json_to_dynamodb_key_map,
-    parse_string_to_attribute_value,
+    build_filter_expression, convert_attr_value_to_json, item_attribute_types,
+    json_to_dynamodb_key_map, parse_string_to_attribute_value,
 };
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
@@ -108,6 +108,7 @@ pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<Ap
                 message: "Scan executed successfully".to_string(),
                 data: Some(json!({
                     "items": json_items,
+                    "attribute_types": item_attribute_types(items),
                     "count": response.count(),
                     "scanned_count": response.scanned_count(),
                     "last_evaluated_key": match response.last_evaluated_key() {

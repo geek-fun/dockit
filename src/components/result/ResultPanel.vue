@@ -364,6 +364,7 @@
 </template>
 
 <script setup lang="ts">
+import { jsonify } from '@/common';
 import { computed, ref, watch } from 'vue';
 import {
   Table,
@@ -540,7 +541,7 @@ const getRowKey = (row: Record<string, unknown>, index: number): string => {
 const formatCellValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'boolean') return value ? 'true' : 'false';
-  if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'object') return jsonify.stringify(value);
   return String(value);
 };
 

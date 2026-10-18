@@ -135,6 +135,7 @@ export type QueryParams = {
 };
 
 export type QueryResult = {
+  attribute_types?: Record<string, string>[];
   items: Record<string, any>[]; // Dynamic items from DynamoDB
   count: number; // Number of items returned
   scanned_count: number; // Number of items scanned
@@ -142,6 +143,7 @@ export type QueryResult = {
 };
 
 export type PartiQLResult = {
+  attribute_types?: Record<string, string>[];
   items: Record<string, unknown>[]; // Dynamic items from DynamoDB
   count: number; // Number of items returned
   next_token: string | null; // Pagination token for PartiQL
@@ -269,7 +271,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseCapabilityResponse<{ message: string; data: QueryResult }>(raw);
+    return parseCapabilityResponse<{ created: boolean; skipped: boolean }>(raw);
   },
 
   batchWriteItems: async (
@@ -327,6 +329,7 @@ const dynamoApi = {
     tableName: string,
     keys: DynamoAttributeItem[],
     attributes: DynamoAttributeItem[],
+    removed?: string[],
   ) => {
     const raw = await invokeCapability(
       'dynamo__update_item',
@@ -334,6 +337,7 @@ const dynamoApi = {
         table_name: tableName,
         keys,
         attributes,
+        removed,
       },
       String(con.id),
     );
