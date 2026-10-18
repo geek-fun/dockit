@@ -7,13 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-18
+
 ### Added
 
-- **Entitlements & version-lock subscription model (geekfun#56)** — client-side implementation of the Ultimate entitlement contract: the two server-computed fields `ultimateExpiresAt` + `versionLockHorizon` are consumed via a new Rust entitlement module (persisted cache, offline tolerance, failure degradation, 5-minute refresh throttle, `app.releaseDate <= versionLockHorizon` unlock check). Rust command gates return `ENTITLEMENT_REQUIRED` for AI (agent loop/step, compaction, LLM validation), MongoDB import/export, SSH profile management and tunnel usage, explicit HTTP/SOCKS proxying, AWS Profile/SSO/AssumeRole authentication, and the MCP bridge (config save + auto-start). The frontend adds an entitlement store, paid-feature gates with upgrade guidance on Data Studio, cluster management, import/export, AI and MCP settings, SSH sections and AWS auth modes in connect dialogs, plus a Plan & Version section in Settings showing the version-lock state with login and logout (logout clears the local entitlement cache so entitlements never outlive the account session). READMEs now document the Community vs Ultimate feature boundary.
+- **Ultimate plan and version-lock subscription** — AI, MongoDB import/export, SSH, explicit HTTP/SOCKS proxying, AWS Profile/SSO/AssumeRole authentication, and the MCP bridge now require Ultimate; Settings shows plan and version-lock state with login/logout (#505)
+- **More AI options** — the API Route preset, Atlas Cloud, and Opper are available when configuring a connection (#519) (#521) (#518)
+- **Redesigned Ultimate upgrade gates** — posters, effects, Pro badges, and refined gate motion (#508) (#510)
+- **ES editor result layout** — dock the result panel to the bottom or right, and the choice is remembered (#504)
+- **Plan status** shows "Checking…" instead of "Unknown" while the first entitlement check runs
+- **Themed default avatar** for accounts without a profile picture (#520)
+
+### Changed
+
+- **Task Manager is now an Ultimate feature** (#527)
+- **Plan boundaries** — paid features now require a live session, and SSH is no longer available on free plans (#524)
+- **Connection Advanced settings** are gated with upgrade links for free plans (#517)
+- **Ultimate session handling** — renewal and login handoff are more reliable, and AI features consistently respect the plan (#512)
 
 ### Fixed
 
-- **Deep-link sign-in on cold start** — a `dockit://auth` link that launches the app no longer drops the token: the payload is parked in a pending-auth slot during startup and the frontend pulls it via `consume_pending_auth` once mounted; running-instance links double-write the same slot, and the single-instance handler now forwards argv through the deep-link plugin so links reach the running app on Linux/Windows as well.
+- **DynamoDB items** — Create Item reloads table keys when the table changes, Edit Item preserves sets, binary, NULL, false, and exact large numbers, attributes can be removed or renamed, and duplicate keys are reported without overwriting (#528)
+- **Plan status** — every entitlement check resolves; no more getting stuck on "Checking…" (#513)
+- **Plan display** — stays consistent across the app from a single session-phase source (#523)
+- **AI provider URLs** that already include a version segment no longer get a duplicated version path (#515)
+- **Deep-link sign-in on cold start** — opening a `dockit://auth` link that launches the app no longer drops the token, including links forwarded to an already-running instance (#505)
+- **MCP poster** — the Ultimate lock badge is styled correctly (#514)
+
+### Documentation
+
+- **Requesty** is listed in the README's supported AI providers (#507)
+- Removed the outdated WeChat group and Discord links from the README (#526)
 
 ## [1.4.5] - 2026-09-06
 
