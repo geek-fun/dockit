@@ -1408,6 +1408,7 @@ export const zhCN = {
       detail: {
         ai: '接入任意模型 — 云端、本地或自定义',
         mcp: '连接你常用的 MCP 客户端',
+        importExport: '使用 Ultimate 导入、导出数据，并跟踪后台任务。',
       },
       tiles: {
         aiQueryT: '自然语言查询',
@@ -1486,7 +1487,7 @@ export const zhCN = {
       sessionLostSignedOut: '登录会话已失效，已为你退出登录，请重新登录。',
       deviceActivationFailed: '设备注册失败，会话自动续期暂不可用。',
       notLoggedIn: '尚未登录。',
-      loginLink: '通过 Geekfun 登录',
+      loginLink: '通过 GEEKFUN 登录',
       refresh: '刷新',
       logout: '退出登录',
       manage: '管理订阅',
