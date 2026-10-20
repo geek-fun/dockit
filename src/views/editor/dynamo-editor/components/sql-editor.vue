@@ -33,6 +33,7 @@
         v-if="partiqlData.showResultPanel"
         :key="partiqlPanelKey"
         :error="partiqlData.errorMessage"
+        :error-title="$t('editor.dynamo.partiql.error')"
         :columns="displayColumns"
         :data="partiqlData.data"
         :total="partiqlData.count"
@@ -47,16 +48,6 @@
         @first-page="handleFirstPage"
         @close="handleCloseResultPanel"
       >
-        <template #error>
-          <Card class="w-full">
-            <CardHeader class="p-3 flex flex-row items-center justify-between">
-              <CardTitle class="text-base">{{ $t('editor.dynamo.partiql.error') }}</CardTitle>
-            </CardHeader>
-            <CardContent class="p-3">
-              <p class="text-destructive">{{ partiqlData.errorMessage }}</p>
-            </CardContent>
-          </Card>
-        </template>
         <template #cell="{ column, row }">
           <template v-if="column.key === 'actions'">
             <DropdownMenu>
@@ -169,7 +160,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Empty } from '@/components/ui/empty';
 import EditItem from './edit-item.vue';
 import DeleteConfirmModal from './delete-confirm-modal.vue';
