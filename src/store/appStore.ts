@@ -153,7 +153,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'OpenRouter',
     authMode: 'api-key',
     defaultBaseUrl: 'https://openrouter.ai/api/v1',
-    enabled: true,
+    enabled: false,
     defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   },
   {
@@ -162,7 +162,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'Requesty',
     authMode: 'api-key',
     defaultBaseUrl: 'https://router.requesty.ai/v1',
-    enabled: true,
+    enabled: false,
     defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   },
   {
@@ -171,7 +171,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'Opper',
     authMode: 'api-key',
     defaultBaseUrl: 'https://api.opper.ai/v3/compat',
-    enabled: true,
+    enabled: false,
     defaultModels: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
   },
   {
@@ -180,7 +180,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'Atlas Cloud',
     authMode: 'api-key',
     defaultBaseUrl: 'https://api.atlascloud.ai/v1',
-    enabled: true,
+    enabled: false,
     defaultModels: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
   },
   {
@@ -189,7 +189,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'API Route',
     authMode: 'api-key',
     defaultBaseUrl: 'https://global.api-route.com/v1',
-    enabled: true,
+    enabled: false,
     defaultModels: ['gpt-6.1-sol'],
   },
   {
@@ -198,7 +198,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'Cheaper Inference',
     authMode: 'api-key',
     defaultBaseUrl: 'https://api.cheaperinference.com/v1',
-    enabled: true,
+    enabled: false,
     defaultModels: ['gpt-5.4-mini', 'claude-sonnet-5', 'gemini-3.1-pro'],
   },
   {
@@ -216,7 +216,7 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     label: 'Google Gemini',
     authMode: 'api-key',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    enabled: true,
+    enabled: false,
     defaultModels: ['gemini-2.5-pro', 'gemini-2.5-flash'],
   },
   {
@@ -301,6 +301,12 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: [],
   },
 ];
+
+// The starter set: these presets are pre-added as cards for every user. Every other
+// provider is opt-in and only becomes enabled once the user adds it.
+const STARTER_PROVIDER_KINDS = new Set<ProviderKind>(
+  PROVIDER_PRESETS.filter(preset => preset.enabled).map(preset => preset.kind),
+);
 
 const defaultModelsByKind: Record<ProviderKind, string[]> = {
   openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o-mini'],
@@ -466,6 +472,20 @@ const migrateLegacyAiConfigs = (legacyAiConfigs: Array<LegacyAiConfig>): LlmSett
 
   return next;
 };
+
+// Un-enable cards that a preset pre-added in an earlier release but the user never
+// configured (no key, never connected).
+const disableUnconfiguredPresetProviders = (
+  providers: Array<ProviderConfig>,
+): Array<ProviderConfig> =>
+  providers.map(provider =>
+    provider.enabled &&
+    !provider.connected &&
+    !(provider.apiKey ?? '').trim() &&
+    !STARTER_PROVIDER_KINDS.has(provider.kind)
+      ? { ...provider, enabled: false }
+      : provider,
+  );
 
 const mergeProviderConfigs = (storedProviders: Array<ProviderConfig>): Array<ProviderConfig> => {
   const defaults = defaultProviderConfigs();
@@ -688,8 +708,19 @@ export const useAppStore = defineStore('app', {
         );
 
         // V1 migration: reset autoCompact to true for persisted data from old bug
-        if (!storedVersion || storedVersion < LLM_SETTINGS_SCHEMA_VERSION) {
+        if (!storedVersion || storedVersion < 1) {
           this.llmSettings.chat.autoCompact = CHAT_RUNTIME_DEFAULTS.autoCompact;
+        }
+
+        // V2 migration: providers are opt-in, so drop the cards earlier releases
+        // pre-added for the user without credentials.
+        if (!storedVersion || storedVersion < 2) {
+          this.llmSettings.providers = disableUnconfiguredPresetProviders(
+            this.llmSettings.providers,
+          );
+        }
+
+        if (!storedVersion || storedVersion < LLM_SETTINGS_SCHEMA_VERSION) {
           await Promise.all([
             storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION),
             storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
