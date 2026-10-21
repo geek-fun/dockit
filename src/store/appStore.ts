@@ -474,12 +474,14 @@ const migrateLegacyAiConfigs = (legacyAiConfigs: Array<LegacyAiConfig>): LlmSett
 };
 
 // Un-enable cards that a preset pre-added in an earlier release but the user never
-// configured (no key, never connected).
+// configured. Only key-based providers are considered: keyless ones (lm-studio) are
+// configured by definition, so an empty API key does not mean they were unused.
 const disableUnconfiguredPresetProviders = (
   providers: Array<ProviderConfig>,
 ): Array<ProviderConfig> =>
   providers.map(provider =>
     provider.enabled &&
+    provider.authMode === 'api-key' &&
     !provider.connected &&
     !(provider.apiKey ?? '').trim() &&
     !STARTER_PROVIDER_KINDS.has(provider.kind)
@@ -721,10 +723,10 @@ export const useAppStore = defineStore('app', {
         }
 
         if (!storedVersion || storedVersion < LLM_SETTINGS_SCHEMA_VERSION) {
-          await Promise.all([
-            storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION),
-            storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
-          ]);
+          // Persist the migrated settings before bumping the version: if the write
+          // fails, the old version stays and this idempotent migration retries later.
+          await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
+          await storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION);
         }
         storeApi.delete('chatStore').catch(() => {});
         storeApi.delete('chatSettings').catch(() => {});
