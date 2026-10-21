@@ -692,6 +692,12 @@ const providerPresets: Record<
     baseUrl: 'https://global.api-route.com/v1',
     apiCompatibility: 'openai-compatible',
   },
+  cheaperinference: {
+    label: 'Cheaper Inference',
+    authMode: 'api-key',
+    baseUrl: 'https://api.cheaperinference.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',

@@ -32,6 +32,7 @@ export type ProviderKind =
   | 'opper'
   | 'atlascloud'
   | 'api-route'
+  | 'cheaperinference'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -192,6 +193,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['gpt-6.1-sol'],
   },
   {
+    kind: 'cheaperinference',
+    apiCompatibility: 'openai-compatible',
+    label: 'Cheaper Inference',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.cheaperinference.com/v1',
+    enabled: true,
+    defaultModels: ['gpt-5.4-mini', 'claude-sonnet-5', 'gemini-3.1-pro'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -300,6 +310,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   opper: ['claude-sonnet-4-6', 'gpt-5.4-mini', 'gemini-3.8-flash'],
   atlascloud: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
   'api-route': ['gpt-6.1-sol'],
+  cheaperinference: ['gpt-5.4-mini', 'claude-sonnet-5', 'gemini-3.1-pro'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -410,6 +421,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'atlascloud';
     case ProviderEnum.API_ROUTE:
       return 'api-route';
+    case ProviderEnum.CHEAPER_INFERENCE:
+      return 'cheaperinference';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:
