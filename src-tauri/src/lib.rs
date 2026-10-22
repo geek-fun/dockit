@@ -143,6 +143,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
+            crate::mcp_bridge::get_ai_permissions,
+            crate::mcp_bridge::save_ai_permissions,
             invoke_capability,
             get_available_tools,
             fetch_api,

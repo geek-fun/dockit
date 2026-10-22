@@ -263,7 +263,7 @@ const toPromptSources = (
   const sessionSources = getActiveSources(session).map(source => ({
     connectionId: source.alias,
     databaseType: source.databaseType,
-    permissions: source.permissions,
+    permissions: source.permissionsMode === 'custom' ? source.permissions : undefined,
   }));
 
   if (sessionSources.length > 0) {

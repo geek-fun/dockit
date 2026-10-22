@@ -74,7 +74,13 @@ impl McpConfig {
     pub fn save(&self, app_data_dir: &Path) -> Result<(), String> {
         let path = app_data_dir.join("mcp-config.json");
         let json = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        std::fs::write(&path, &json).map_err(|e| format!("Failed to write mcp-config.json: {}", e))
+        let temporary = app_data_dir.join(format!("mcp-config-{}.tmp", uuid::Uuid::new_v4()));
+        std::fs::write(&temporary, &json)
+            .map_err(|e| format!("Failed to write MCP config: {e}"))?;
+        std::fs::rename(&temporary, &path).map_err(|e| {
+            let _ = std::fs::remove_file(&temporary);
+            format!("Failed to save MCP config: {e}")
+        })
     }
 }
 
@@ -86,6 +92,84 @@ impl Default for McpConfig {
             policy: McpPolicy::default(),
         }
     }
+}
+
+static AI_POLICY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+pub(crate) fn load_permission_policy<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<McpPolicy, String> {
+    let _guard = AI_POLICY_LOCK.lock().map_err(|e| e.to_string())?;
+    load_permission_policy_inner(app)
+}
+
+fn read_permission_config(dir: &Path) -> Result<McpConfig, String> {
+    Ok(match std::fs::read_to_string(dir.join("mcp-config.json")) {
+        Ok(raw) => {
+            serde_json::from_str(&raw).map_err(|e| format!("Cannot load AI permissions: {e}"))?
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => McpConfig::default(),
+        Err(error) => return Err(format!("Cannot load AI permissions: {error}")),
+    })
+}
+
+fn load_permission_policy_inner<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Result<McpPolicy, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let mut config = read_permission_config(&dir)?;
+    if config.policy.permission_defaults.is_none() {
+        let store = app.store(".store.dat").map_err(|e| e.to_string())?;
+        let ids = store
+            .get("connections")
+            .and_then(|v| v.as_array().cloned())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|c| {
+                c.get("id").and_then(|id| match id {
+                    Value::String(id) => Some(id.clone()),
+                    Value::Number(id) => Some(id.to_string()),
+                    _ => None,
+                })
+            })
+            .collect::<Vec<_>>();
+        config.policy.migrate_permissions(&ids);
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        config.save(&dir)?;
+    }
+    Ok(config.policy)
+}
+
+#[tauri::command]
+pub fn get_ai_permissions(app: AppHandle) -> Result<McpPolicy, String> {
+    load_permission_policy(&app)
+}
+
+#[tauri::command]
+pub fn save_ai_permissions(
+    defaults: Option<data_studio_agent::capabilities::permissions::PermissionRules>,
+    connection_id: Option<String>,
+    permissions: Option<data_studio_agent::capabilities::permissions::PermissionRules>,
+    app: AppHandle,
+) -> Result<McpPolicy, String> {
+    let _guard = AI_POLICY_LOCK.lock().map_err(|e| e.to_string())?;
+    let mut policy = load_permission_policy_inner(&app)?;
+    if let Some(defaults) = defaults {
+        policy.permission_defaults = Some(defaults.resolve(&Default::default()));
+    }
+    if let Some(id) = connection_id {
+        let rules = permissions.unwrap_or_default();
+        if rules == Default::default() {
+            policy.connection_permissions.remove(&id);
+        } else {
+            policy.connection_permissions.insert(id, rules);
+        }
+    }
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let mut config = read_permission_config(&dir)?;
+    config.policy = policy.clone();
+    config.save(&dir)?;
+    Ok(policy)
 }
 
 // ---------------------------------------------------------------------------
@@ -134,7 +218,6 @@ struct BridgeState<R: Runtime> {
     handle: AppHandle<R>,
     app_name: &'static str,
     app_data_dir: PathBuf,
-    policy: McpPolicy,
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +231,7 @@ fn tools_payload(policy: &McpPolicy) -> Value {
 
     let tools: Vec<Value> = caps
         .iter()
-        .filter(|cap| check_policy(cap, policy, None).is_ok())
+        .filter(|cap| policy.advertises(cap))
         .map(|cap| {
             // Neon-style policy notice: tells the client (LLM) which
             // capabilities are gated and how to lift the gate, without
@@ -197,8 +280,18 @@ async fn handle_tools<R: Runtime>(State(state): State<Arc<BridgeState<R>>>) -> R
         )
             .into_response();
     }
-    let mut result = tools_payload(&state.policy);
-    result["connections"] = list_connections();
+    let policy = match load_permission_policy(&state.handle) {
+        Ok(policy) => policy,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"message": e})),
+            )
+                .into_response()
+        }
+    };
+    let mut result = tools_payload(&policy);
+    result["connections"] = filter_ai_connections(list_connections(), &policy);
     Json(result).into_response()
 }
 
@@ -231,17 +324,46 @@ async fn handle_invoke<R: Runtime>(
     if let Some(reason) = entitlement_denied(&state) {
         return Json(InvokeResponse::error(403, reason));
     }
-    Json(invoke_with_policy(&state.policy, payload).await)
+    let policy = match load_permission_policy(&state.handle) {
+        Ok(policy) => policy,
+        Err(e) => return Json(InvokeResponse::error(500, e)),
+    };
+    Json(invoke_with_policy(&policy, payload).await)
 }
 
 // Split from handle_invoke so policy tests can run without a bridge.
 async fn invoke_with_policy(policy: &McpPolicy, payload: InvokeRequest) -> InvokeResponse {
+    if let (Some(envelope), Some(argument)) = (
+        payload.connection_id.as_deref(),
+        payload.args.get("connection_id").and_then(Value::as_str),
+    ) {
+        if envelope != argument {
+            return InvokeResponse::error(400, "Conflicting connection identifiers".into());
+        }
+    }
+    let payload = InvokeRequest {
+        connection_id: payload.connection_id.or_else(|| {
+            payload
+                .args
+                .get("connection_id")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        }),
+        ..payload
+    };
+
     let cap = match registry::registry().get(&payload.name) {
         Some(c) => c,
         None => return InvokeResponse::error(404, format!("Unknown capability: {}", payload.name)),
     };
 
-    if let Err(msg) = check_policy(cap, policy, payload.connection_id.as_deref()) {
+    if let Err(msg) = if policy.permission_defaults.is_some() {
+        policy
+            .authorize(cap, &payload.args, payload.connection_id.as_deref(), None)
+            .map(|_| ())
+    } else {
+        check_policy(cap, policy, payload.connection_id.as_deref())
+    } {
         return InvokeResponse::error(403, msg);
     }
 
@@ -256,7 +378,14 @@ async fn invoke_with_policy(policy: &McpPolicy, payload: InvokeRequest) -> Invok
 
     match registry::invoke_capability_inner(&payload.name, payload.args, config).await {
         Ok(data) => match serde_json::from_str::<Value>(&data) {
-            Ok(parsed) => InvokeResponse::ok(parsed),
+            Ok(mut parsed) => {
+                if payload.name.ends_with("__list_connections") {
+                    if let Some(connections) = parsed.get("connections") {
+                        parsed["connections"] = filter_ai_connections(connections.clone(), policy);
+                    }
+                }
+                InvokeResponse::ok(parsed)
+            }
             Err(_) => InvokeResponse::ok(json!({"result": data})),
         },
         Err(msg) => InvokeResponse::error(400, msg),
@@ -417,14 +546,12 @@ pub async fn start<R: Runtime>(
     shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<u16, String> {
     // Try preferred port first, fall back to random
-    let policy = McpConfig::load(&app_data_dir).policy;
     let port = match TcpListener::bind(format!("127.0.0.1:{}", preferred_port)).await {
         Ok(listener) => {
             let state = Arc::new(BridgeState {
                 handle: handle.clone(),
                 app_name: "dockit",
                 app_data_dir: app_data_dir.clone(),
-                policy: policy.clone(),
             });
 
             let app = axum::Router::new()
@@ -471,7 +598,6 @@ pub async fn start<R: Runtime>(
                 handle: handle.clone(),
                 app_name: "dockit",
                 app_data_dir: app_data_dir.clone(),
-                policy: policy.clone(),
             });
 
             let app = axum::Router::new()
@@ -589,7 +715,7 @@ pub async fn get_mcp_status(app: AppHandle) -> Result<String, String> {
         .app_data_dir()
         .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
 
-    let config = McpConfig::load(&app_data_dir);
+    let config = read_permission_config(&app_data_dir)?;
     let running_port = get_actual_port(&app_data_dir);
 
     let status = json!({
@@ -607,6 +733,7 @@ pub async fn get_mcp_status(app: AppHandle) -> Result<String, String> {
 pub async fn save_mcp_config(
     port: Option<u16>,
     auto_start: bool,
+    restart: Option<bool>,
     policy: Option<McpPolicy>,
     app: AppHandle,
 ) -> Result<String, String> {
@@ -617,7 +744,15 @@ pub async fn save_mcp_config(
         .app_data_dir()
         .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
         .to_path_buf();
-    save_mcp_config_in_dir(&app, port, auto_start, policy, &app_data_dir).await
+    save_mcp_config_in_dir(
+        &app,
+        port,
+        auto_start,
+        policy,
+        &app_data_dir,
+        restart.unwrap_or(false),
+    )
+    .await
 }
 
 async fn save_mcp_config_in_dir<R: Runtime>(
@@ -626,18 +761,22 @@ async fn save_mcp_config_in_dir<R: Runtime>(
     auto_start: bool,
     policy: Option<McpPolicy>,
     app_data_dir: &Path,
+    restart: bool,
 ) -> Result<String, String> {
     let entitlement: tauri::State<'_, crate::entitlement::EntitlementState> = app.state();
     crate::entitlement::ensure_local_ultimate(&entitlement, "MCP Server")?;
 
-    // Load first so a None policy from older clients keeps the stored policy.
-    let mut config = McpConfig::load(app_data_dir);
-    config.port = port;
-    config.auto_start = auto_start;
-    if let Some(p) = policy {
-        config.policy = p;
+    {
+        let _guard = AI_POLICY_LOCK.lock().map_err(|e| e.to_string())?;
+        // Load first so a None policy from older clients keeps the stored policy.
+        let mut config = read_permission_config(app_data_dir)?;
+        config.port = port;
+        config.auto_start = auto_start;
+        if let Some(p) = policy {
+            config.policy = p;
+        }
+        config.save(app_data_dir)?;
     }
-    config.save(app_data_dir)?;
 
     // Always shut down the current server first and await its full exit
     // (including port file cleanup) to prevent the new server's port file
@@ -647,7 +786,7 @@ async fn save_mcp_config_in_dir<R: Runtime>(
         let _ = h.await;
     }
 
-    if auto_start {
+    if auto_start || restart {
         if !entitlement.session_confirmed() {
             return Err(crate::entitlement::entitlement_required_error("MCP Server"));
         }
@@ -1131,6 +1270,7 @@ mod tests {
         state: crate::entitlement::EntitlementState,
     ) -> tauri::App<tauri::test::MockRuntime> {
         tauri::test::mock_builder()
+            .plugin(tauri_plugin_store::Builder::default().build())
             .manage(state)
             .manage(McpServerHandle::new())
             .build(tauri::test::mock_context(tauri::test::noop_assets()))
@@ -1152,7 +1292,6 @@ mod tests {
             handle: app.handle().clone(),
             app_name: "dockit",
             app_data_dir: dir,
-            policy: McpPolicy::default(),
         })
     }
 
@@ -1285,20 +1424,20 @@ mod tests {
         let plan_only = crate::entitlement::EntitlementState::load(None);
         plan_only.grant_active_plan_for_test();
         let app = mock_app(plan_only);
-        let err = save_mcp_config_in_dir(app.handle(), Some(0), true, None, &dir)
+        let err = save_mcp_config_in_dir(app.handle(), Some(0), true, None, &dir, false)
             .await
             .expect_err("autostart without a session");
         assert!(err.contains(crate::entitlement::ENTITLEMENT_ERROR_TYPE));
         assert!(!dir.join("mcp-port").exists());
 
         let unsigned = mock_app(crate::entitlement::EntitlementState::load(None));
-        let err = save_mcp_config_in_dir(unsigned.handle(), None, false, None, &dir)
+        let err = save_mcp_config_in_dir(unsigned.handle(), None, false, None, &dir, false)
             .await
             .expect_err("a free plan cannot save MCP config");
         assert!(err.contains(crate::entitlement::ENTITLEMENT_ERROR_TYPE));
 
         let app = mock_app(paid_state());
-        let ok = save_mcp_config_in_dir(app.handle(), None, false, None, &dir)
+        let ok = save_mcp_config_in_dir(app.handle(), None, false, None, &dir, false)
             .await
             .expect("a live plan can store config without starting");
         assert!(ok.contains("ok"));
@@ -1306,7 +1445,7 @@ mod tests {
         assert!(!stored.auto_start);
 
         let port = portpicker::pick_unused_port().expect("free port");
-        save_mcp_config_in_dir(app.handle(), Some(port), true, None, &dir)
+        save_mcp_config_in_dir(app.handle(), Some(port), true, None, &dir, false)
             .await
             .expect("a live plan can start the bridge");
         assert!(wait_for_port_file(&dir).await);
@@ -1345,4 +1484,84 @@ mod tests {
         }
         false
     }
+    #[test]
+    fn ai_permission_roundtrip_preserves_partial_decisions_and_service_settings() {
+        use data_studio_agent::capabilities::permissions::PermissionRules;
+        let dir = std::env::temp_dir().join(format!("dockit-ai-chain-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut policy = McpPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, false, false, false, false)),
+            ..Default::default()
+        };
+        policy.connection_permissions.insert(
+            "42".into(),
+            PermissionRules {
+                update: Some(true),
+                delete: Some(false),
+                ..Default::default()
+            },
+        );
+        let config = McpConfig {
+            port: Some(9432),
+            auto_start: false,
+            policy: policy.clone(),
+        };
+        config.save(&dir).unwrap();
+        let loaded = read_permission_config(&dir).unwrap();
+        assert_eq!(loaded.policy, policy);
+        assert_eq!(loaded.port, Some(9432));
+        assert!(!loaded.auto_start);
+        assert_eq!(loaded.policy.effective_permissions("42").update, Some(true));
+        assert_eq!(
+            loaded.policy.effective_permissions("42").delete,
+            Some(false)
+        );
+        std::fs::write(dir.join("mcp-config.json"), "invalid").unwrap();
+        assert!(read_permission_config(&dir).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn ai_connection_discovery_filters_numeric_and_string_ids_by_effective_permissions() {
+        use data_studio_agent::capabilities::permissions::PermissionRules;
+        let mut policy = McpPolicy {
+            permission_defaults: Some(PermissionRules::explicit(false, false, false, false, false)),
+            ..Default::default()
+        };
+        policy.connection_permissions.insert(
+            "42".into(),
+            PermissionRules {
+                read: Some(true),
+                ..Default::default()
+            },
+        );
+        let filtered =
+            filter_ai_connections(json!([{"id":42},{"id":"other"},{"id":null}]), &policy);
+        assert_eq!(filtered, json!([{"id":42}]));
+        policy.connection_permissions.insert(
+            "42".into(),
+            PermissionRules {
+                read: Some(false),
+                ..Default::default()
+            },
+        );
+        assert_eq!(filter_ai_connections(filtered, &policy), json!([]));
+    }
+}
+
+fn filter_ai_connections(connections: Value, policy: &McpPolicy) -> Value {
+    json!(connections
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|connection| {
+            let id = match &connection["id"] {
+                Value::String(id) => id.clone(),
+                Value::Number(id) => id.to_string(),
+                _ => return false,
+            };
+            policy.effective_permissions(&id).any_allowed()
+        })
+        .cloned()
+        .collect::<Vec<_>>())
 }

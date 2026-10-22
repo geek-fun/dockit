@@ -291,6 +291,7 @@ const onAgentLoopToolCall = (
     session_id: string;
     tool_call_id: string;
     tool_name: string;
+    risk_level?: 'safe' | 'elevated' | 'destructive';
     arguments: unknown;
   }) => void,
 ) => listen('agent-loop-tool-call', e => handler(e.payload as any));
