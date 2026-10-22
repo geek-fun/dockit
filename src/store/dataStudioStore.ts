@@ -21,6 +21,7 @@ import {
 } from '../datasources/agentApi';
 
 export type DataSourcePermissions = {
+  manage?: boolean;
   read: boolean;
   create: boolean;
   update: boolean;
@@ -504,20 +505,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     },
 
     async setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
-      const writePerms = mode === 'Auto';
-      const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
-        s.detached || s.permissionsMode === 'custom'
-          ? s
-          : {
-              ...s,
-              permissions: {
-                read: true,
-                create: writePerms,
-                update: writePerms,
-                delete: writePerms,
-              },
-            },
-      );
+      const updatedSources = this.sessions.find(s => s.id === sessionId)?.sources ?? [];
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, permissionsMode: mode, sources: updatedSources } : s,
       );
@@ -548,12 +536,11 @@ export const useDataStudioStore = defineStore('dataStudio', {
       mode: SourcePermissionsMode,
     ) {
       const session = this.sessions.find(s => s.id === sessionId);
-      const writePerms = session?.permissionsMode === 'Auto';
       const inheritedPermissions: DataSourcePermissions = {
         read: true,
-        create: writePerms,
-        update: writePerms,
-        delete: writePerms,
+        create: true,
+        update: true,
+        delete: true,
       };
       const updatedSources = (session?.sources ?? []).map(s =>
         s.sourceId === sourceId

@@ -136,14 +136,14 @@ const initAgentRuntime = async (): Promise<void> => {
         timestamp: Date.now(),
       });
     }),
-    onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
+    onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args, risk_level }) => {
       const store = useDataStudioStore();
       store.removePreparingPlaceholder(session_id);
       const session = getSessionById(store.sessions, session_id);
       if (!session) return;
 
       const runtime = getSessionRuntime(session_id);
-      const riskLevel = runtime.metadata?.[tool_name]?.riskLevel ?? 'elevated';
+      const riskLevel = risk_level ?? runtime.metadata?.[tool_name]?.riskLevel ?? 'elevated';
       const needsConfirmation = shouldRequireConfirmation(session, tool_name, riskLevel);
       const denied = isDeniedByRule(session_id, tool_name);
 

@@ -41,6 +41,7 @@ export type ChatSession = {
 };
 
 export type ChatPermissions = {
+  manage?: boolean;
   read: boolean;
   create: boolean;
   update: boolean;
@@ -50,7 +51,7 @@ export type ChatPermissions = {
 export type ConnectionEntry = {
   connectionId: string;
   dbType: string;
-  permissions: ChatPermissions;
+  permissions?: ChatPermissions;
 };
 
 export type ChatContextConfig = {
@@ -74,7 +75,7 @@ export type ChatConfig = {
   enableConfirmations: boolean;
   autoApproveSafe: boolean;
 
-  permissions: ChatPermissions;
+  permissions?: ChatPermissions;
 
   context: ChatContextConfig;
 

@@ -1,4 +1,48 @@
 export const enUS = {
+  aiPermissions: {
+    accessLevel: 'Access level',
+    unavailable: 'Unavailable',
+    loadError: 'Could not load permissions',
+    saving: 'Saving…',
+    conversationHelp:
+      'Uses the current connection permissions. Conversation limits can only restrict access; Ask/Auto only controls confirmation.',
+    useConnection: 'Use connection permissions',
+    limitConversation: 'Limit this conversation',
+    deniedByConnection: 'Denied by connection permissions',
+    cancel: 'Cancel',
+    conversationReadOnly: 'Read-only for this conversation',
+    title: 'AI permissions',
+    help: 'Applies to Data Studio and external MCP clients. Each explicit connection decision takes priority over the system default.',
+    loading: 'Loading permissions…',
+    loadFailed: 'Could not load permissions. Retry before saving this connection.',
+    retry: 'Retry',
+    inherit: 'Use system default',
+    none: 'No access',
+    read: 'Read',
+    data: 'Read & modify data',
+    full: 'Full access',
+    custom: 'Custom',
+    customize: 'Customize permissions',
+    effective: 'Effective access',
+    create: 'Create data',
+    update: 'Update data',
+    delete: 'Delete data',
+    manage: 'Manage structure & administration',
+    allow: 'Allow',
+    deny: 'Deny',
+    fromSystem: 'System default',
+    fromConnection: 'Connection setting',
+    defaults: 'Default AI permissions',
+    defaultsHelp:
+      'Used for actions that a connection inherits. Explicit connection decisions take priority. Conversation restrictions can only narrow access.',
+    save: 'Save defaults',
+    saved: 'Permissions saved',
+    saveFailed: 'Could not save permissions',
+    manageHelp:
+      'Full access also permits schema, index, table, collection, and administrative changes.',
+    readPreset: 'Read-only',
+  },
+
   device: {
     replaceTitle: 'Device limit reached',
     replaceDescription:
@@ -253,6 +297,7 @@ export const enUS = {
       },
     },
     mcp: {
+      saved: 'Settings saved',
       title: 'MCP Bridge',
       status: 'Status',
       running: 'Running on port {port}',
@@ -1895,8 +1940,8 @@ export const enUS = {
     modifySource: {
       title: 'Modify Datasource',
       accessPermissions: 'Access Permissions',
-      inheritTitle: 'Inherit from session',
-      inheritDesc: 'Permissions follow the session-level setting and update automatically.',
+      inheritTitle: 'Use connection permissions',
+      inheritDesc: 'Uses the current connection permission chain.',
       customTitle: 'Custom',
       customDesc: 'Manually define which operations are allowed for this source.',
       autoMode: 'Auto Mode',
