@@ -132,7 +132,8 @@ describe('API Route provider', () => {
 
   it('validates the selected model with the saved endpoint and key', async () => {
     const store = useAppStore();
-    await store.updateProviderConfig('api-route', { apiKey: 'test-api-route-key' });
+    // api-route is opt-in, so the provider is enabled when the user adds it
+    await store.updateProviderConfig('api-route', { apiKey: 'test-api-route-key', enabled: true });
     mockValidateConfig.mockResolvedValue({ valid: true });
 
     expect(await store.testProvider('api-route')).toEqual({ valid: true });
