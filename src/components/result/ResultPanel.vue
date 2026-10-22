@@ -1,9 +1,27 @@
 <template>
   <div class="result-panel">
     <div v-if="error" class="result-error">
-      <slot name="error">
-        <p class="text-destructive text-sm">{{ error }}</p>
-      </slot>
+      <div v-if="errorTitle || closable" class="result-error-header">
+        <h3 v-if="errorTitle" class="result-error-title">
+          <span class="i-carbon-warning-alt h-4 w-4 text-destructive" aria-hidden="true" />
+          {{ errorTitle }}
+        </h3>
+        <Button
+          v-if="closable"
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7 shrink-0 ml-auto"
+          :aria-label="$t('dialogOps.close')"
+          @click="$emit('close')"
+        >
+          <span class="i-carbon-close h-3.5 w-3.5" aria-hidden="true" />
+        </Button>
+      </div>
+      <div class="result-error-content macos-scrollable" role="alert" tabindex="0">
+        <slot name="error">
+          <p class="result-error-message">{{ error }}</p>
+        </slot>
+      </div>
     </div>
 
     <template v-else>
@@ -399,6 +417,7 @@ const props = withDefaults(
     total?: number;
     loading?: boolean;
     error?: string | null;
+    errorTitle?: string;
     pagination?: PaginationConfig;
     viewModes?: ViewMode[];
     activeView?: ViewMode;
@@ -418,6 +437,7 @@ const props = withDefaults(
     total: undefined,
     loading: false,
     error: null,
+    errorTitle: undefined,
     pagination: undefined,
     viewModes: () => ['table', 'json'],
     activeView: 'table',
@@ -612,8 +632,55 @@ watch(
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  min-width: 0;
 }
-.result-error,
+.result-error {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.result-error-header {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+.result-error-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.result-error-title > span {
+  flex-shrink: 0;
+}
+.result-error-content {
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+  overflow-y: scroll;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: hsl(var(--foreground));
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.result-error-content:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
+}
+.result-error-message {
+  margin: 0;
+}
 .result-loading,
 .result-empty {
   display: flex;

@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ResultPanel error regression harness</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 16px;
+        font-family: system-ui, sans-serif;
+        overflow: auto !important;
+        height: auto !important;
+      }
+      h1 {
+        font-size: 18px;
+        margin-bottom: 12px;
+      }
+      h2 {
+        font-size: 13px;
+        margin: 12px 0 4px;
+      }
+      .cases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .case {
+        min-width: 0;
+        max-width: 100%;
+      }
+      .panel-box {
+        width: 100%;
+        height: 200px;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        border: 1px solid hsl(var(--border));
+      }
+      #report {
+        white-space: pre-wrap;
+        font-size: 12px;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ResultPanel error regression harness</h1>
+    <div id="cases" class="cases"></div>
+    <pre id="report">Checking…</pre>
+    <script type="module">
+      import 'virtual:uno.css';
+      import '/src/assets/styles/index.css';
+      import { createApp, h, nextTick, ref } from 'vue';
+      import { lang } from '/src/lang/index.ts';
+      import { mockIPC } from '@tauri-apps/api/mocks';
+
+      mockIPC(() => null);
+      Object.assign(window.__TAURI_INTERNALS__, {
+        plugins: { path: { sep: '/', delimiter: ':' } },
+      });
+      Object.assign(window, {
+        __TAURI_OS_PLUGIN_INTERNALS__: { platform: 'macos', arch: 'aarch64' },
+      });
+      const { ResultPanel } = await import('/src/components/result/index.ts');
+
+      lang.global.locale.value = 'enUS';
+      const error =
+        'PartiQL execution failed\n\nError Code: ValidationException\nMessage: PartiQL statements cannot be executed on tables with multi-attribute HASH keys or multi-attribute RANGE keys.';
+      const cases = [
+        { name: 'Wide / dark', width: 720, theme: 'dark', error },
+        { name: 'Wide / light', width: 720, theme: 'light', error },
+        { name: 'Narrow / dark', width: 320, theme: 'dark', error },
+        {
+          name: 'Short pane / long error',
+          width: 320,
+          height: 120,
+          theme: 'light',
+          error: `${error}\n${'LongUnbrokenDiagnostic'.repeat(60)}\nLast diagnostic line`,
+        },
+        {
+          name: 'Existing error slot',
+          width: 320,
+          theme: 'dark',
+          error: 'Custom error',
+          slotted: true,
+        },
+        { name: 'Untitled error / recovery', width: 320, theme: 'light', error, untitled: true },
+      ];
+      const checks = [];
+      const assert = (name, passed) => checks.push({ name, passed });
+      const mounted = cases.map(config => {
+        const section = document.createElement('section');
+        section.className = 'case';
+        section.style.width = `${config.width}px`;
+        const heading = document.createElement('h2');
+        heading.textContent = config.name;
+        const host = document.createElement('div');
+        host.className = 'panel-box';
+        host.setAttribute('theme', config.theme);
+        if (config.height) host.style.height = `${config.height}px`;
+        section.append(heading, host);
+        document.getElementById('cases').append(section);
+        const currentError = ref(config.error);
+        const closed = ref(false);
+        createApp({
+          render: () =>
+            h(
+              ResultPanel,
+              {
+                error: currentError.value,
+                errorTitle: config.untitled ? undefined : 'Query Error',
+                closable: true,
+                columns: [{ key: 'id', title: 'id' }],
+                data: [{ id: 'recovered-item' }],
+                pagination: { mode: 'cursor', hasNext: false },
+                onClose: () => {
+                  closed.value = true;
+                },
+              },
+              config.slotted ? { error: () => h('p', 'Custom error slot content') } : undefined,
+            ),
+        })
+          .use(lang)
+          .mount(host);
+        return { config, host, currentError, closed };
+      });
+
+      await nextTick();
+      await new Promise(requestAnimationFrame);
+      mounted.forEach(({ config, host, closed }) => {
+        const content = host.querySelector('[role="alert"]');
+        const close = host.querySelector('button[aria-label="Close"]');
+        const panelRect = host.getBoundingClientRect();
+        const bodyRect = content.getBoundingClientRect();
+        const closeRect = close.getBoundingClientRect();
+        const title = host.querySelector('h3');
+        assert(
+          `${config.name}: exact error text preserved`,
+          content.textContent.trim() ===
+            (config.slotted ? 'Custom error slot content' : config.error),
+        );
+        assert(
+          `${config.name}: starts at top of pane`,
+          !title || title.getBoundingClientRect().top - panelRect.top < 24,
+        );
+        assert(
+          `${config.name}: no horizontal overflow`,
+          content.scrollWidth <= content.clientWidth + 1,
+        );
+        assert(
+          `${config.name}: content contained in pane`,
+          bodyRect.bottom <= panelRect.bottom + 1 && bodyRect.height > 0,
+        );
+        assert(
+          `${config.name}: close stays in pane`,
+          closeRect.bottom <= panelRect.bottom && closeRect.top >= panelRect.top,
+        );
+        assert(
+          `${config.name}: whitespace retained`,
+          getComputedStyle(content).whiteSpace === 'pre-wrap',
+        );
+        close.click();
+        assert(`${config.name}: close emits event`, closed.value);
+        if (config.height) {
+          assert('Long error scrolls inside pane', content.scrollHeight > content.clientHeight);
+          content.scrollTop = content.scrollHeight;
+          assert('Last diagnostic line is reachable', content.scrollTop > 0);
+        }
+      });
+      const recovery = mounted[mounted.length - 1];
+      recovery.currentError.value = null;
+      await nextTick();
+      assert(
+        'Success replaces error',
+        !recovery.host.querySelector('[role="alert"]') &&
+          recovery.host.textContent.includes('recovered-item'),
+      );
+      assert(
+        'Pagination returns after recovery',
+        !!recovery.host.querySelector('.result-pagination'),
+      );
+      recovery.currentError.value = error;
+      await nextTick();
+      document.getElementById('report').textContent = JSON.stringify(
+        { passed: checks.every(check => check.passed), checks },
+        null,
+        2,
+      );
+    </script>
+  </body>
+</html>
