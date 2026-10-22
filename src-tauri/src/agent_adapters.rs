@@ -36,7 +36,7 @@ async fn resolve_connections(app: &AppHandle, settings: &Value) -> HashMap<Strin
         .unwrap_or_default();
 
     let mut resolved: HashMap<String, Value> = HashMap::new();
-    let Ok(policy) = crate::mcp_bridge::load_permission_policy(app) else {
+    let Ok(policy) = crate::ai_permissions::load_permission_policy(app) else {
         return resolved;
     };
     for (conn_id, cfg) in &connections {
@@ -122,30 +122,8 @@ pub async fn run_agent_loop(
             .unwrap_or(false)
     };
 
-    let policy_app = app.clone();
-    let permission_connections = connections.clone();
-    let should_deny = move |tool_name: &str, conn_id: Option<&str>| -> bool {
-        let Some(cap) = data_studio_agent::capabilities::registry::registry().get(tool_name) else {
-            return true;
-        };
-        if matches!(
-            cap.source_kind,
-            data_studio_agent::capabilities::types::SourceKind::AppLocal
-                | data_studio_agent::capabilities::types::SourceKind::File
-        ) {
-            return false;
-        }
-        let Some(id) = conn_id
-            .and_then(|id| permission_connections.get(id))
-            .and_then(|cfg| cfg.get("connectionId"))
-            .and_then(Value::as_str)
-        else {
-            return true;
-        };
-        crate::mcp_bridge::load_permission_policy(&policy_app)
-            .map(|policy| !policy.effective_permissions(id).any_allowed())
-            .unwrap_or(true)
-    };
+    // The executor owns authorization before confirmation and again before execution.
+    let legacy_deny_hook = |_: &str, _: Option<&str>| false;
 
     lib::loop_runner::run_agent_loop(
         &session_id,
@@ -159,7 +137,7 @@ pub async fn run_agent_loop(
         &confirm_map,
         &cancel_map,
         &is_parallel_ok,
-        &should_deny,
+        &legacy_deny_hook,
     )
     .await
 }

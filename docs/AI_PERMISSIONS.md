@@ -12,4 +12,6 @@ Read & modify data includes data deletion but excludes structure and administrat
 
 Legacy allowlists migrate to explicit connection decisions preserving exclusions. When an allowlist existed, new connections default to no access. Existing per-connection restrictions are preserved. Corrupt or unreadable policy files deny execution rather than falling back to permissive settings. Policy writes are atomic and take effect for subsequent calls without restarting the bridge.
 
-Both applications pin the shared permission implementation to an exact Git revision in their Cargo manifests and lockfiles so builds use the same policy behavior.
+Both applications pin the shared agent runtime to an exact Git revision in their Cargo manifests and lockfiles. Each application owns its permission policy and database-operation classification.
+
+The application-owned `ai_permissions` module resolves policy, migrates legacy settings, classifies database payloads, and gates both MCP and built-in agent execution. The shared agent routes requests through an application preparation hook and carries its confirmation risk and context; it does not resolve this permission chain. Execution rechecks the application policy on every attempt.
