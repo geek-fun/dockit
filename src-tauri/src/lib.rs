@@ -8,6 +8,7 @@ pub static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 pub mod agent;
 pub mod agent_adapters;
+pub(crate) mod ai_permissions;
 pub mod capabilities;
 pub mod common;
 pub mod db;
@@ -143,8 +144,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
-            crate::mcp_bridge::get_ai_permissions,
-            crate::mcp_bridge::save_ai_permissions,
+            crate::ai_permissions::get_ai_permissions,
+            crate::ai_permissions::save_ai_permissions,
             invoke_capability,
             get_available_tools,
             fetch_api,

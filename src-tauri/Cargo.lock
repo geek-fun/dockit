@@ -1895,7 +1895,7 @@ checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 [[package]]
 name = "data-studio-agent"
 version = "0.1.9"
-source = "git+https://github.com/geek-fun/data-studio-agent.git?rev=c36fb2b16a4031053c3990dcd4d4b8e84d4d597f#c36fb2b16a4031053c3990dcd4d4b8e84d4d597f"
+source = "git+https://github.com/geek-fun/data-studio-agent.git?rev=b1cfd5cdf7ffd269763de558cd9062e0e1e55895#b1cfd5cdf7ffd269763de558cd9062e0e1e55895"
 dependencies = [
  "async-openai",
  "async-trait",
@@ -1905,7 +1905,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "sqlparser",
  "tiktoken-rs",
  "tokio",
  "uuid",
@@ -2192,6 +2191,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "sqlparser",
  "system-configuration",
  "tauri",
  "tauri-build",

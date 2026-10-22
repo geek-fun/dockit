@@ -1,6 +1,9 @@
 use async_trait::async_trait;
-use data_studio_agent::tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
+use data_studio_agent::tool_executor::{
+    ToolCallPreparation, ToolEnvelope, ToolExecutor, ToolResultMetadata,
+};
 use serde_json::Value;
+use std::collections::HashMap;
 
 const TOOL_ENVELOPE_MAX_CHARS: usize = 32768;
 const TOOL_ENVELOPE_SUMMARY_CHARS: usize = 4096;
@@ -17,6 +20,16 @@ pub struct DocKitToolExecutor;
 
 #[async_trait]
 impl ToolExecutor for DocKitToolExecutor {
+    fn prepare(
+        &self,
+        tool_name: &str,
+        arguments: &Value,
+        config: &Value,
+        connections: &HashMap<String, Value>,
+    ) -> Result<ToolCallPreparation, String> {
+        crate::ai_permissions::prepare_agent_call(tool_name, arguments, config, connections)
+    }
+
     async fn execute(
         &self,
         tool_name: &str,
@@ -24,25 +37,8 @@ impl ToolExecutor for DocKitToolExecutor {
         connection_config: &Value,
     ) -> Result<ToolEnvelope, String> {
         let start = std::time::Instant::now();
-        let app = crate::APP_HANDLE.get().ok_or("App not initialized")?;
-        let policy = crate::mcp_bridge::load_permission_policy(app)?;
-        let cap = data_studio_agent::capabilities::registry::registry()
-            .get(tool_name)
-            .ok_or("Unknown capability")?;
-        let id = connection_config
-            .get("connectionId")
-            .and_then(Value::as_str);
-        let restriction = connection_config
-            .get("permissions")
-            .filter(|v| !v.is_null())
-            .map(|v| {
-                serde_json::from_value::<
-                    data_studio_agent::capabilities::permissions::PermissionRules,
-                >(v.clone())
-            })
-            .transpose()
-            .map_err(|e| e.to_string())?;
-        policy.authorize(cap, arguments, id, restriction.as_ref())?;
+        let policy =
+            crate::ai_permissions::authorize_tool_call(tool_name, arguments, connection_config)?;
 
         let conn_opt = if connection_config.is_null() {
             None
