@@ -139,6 +139,13 @@ export type ConfirmationRuleRow = {
 };
 
 const agentApi = {
+  getAiContext: (
+    sessionId: string,
+    connections: Record<string, unknown>,
+    contextKind: string,
+  ): Promise<{ readableConnectionIds: string[]; schema: string }> =>
+    invoke('get_ai_context', { sessionId, connections, contextKind }),
+
   runAgentStep: async (params: {
     requestId: string;
     provider: string;
@@ -292,6 +299,7 @@ const onAgentLoopToolCall = (
     tool_call_id: string;
     tool_name: string;
     risk_level?: 'safe' | 'elevated' | 'destructive';
+    confirmation_required?: boolean;
     arguments: unknown;
   }) => void,
 ) => listen('agent-loop-tool-call', e => handler(e.payload as any));
@@ -302,6 +310,9 @@ const onAgentLoopToolResult = (
     tool_call_id: string;
     envelope: ToolEnvelope;
     error?: boolean;
+    denied?: boolean;
+    tool_name?: string;
+    arguments?: unknown;
   }) => void,
 ) => listen('agent-loop-tool-result', e => handler(e.payload as any));
 

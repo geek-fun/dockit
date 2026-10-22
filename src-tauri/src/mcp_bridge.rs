@@ -292,27 +292,20 @@ async fn invoke_with_policy(policy: &AiPolicy, payload: InvokeRequest) -> Invoke
     }
 
     // Connection resolution is handled server-side via the configured connection
-    let config = match payload.connection_id {
-        Some(ref id) => match resolve_connection(id).await {
-            Ok(cfg) => Some(cfg),
-            Err(e) => return InvokeResponse::error(400, e),
-        },
-        None => None,
-    };
-
-    match registry::invoke_capability_inner(&payload.name, payload.args, config).await {
+    let config = payload
+        .connection_id
+        .as_ref()
+        .map(|id| json!({"connectionId": id}))
+        .unwrap_or(Value::Null);
+    match crate::ai_permissions::invoke_ai(&payload.name, &payload.args, &config, None).await {
         Ok(data) => match serde_json::from_str::<Value>(&data) {
-            Ok(mut parsed) => {
-                if payload.name.ends_with("__list_connections") {
-                    if let Some(connections) = parsed.get("connections") {
-                        parsed["connections"] = filter_ai_connections(connections.clone(), policy);
-                    }
-                }
-                InvokeResponse::ok(parsed)
-            }
+            Ok(parsed) => InvokeResponse::ok(parsed),
             Err(_) => InvokeResponse::ok(json!({"result": data})),
         },
-        Err(msg) => InvokeResponse::error(400, msg),
+        Err(data_studio_agent::tool_executor::ToolExecutionError::Denied(msg)) => {
+            InvokeResponse::error(403, msg)
+        }
+        Err(error) => InvokeResponse::error(400, error.to_string()),
     }
 }
 
@@ -616,16 +609,6 @@ fn type_str(c: &serde_json::Value) -> String {
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string()
-}
-
-async fn resolve_connection(connection_id: &str) -> Result<Value, String> {
-    let handle = crate::APP_HANDLE
-        .get()
-        .ok_or_else(|| "AppHandle not initialized".to_string())?;
-    let mut config =
-        crate::common::connection_resolver::ConnectionResolver::resolve(handle, connection_id)?;
-    crate::common::ssh_bridge::resolve_ssh_in_place(handle, &mut config).await?;
-    Ok(config)
 }
 
 // ---------------------------------------------------------------------------
