@@ -49,6 +49,7 @@ export type ChatPermissions = {
 };
 
 export type ConnectionEntry = {
+  sourceId?: string;
   connectionId: string;
   dbType: string;
   permissions?: ChatPermissions;

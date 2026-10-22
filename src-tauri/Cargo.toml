@@ -49,7 +49,7 @@ async-trait = "0.1"
 rand = "0.8"
 sqlparser = "0.62"
 # Pin the shared agent runtime to a reproducible revision.
-data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", rev = "b1cfd5cdf7ffd269763de558cd9062e0e1e55895" }
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", rev = "63f3bd2b98353f0e696a410f71fd42fe3a656931" }
 axum = "0.8"
 portpicker = "0.1.1"
 pageant = "0.2"

@@ -354,7 +354,14 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
     try {
       const { provider, model } = await appStore.getFeatureModelConfig(config.feature);
-      const schema = session.schema ?? context?.schema;
+      const connections = context?.connections ?? {};
+      const aiContext = await agentApi.getAiContext(sessionId, connections, config.feature);
+      const canReadContext =
+        Object.values(connections).length > 0 &&
+        Object.values(connections).every(connection =>
+          aiContext.readableConnectionIds.includes(String(connection.connectionId)),
+        );
+      const schema = canReadContext ? context?.schema : undefined;
 
       const base = buildSystemPrompt({
         schema,
@@ -377,7 +384,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       );
 
       const sidebarContext =
-        config.feature === 'sidebarAssistant' && context
+        config.feature === 'sidebarAssistant' && context && canReadContext
           ? buildSidebarContextPrompt(context)
           : undefined;
 
@@ -402,6 +409,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         tools: runtime.tools ?? [],
         ...appStore.chatConfig,
         contextWindowOverride: provider.contextWindowOverride,
+        contextKind: config.feature,
         // Merged 3-layer prompt wins over the raw per-layer fields spread above
         systemPrompt,
       };

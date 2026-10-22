@@ -98,6 +98,7 @@ export const useDataStudioChatAgent = () => {
         }
 
         acc[sessionSource.alias] = {
+          sourceId: sessionSource.sourceId,
           connectionId: String(connection.id),
           dbType: sessionSource.databaseType,
           permissions:

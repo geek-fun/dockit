@@ -5,7 +5,6 @@
 //! to the shared library.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use data_studio_agent as lib;
 use data_studio_agent::storage;
@@ -23,63 +22,6 @@ impl EventEmitter for TauriEmitter {
     fn emit(&self, event: &str, payload: Value) {
         let _ = self.0.emit(event, payload);
     }
-}
-
-// ---------------------------------------------------------------------------
-// Helper: build pre-resolved connections map from settings
-// ---------------------------------------------------------------------------
-
-async fn resolve_connections(app: &AppHandle, settings: &Value) -> HashMap<String, Value> {
-    let connections: HashMap<String, Value> = settings
-        .get("connections")
-        .and_then(|v| serde_json::from_value(v.clone()).ok())
-        .unwrap_or_default();
-
-    let mut resolved: HashMap<String, Value> = HashMap::new();
-    let Ok(policy) = crate::ai_permissions::load_permission_policy(app) else {
-        return resolved;
-    };
-    for (conn_id, cfg) in &connections {
-        let Some(id) = cfg.get("connectionId").and_then(Value::as_str) else {
-            continue;
-        };
-        if !policy.effective_permissions(id).any_allowed() {
-            continue;
-        }
-        let mut config = if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str())
-        {
-            match crate::common::connection_resolver::ConnectionResolver::resolve(app, resolved_id)
-            {
-                Ok(config) => config,
-                Err(e) => {
-                    log::warn!("Failed to resolve connection '{}': {}", resolved_id, e);
-                    cfg.clone()
-                }
-            }
-        } else {
-            cfg.clone()
-        };
-
-        if let Err(e) = crate::common::ssh_bridge::resolve_ssh_in_place(app, &mut config).await {
-            log::warn!(
-                "SSH tunnel resolution failed for agent connection '{}': {}",
-                conn_id,
-                e
-            );
-        }
-
-        if let Some(id) = cfg.get("connectionId") {
-            config["connectionId"] = id.clone();
-        }
-        if let Some(permissions) = cfg.get("permissions") {
-            config["permissions"] = permissions.clone();
-        }
-        if let Some(id) = cfg.get("connectionId").and_then(Value::as_str) {
-            resolved.insert(id.to_owned(), config.clone());
-        }
-        resolved.insert(conn_id.clone(), config);
-    }
-    resolved
 }
 
 // ---------------------------------------------------------------------------
@@ -105,15 +47,45 @@ pub async fn run_agent_loop(
     let confirm_map: ConfirmMap = confirm_state.inner().clone();
     let cancel_state: State<CancelMap> = app.state::<CancelMap>();
     let cancel_map: CancelMap = cancel_state.inner().clone();
-    let executor_state: State<Arc<dyn lib::ToolExecutor>> =
-        app.state::<Arc<dyn lib::ToolExecutor>>();
-    let executor: Arc<dyn lib::ToolExecutor> = executor_state.inner().clone();
 
-    let connections = resolve_connections(&app, &settings).await;
+    let connections: HashMap<String, Value> = settings
+        .get("connections")
+        .map(|value| serde_json::from_value(value.clone()))
+        .transpose()
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
+    let connections: HashMap<String, Value> = connections
+        .into_iter()
+        .flat_map(|(alias, config)| {
+            let id = config
+                .get("connectionId")
+                .and_then(Value::as_str)
+                .map(str::to_owned);
+            let mut entries = vec![(alias, config.clone())];
+            if let Some(id) = id {
+                entries.push((id, config));
+            }
+            entries
+        })
+        .collect();
     let fallback = settings
         .get("connectionConfig")
         .cloned()
         .unwrap_or(Value::Null);
+
+    let studio = match settings.get("contextKind").and_then(Value::as_str) {
+        Some("dataStudio") => true,
+        Some("sidebarAssistant") => false,
+        _ => return Err("Unknown AI context".into()),
+    };
+    let executor = crate::agent::executor::DocKitToolExecutor {
+        access: crate::ai_permissions::AgentAccess {
+            session_id: session_id.clone(),
+            connections: connections.clone(),
+            studio,
+            db: db_state.inner().clone(),
+        },
+    };
 
     let is_parallel_ok = |name: &str| -> bool {
         data_studio_agent::capabilities::registry::registry()
@@ -131,7 +103,7 @@ pub async fn run_agent_loop(
         &settings,
         &store,
         &emitter,
-        executor.as_ref(),
+        &executor,
         connections,
         fallback,
         &confirm_map,
