@@ -16,3 +16,5 @@ export * from './entitlement';
 export * from './sessionPhase';
 export * from './connectQuery';
 export * from './sessionExpiry';
+
+export * from './aiPermissions';

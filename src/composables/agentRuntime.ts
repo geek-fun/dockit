@@ -136,84 +136,121 @@ const initAgentRuntime = async (): Promise<void> => {
         timestamp: Date.now(),
       });
     }),
-    onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
-      const store = useDataStudioStore();
-      store.removePreparingPlaceholder(session_id);
-      const session = getSessionById(store.sessions, session_id);
-      if (!session) return;
+    onAgentLoopToolCall(
+      ({
+        session_id,
+        tool_call_id,
+        tool_name,
+        arguments: args,
+        risk_level,
+        confirmation_required,
+      }) => {
+        const store = useDataStudioStore();
+        store.removePreparingPlaceholder(session_id);
+        const session = getSessionById(store.sessions, session_id);
+        if (!session) return;
 
-      const runtime = getSessionRuntime(session_id);
-      const riskLevel = runtime.metadata?.[tool_name]?.riskLevel ?? 'elevated';
-      const needsConfirmation = shouldRequireConfirmation(session, tool_name, riskLevel);
-      const denied = isDeniedByRule(session_id, tool_name);
+        const runtime = getSessionRuntime(session_id);
+        const riskLevel = risk_level ?? runtime.metadata?.[tool_name]?.riskLevel ?? 'elevated';
+        const needsConfirmation =
+          confirmation_required ?? shouldRequireConfirmation(session, tool_name, riskLevel);
+        const denied = isDeniedByRule(session_id, tool_name);
 
-      const toolCall: AgentToolCall = {
-        id: tool_call_id,
-        toolName: tool_name,
-        args: (args ?? {}) as Record<string, unknown>,
-        status: denied ? 'denied' : needsConfirmation ? 'pending' : 'executing',
-        riskLevel,
-        requiresConfirmation: needsConfirmation,
-      };
+        const toolCall: AgentToolCall = {
+          id: tool_call_id,
+          toolName: tool_name,
+          args: (args ?? {}) as Record<string, unknown>,
+          status: denied ? 'denied' : needsConfirmation ? 'pending' : 'executing',
+          riskLevel,
+          requiresConfirmation: needsConfirmation,
+        };
 
-      const streamingAssistant = [...session.messages]
-        .reverse()
-        .find(message => message.role === 'assistant' && message.status === 'streaming');
-      const lastAssistant =
-        streamingAssistant ??
-        [...session.messages].reverse().find(message => message.role === 'assistant');
-
-      if (lastAssistant) {
-        store.setMessageToolCalls(session_id, lastAssistant.id, [
-          ...(lastAssistant.toolCalls ?? []),
-          toolCall,
-        ]);
-      } else {
-        store.addMessage(session_id, {
-          id: ulid(),
-          role: 'assistant',
-          content: '',
-          status: 'streaming',
-          timestamp: Date.now(),
-          toolCalls: [toolCall],
-        });
-      }
-
-      if (denied) {
-        invokeConfirmToolCall(tool_call_id, false).catch(() => undefined);
-        return;
-      }
-
-      if (!needsConfirmation) {
-        invokeConfirmToolCall(tool_call_id, true).catch(() => undefined);
-      } else {
-        store.setSessionStatus(session_id, 'waiting_confirmation');
-      }
-    }),
-    onAgentLoopToolResult(({ session_id, tool_call_id, envelope, error }) => {
-      const store = useDataStudioStore();
-      const session = getSessionById(store.sessions, session_id);
-      if (!session) return;
-
-      const assistantMsg = [...session.messages]
-        .reverse()
-        .find(
-          message =>
-            message.role === 'assistant' &&
-            message.toolCalls?.some(toolCall => toolCall.id === tool_call_id),
+        const existingAssistant = session.messages.find(message =>
+          message.toolCalls?.some(call => call.id === tool_call_id),
         );
+        const streamingAssistant = [...session.messages]
+          .reverse()
+          .find(message => message.role === 'assistant' && message.status === 'streaming');
+        const lastAssistant =
+          existingAssistant ??
+          streamingAssistant ??
+          [...session.messages].reverse().find(message => message.role === 'assistant');
 
-      if (assistantMsg) {
-        store.updateToolCallStatus(
-          session_id,
-          assistantMsg.id,
-          tool_call_id,
-          error ? 'error' : 'done',
-          envelope.summary,
-          envelope.metadata?.duration_ms,
-        );
-      }
-    }),
+        if (lastAssistant) {
+          store.setMessageToolCalls(session_id, lastAssistant.id, [
+            ...(lastAssistant.toolCalls ?? []).filter(call => call.id !== tool_call_id),
+            toolCall,
+          ]);
+        } else {
+          store.addMessage(session_id, {
+            id: ulid(),
+            role: 'assistant',
+            content: '',
+            status: 'streaming',
+            timestamp: Date.now(),
+            toolCalls: [toolCall],
+          });
+        }
+
+        if (denied) {
+          invokeConfirmToolCall(tool_call_id, false).catch(() => undefined);
+          return;
+        }
+
+        if (!needsConfirmation) {
+          invokeConfirmToolCall(tool_call_id, true).catch(() => undefined);
+        } else {
+          store.setSessionStatus(session_id, 'waiting_confirmation');
+        }
+      },
+    ),
+    onAgentLoopToolResult(
+      ({ session_id, tool_call_id, envelope, error, denied, tool_name, arguments: args }) => {
+        const store = useDataStudioStore();
+        const session = getSessionById(store.sessions, session_id);
+        if (!session) return;
+
+        const assistantMsg = [...session.messages]
+          .reverse()
+          .find(
+            message =>
+              message.role === 'assistant' &&
+              message.toolCalls?.some(toolCall => toolCall.id === tool_call_id),
+          );
+
+        if (!assistantMsg && denied && tool_name) {
+          const target = [...session.messages]
+            .reverse()
+            .find(message => message.role === 'assistant');
+          if (target) {
+            const rejected: AgentToolCall = {
+              id: tool_call_id,
+              toolName: tool_name,
+              args: (args ?? {}) as Record<string, unknown>,
+              status: 'denied',
+              riskLevel: 'safe',
+              requiresConfirmation: false,
+              result: envelope.summary,
+            };
+            store.setMessageToolCalls(session_id, target.id, [
+              ...(target.toolCalls ?? []),
+              rejected,
+            ]);
+          }
+        }
+
+        if (assistantMsg) {
+          store.updateToolCallStatus(
+            session_id,
+            assistantMsg.id,
+            tool_call_id,
+            denied ? 'denied' : error ? 'error' : 'done',
+            envelope.summary,
+            envelope.metadata?.duration_ms,
+          );
+        }
+      },
+    ),
     onAgentLoopStepDone(({ session_id }) => {
       const store = useDataStudioStore();
       const session = getSessionById(store.sessions, session_id);

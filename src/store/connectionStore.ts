@@ -1,3 +1,5 @@
+import type { AiPermissions } from '@/common';
+import { getAiPolicy, saveAiPermissions } from '@/common';
 import { defineStore } from 'pinia';
 import {
   buildAuthHeader,
@@ -218,6 +220,7 @@ export type DynamoDBConnection = {
   tables?: Array<DynamoTableSummary>;
   favoriteTables?: Array<string>;
   sshTunnel?: SshConnectionConfig;
+  aiPermissions?: AiPermissions;
   prompt?: string;
 };
 
@@ -237,6 +240,7 @@ export type SearchConnectionBase = {
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
   sshTunnel?: SshConnectionConfig;
+  aiPermissions?: AiPermissions;
   prompt?: string;
   clusterName: string;
   clusterUuid: string;
@@ -303,6 +307,7 @@ export type MongoDBConnection = {
   collections?: MongoDBCollection[];
   favoriteCollections?: Array<{ database: string; collection: string }>;
   sshTunnel?: SshConnectionConfig;
+  aiPermissions?: AiPermissions;
   prompt?: string;
 };
 
@@ -843,25 +848,41 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
+        const { aiPermissions: _draftPermissions, ...connectionData } = connection;
+        const policyIds =
+          connection.id == null ? Object.keys((await getAiPolicy()).connection_permissions) : [];
         const newConnection = {
-          ...connection,
-          id: connection.id ?? this.connections.length + 1,
+          ...connectionData,
+          id:
+            connection.id ??
+            Math.max(
+              0,
+              ...this.connections.map(c => Number(c.id) || 0),
+              ...policyIds.map(id => Number(id) || 0),
+            ) + 1,
         } as Connection;
 
-        if (connection.id) {
-          const index = this.connections.findIndex(
-            current => String(current.id) === String(newConnection.id),
-          );
-          if (index === -1) {
-            this.connections.push(newConnection);
-          } else {
-            this.connections[index] = newConnection;
-          }
-        } else {
-          this.connections.push(newConnection);
+        const previousPermissions =
+          connection.aiPermissions === undefined
+            ? undefined
+            : ((await getAiPolicy()).connection_permissions[String(newConnection.id)] ?? {});
+        if (connection.aiPermissions !== undefined)
+          await saveAiPermissions(String(newConnection.id), connection.aiPermissions);
+        const nextConnections = this.connections.some(
+          c => String(c.id) === String(newConnection.id),
+        )
+          ? this.connections.map(c =>
+              String(c.id) === String(newConnection.id) ? newConnection : c,
+            )
+          : [...this.connections, newConnection];
+        try {
+          await storeApi.set('connections', pureObject(nextConnections));
+        } catch (error) {
+          if (previousPermissions !== undefined)
+            await saveAiPermissions(String(newConnection.id), previousPermissions);
+          throw error;
         }
-
-        await storeApi.set('connections', pureObject(this.connections));
+        this.connections = nextConnections;
         return { success: true, message: 'Connection saved successfully' };
       } catch (error) {
         return {
@@ -875,6 +896,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       this.connections = updatedConnections;
 
       await storeApi.set('connections', pureObject(updatedConnections));
+      await saveAiPermissions(String(connection.id), {});
     },
     async fetchIndices(con: Connection, tableName?: string) {
       const connection = this.connections.find(({ id }) => id === con.id);

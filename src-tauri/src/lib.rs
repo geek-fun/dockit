@@ -8,6 +8,7 @@ pub static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
 pub mod agent;
 pub mod agent_adapters;
+pub(crate) mod ai_permissions;
 pub mod capabilities;
 pub mod common;
 pub mod db;
@@ -24,7 +25,6 @@ pub mod mongo_client;
 pub mod session;
 pub mod ssh;
 
-use agent::executor::DocKitToolExecutor;
 use agent::query_history::{
     add_query_history_entry, clear_query_history, delete_query_history_entry, load_query_history,
     toggle_query_history_star,
@@ -143,6 +143,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
+            crate::ai_permissions::get_ai_permissions,
+            ai_permissions::invocation::get_ai_context,
+            crate::ai_permissions::save_ai_permissions,
             invoke_capability,
             get_available_tools,
             fetch_api,
@@ -254,8 +257,6 @@ pub fn run() {
             let cancel_map: lib::traits::CancelMap = Arc::new(Mutex::new(HashMap::new()));
             app.manage(confirm_map);
             app.manage(cancel_map);
-            let executor: Arc<dyn lib::ToolExecutor> = Arc::new(DocKitToolExecutor);
-            app.manage(executor);
 
             // The MCP bridge starts from the entitlement path, never at setup
             // (a disk cache alone says nothing about the current session).

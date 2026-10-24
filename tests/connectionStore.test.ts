@@ -43,6 +43,8 @@ jest.mock('../src/store/tabStore.ts', () => ({
   useTabStore: () => ({ activePanel: null }),
 }));
 jest.mock('../src/common', () => ({
+  getAiPolicy: jest.fn(async () => ({ permission_defaults: {}, connection_permissions: {} })),
+  saveAiPermissions: jest.fn(async () => ({})),
   buildAuthHeader: jest.fn(),
   buildURL: jest.fn(),
   CustomError: class CustomError extends Error {
@@ -1045,6 +1047,49 @@ describe('connectionStore actions', () => {
       const result = await store.saveConnection(esConnection);
       expect(result.success).toBe(false);
       expect(result.message).toBe('Storage full');
+    });
+  });
+
+  describe('AI permission persistence', () => {
+    it('does not recycle an id with retained permission decisions', async () => {
+      require('../src/common').getAiPolicy.mockResolvedValueOnce({
+        permission_defaults: {},
+        connection_permissions: { '42': { read: true } },
+      });
+      const result = await store.saveConnection(esConnection);
+      expect(result.success).toBe(true);
+      expect(store.connections[0].id).toBe(43);
+    });
+
+    it('saves explicit connection decisions before committing a connection', async () => {
+      const permissions = { update: false, delete: true };
+      const result = await store.saveConnection({ ...esConnection, aiPermissions: permissions });
+      expect(result.success).toBe(true);
+      expect(require('../src/common').saveAiPermissions).toHaveBeenCalledWith(
+        String(store.connections[0].id),
+        permissions,
+      );
+    });
+    it('keeps the connection list unchanged when permission persistence fails', async () => {
+      require('../src/common').saveAiPermissions.mockRejectedValueOnce(
+        new Error('Cannot save permissions'),
+      );
+      const result = await store.saveConnection({
+        ...esConnection,
+        aiPermissions: { read: false },
+      });
+      expect(result.success).toBe(false);
+      expect(store.connections).toHaveLength(0);
+    });
+    it('rolls back decisions when connection storage fails', async () => {
+      jest.spyOn(storeApi, 'set').mockRejectedValueOnce(new Error('Storage full'));
+      const result = await store.saveConnection({
+        ...esConnection,
+        aiPermissions: { delete: true },
+      });
+      expect(result.success).toBe(false);
+      expect(require('../src/common').saveAiPermissions).toHaveBeenLastCalledWith('1', {});
+      expect(store.connections).toHaveLength(0);
     });
   });
 

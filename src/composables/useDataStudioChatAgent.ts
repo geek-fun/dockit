@@ -9,7 +9,6 @@ import {
   type AttachedSource,
   type ConfirmationRule,
   type SessionSource,
-  toAlias,
 } from '@/store/dataStudioStore';
 import { useConnectionStore } from '@/store/connectionStore';
 import { useAppStore } from '@/store/appStore';
@@ -90,22 +89,20 @@ export const useDataStudioChatAgent = () => {
           return acc;
         }
 
-        const connection =
-          connectionStore.connections.find(
-            candidate => Number(candidate.id) === Number(attachedSource.connectionId),
-          ) ??
-          connectionStore.connections.find(
-            candidate => toAlias(candidate.name) === sessionSource.alias,
-          );
+        const connection = connectionStore.connections.find(
+          candidate => String(candidate.id) === String(attachedSource.connectionId),
+        );
 
         if (!connection || connection.id == null) {
           return acc;
         }
 
         acc[sessionSource.alias] = {
+          sourceId: sessionSource.sourceId,
           connectionId: String(connection.id),
           dbType: sessionSource.databaseType,
-          permissions: sessionSource.permissions,
+          permissions:
+            sessionSource.permissionsMode === 'custom' ? sessionSource.permissions : undefined,
         };
         return acc;
       },

@@ -563,6 +563,11 @@
                 @create-profile="openSshProfileDialog(null)"
                 @edit-profile="openSshProfileDialog($event)"
               />
+              <ConnectionPermissionEditor
+                ref="aiPermissionEditor"
+                v-model="formData.aiPermissions"
+                :connection-id="formData.id"
+              />
               <UltimateFeatureStrip
                 v-if="!entitlementStore.isLocalUltimate"
                 class="w-full"
@@ -617,6 +622,8 @@
 </template>
 
 <script setup lang="ts">
+import { ConnectionPermissionEditor } from '@/components/ai-permissions';
+
 import { computed, ref, watch } from 'vue';
 import { X, Loader2, ChevronRight, Eye, EyeOff, Plus, Pencil } from 'lucide-vue-next';
 import { cloneDeep, debounce } from 'lodash';
@@ -855,6 +862,7 @@ const defaultFormData: DynamoDBConnection = {
   auth: { kind: 'accessKey', accessKeyId: '', secretAccessKey: '' },
 };
 
+const aiPermissionEditor = ref<InstanceType<typeof ConnectionPermissionEditor> | null>(null);
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
 
 const {
@@ -1374,6 +1382,7 @@ const fetchProfilesWithRoles = async () => {
 };
 
 const saveConnect = async () => {
+  if (aiPermissionEditor.value && !aiPermissionEditor.value.ready) return;
   resetResult();
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') {
     await startSsoLogin();
