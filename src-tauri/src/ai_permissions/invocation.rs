@@ -250,7 +250,10 @@ pub async fn get_ai_context(
 
 #[cfg(test)]
 mod tests {
-    use super::super::{scope::SessionAccess, PermissionRules};
+    use super::super::{
+        scope::{ConfirmationRuleAction, SessionAccess},
+        PermissionRules,
+    };
     use super::*;
     use data_studio_agent::capabilities::types::{Capability, CapabilityHandler, SourceKind};
     use std::{collections::HashMap, sync::Arc};
@@ -311,6 +314,7 @@ mod tests {
     fn confirmation_never_bypasses_connection_or_conversation_denial() {
         let config = json!({"connectionId":"42","__ai_confirmation_required":true});
         let mut session = session();
+        session.rule = Some(ConfirmationRuleAction::AllowAlways);
         session.restrictions.get_mut("42").unwrap().update = Some(false);
         assert!(evaluate(
             policy(),
@@ -320,6 +324,61 @@ mod tests {
             Some(session)
         )
         .is_err());
+    }
+    #[test]
+    fn always_allow_never_bypasses_connection_denial() {
+        let mut session = session();
+        session.rule = Some(ConfirmationRuleAction::AllowAlways);
+        let mut policy = policy();
+        policy.connection_permissions.insert(
+            "42".into(),
+            PermissionRules {
+                update: Some(false),
+                ..Default::default()
+            },
+        );
+        assert!(evaluate(
+            policy,
+            &cap(),
+            &json!({"sql":"UPDATE t SET x=1"}),
+            &json!({"connectionId":"42","__ai_confirmation_required":true}),
+            Some(session)
+        )
+        .is_err());
+    }
+    #[test]
+    fn scripted_elasticsearch_calls_require_destructive_confirmation_in_auto_mode() {
+        for (name, args) in [
+            (
+                "es__update_document",
+                json!({"body":{"script":{"id":"stored-update"}}}),
+            ),
+            (
+                "es__bulk",
+                json!({"body":"{\"update\":{\"_id\":\"1\"}}\n{\"script\":\"ctx.op = 'delete'\"}\n"}),
+            ),
+            (
+                "es__reindex",
+                json!({"body":{"source":{"index":"source"}, "dest":{"index":"target"}, "script":{"source":"ctx.op = 'delete'"}}}),
+            ),
+        ] {
+            let mut cap = cap();
+            cap.name = name;
+            cap.required_permission = if name == "es__update_document" {
+                "update"
+            } else {
+                "create"
+            };
+            cap.source_kind = SourceKind::Database("ELASTICSEARCH");
+            let config = json!({"connectionId":"42","__ai_confirmation_required":false});
+            let decision = evaluate(policy(), &cap, &args, &config, Some(session())).unwrap();
+            assert_eq!(decision.risk, RiskLevel::Destructive);
+            assert!(decision.confirmation);
+            assert_eq!(
+                check_confirmation(&config, decision.confirmation),
+                Err(ToolExecutionError::ConfirmationRequired)
+            );
+        }
     }
     #[test]
     fn unbound_targets_are_denied_but_mcp_has_no_conversation_attachment_requirement() {
