@@ -193,6 +193,20 @@ impl AiPolicy {
     }
 }
 
+fn es_update_permissions(body: &Value) -> Vec<Permission> {
+    let upsert = body.get("upsert").is_some()
+        || body.get("doc_as_upsert").and_then(Value::as_bool) == Some(true)
+        || body.get("scripted_upsert").and_then(Value::as_bool) == Some(true);
+    [
+        Some(Permission::Update),
+        upsert.then_some(Permission::Create),
+        body.get("script").is_some().then_some(Permission::Delete),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
 /// Payload-dependent tools require every action they can perform, rather than using risk as permission.
 pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permission>, String> {
     let name = cap.name;
@@ -212,27 +226,29 @@ pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permis
             if obj.len() != 1 {
                 return Err("Invalid bulk action".into());
             }
-            let action = match obj.keys().next().map(String::as_str) {
-                Some("create") => Permission::Create,
-                Some("index") => {
+            let (operation, metadata) = obj.iter().next().ok_or("Invalid bulk action")?;
+            let action = match operation.as_str() {
+                "create" => Permission::Create,
+                "index" if metadata.get("_id").is_none_or(Value::is_null) => Permission::Create,
+                "index" => {
                     actions.push(Permission::Create);
                     Permission::Update
                 }
-                Some("update") => Permission::Update,
-                Some("delete") => Permission::Delete,
+                "update" => Permission::Update,
+                "delete" => Permission::Delete,
                 _ => return Err("Unknown bulk action".into()),
             };
-            if action == Permission::Update && index + 1 < lines.len() {
+            if matches!(operation.as_str(), "index" | "update") && index + 1 < lines.len() {
                 let document: Value =
                     serde_json::from_str(lines[index + 1]).map_err(|_| "Invalid bulk document")?;
-                if document.get("upsert").is_some()
-                    || document.get("doc_as_upsert").and_then(Value::as_bool) == Some(true)
-                    || document.get("scripted_upsert").and_then(Value::as_bool) == Some(true)
-                {
-                    actions.push(Permission::Create);
+                if operation == "update" {
+                    actions.extend(es_update_permissions(&document));
+                } else {
+                    actions.push(action);
                 }
+            } else {
+                actions.push(action);
             }
-            actions.push(action);
             index += if action == Permission::Delete { 1 } else { 2 };
             if index > lines.len() {
                 return Err("Missing bulk document".into());
@@ -280,6 +296,11 @@ pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permis
     if name.starts_with("dynamo__") && (op == "batch_write_items" || op == "update_item") {
         return Ok(vec![Permission::Create, Permission::Update]);
     }
+    if name == "es__update_document" {
+        return Ok(es_update_permissions(
+            args.get("body").unwrap_or(&Value::Null),
+        ));
+    }
     if cap.required_permission == "update"
         && (args.get("upsert").and_then(Value::as_bool) == Some(true)
             || args.pointer("/options/upsert").and_then(Value::as_bool) == Some(true)
@@ -289,11 +310,17 @@ pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permis
         return Ok(vec![Permission::Create, Permission::Update]);
     }
     if op == "reindex" {
-        return Ok(vec![
-            Permission::Read,
-            Permission::Create,
-            Permission::Update,
-        ]);
+        return Ok([
+            Some(Permission::Read),
+            Some(Permission::Create),
+            Some(Permission::Update),
+            args.pointer("/body/script")
+                .is_some()
+                .then_some(Permission::Delete),
+        ]
+        .into_iter()
+        .flatten()
+        .collect());
     }
     if [
         "update_ttl",
@@ -363,9 +390,14 @@ pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permis
         }
         return Ok(actions);
     }
-    if op == "index_document"
-        || op == "create_item" && args.get("skip_existing").and_then(Value::as_bool) != Some(true)
-    {
+    if op == "index_document" {
+        return Ok(if args.get("id").and_then(Value::as_str).is_some() {
+            vec![Permission::Create, Permission::Update]
+        } else {
+            vec![Permission::Create]
+        });
+    }
+    if op == "create_item" && args.get("skip_existing").and_then(Value::as_bool) != Some(true) {
         return Ok(vec![Permission::Create, Permission::Update]);
     }
     if [
@@ -591,6 +623,189 @@ mod authorization_tests {
                 &serde_json::json!({}),
                 Some("dev"),
                 None
+            )
+            .is_err());
+    }
+    #[test]
+    fn elasticsearch_scripts_require_delete_for_inline_stored_and_upsert_forms() {
+        let denied = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, true, true, false, false)),
+            ..Default::default()
+        };
+        let allowed = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, true, true, true, false)),
+            ..Default::default()
+        };
+        let restriction = PermissionRules::explicit(true, true, true, false, false);
+        let update = capability("es__update_document", "update", RiskLevel::Elevated);
+        let bulk = capability("es__bulk", "create", RiskLevel::Elevated);
+        let reindex = capability("es__reindex", "create", RiskLevel::Elevated);
+        for script in [
+            serde_json::json!("ctx.op = 'delete'"),
+            serde_json::json!({"source":"ctx.op = params.operation", "params":{"operation":"delete"}}),
+            serde_json::json!({"id":"stored-update"}),
+        ] {
+            for upsert in [false, true] {
+                let mut body = serde_json::json!({"script":script});
+                if upsert {
+                    body["upsert"] = serde_json::json!({"x":1});
+                    body["scripted_upsert"] = serde_json::json!(true);
+                }
+                let update_args = serde_json::json!({"index":"items", "id":"1", "body":body});
+                let bulk_args = serde_json::json!({"index":"items", "body":format!("{{\"update\":{{\"_id\":\"1\"}}}}\n{body}\n")});
+                let reindex_args = serde_json::json!({"body":{"source":{"index":"source"}, "dest":{"index":"target"}, "script":script}});
+                for (cap, args) in [
+                    (&update, &update_args),
+                    (&bulk, &bulk_args),
+                    (&reindex, &reindex_args),
+                ] {
+                    assert!(
+                        denied.authorize(cap, args, Some("dev"), None).is_err(),
+                        "{} must require Delete",
+                        cap.name
+                    );
+                    assert!(
+                        allowed
+                            .authorize(cap, args, Some("dev"), Some(&restriction))
+                            .is_err(),
+                        "{} must honor conversation denial",
+                        cap.name
+                    );
+                    assert_eq!(
+                        allowed.authorize(cap, args, Some("dev"), None).unwrap(),
+                        PolicyAction::Ask
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn scripted_upserts_still_require_create_permission() {
+        let policy = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, false, true, true, false)),
+            ..Default::default()
+        };
+        let body = serde_json::json!({"script":{"id":"stored-update"}, "doc_as_upsert":true, "doc":{"x":1}});
+        assert!(policy
+            .authorize(
+                &capability("es__update_document", "update", RiskLevel::Elevated),
+                &serde_json::json!({"body":body}),
+                Some("dev"),
+                None
+            )
+            .is_err());
+        assert!(policy
+            .authorize(
+                &capability("es__bulk", "create", RiskLevel::Elevated),
+                &serde_json::json!({"body":format!("{{\"update\":{{\"_id\":\"1\"}}}}\n{body}\n")}),
+                Some("dev"),
+                None
+            )
+            .is_err());
+    }
+    #[test]
+    fn elasticsearch_non_scripted_writes_keep_existing_permissions() {
+        let policy = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(false, false, true, false, false)),
+            ..Default::default()
+        };
+        let body = serde_json::json!({"doc":{"script":"ordinary document field"}});
+        for (cap, args) in [
+            (
+                capability("es__update_document", "update", RiskLevel::Elevated),
+                serde_json::json!({"body":body}),
+            ),
+            (
+                capability("es__bulk", "create", RiskLevel::Elevated),
+                serde_json::json!({"body":format!("{{\"update\":{{\"_id\":\"1\"}}}}\n{body}\n")}),
+            ),
+        ] {
+            assert_eq!(
+                policy.authorize(&cap, &args, Some("dev"), None).unwrap(),
+                PolicyAction::Allow
+            );
+        }
+        let policy = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, true, true, false, false)),
+            ..Default::default()
+        };
+        assert_eq!(policy.authorize(
+            &capability("es__reindex", "create", RiskLevel::Elevated),
+            &serde_json::json!({"body":{"source":{"index":"source"}, "dest":{"index":"target"}}}),
+            Some("dev"), None
+        ).unwrap(), PolicyAction::Allow);
+    }
+    #[test]
+    fn elasticsearch_bulk_still_rejects_invalid_and_missing_index_or_update_documents() {
+        let policy = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, true, true, true, true)),
+            ..Default::default()
+        };
+        let cap = capability("es__bulk", "create", RiskLevel::Elevated);
+        for action in [
+            serde_json::json!({"index":{}}),
+            serde_json::json!({"index":{"_id":"1"}}),
+            serde_json::json!({"update":{"_id":"1"}}),
+        ] {
+            for body in [format!("{action}\nnot-json\n"), format!("{action}\n")] {
+                assert!(policy
+                    .authorize(&cap, &serde_json::json!({"body":body}), Some("dev"), None)
+                    .is_err());
+            }
+        }
+    }
+    #[test]
+    fn elasticsearch_auto_id_inserts_work_with_create_only_access() {
+        let policy = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(false, true, false, false, false)),
+            ..Default::default()
+        };
+        let index = capability("es__index_document", "create", RiskLevel::Elevated);
+        let bulk = capability("es__bulk", "create", RiskLevel::Elevated);
+        let document =
+            serde_json::json!({"script":{"source":"ctx.op = 'delete'"}, "upsert":{"x":1}});
+        let auto_id = serde_json::json!({"index":"items", "body":document});
+        let explicit_id = serde_json::json!({"index":"items", "id":"1", "body":document});
+        assert!(policy.advertises(&index));
+        assert!(policy
+            .authorize(&index, &auto_id, Some("dev"), None)
+            .is_ok());
+        assert!(policy
+            .authorize(&index, &explicit_id, Some("dev"), None)
+            .is_err());
+        for metadata in [serde_json::json!({}), serde_json::json!({"_id":null})] {
+            let args = serde_json::json!({"body":format!("{}\n{document}\n", serde_json::json!({"index":metadata}))});
+            assert!(policy.authorize(&bulk, &args, Some("dev"), None).is_ok());
+        }
+        let args =
+            serde_json::json!({"body":format!("{{\"index\":{{\"_id\":\"1\"}}}}\n{document}\n")});
+        assert!(policy.authorize(&bulk, &args, Some("dev"), None).is_err());
+        let args =
+            serde_json::json!({"body":format!("{{\"create\":{{\"_id\":\"1\"}}}}\n{document}\n")});
+        assert!(policy.authorize(&bulk, &args, Some("dev"), None).is_ok());
+    }
+    #[test]
+    fn conversation_update_denial_allows_auto_id_inserts_but_blocks_overwrites() {
+        let policy = AiPolicy {
+            permission_defaults: Some(PermissionRules::explicit(true, true, true, true, true)),
+            ..Default::default()
+        };
+        let restriction = PermissionRules::explicit(true, true, false, false, false);
+        let cap = capability("es__index_document", "create", RiskLevel::Elevated);
+        assert!(policy
+            .authorize(
+                &cap,
+                &serde_json::json!({"body":{"x":1}}),
+                Some("dev"),
+                Some(&restriction)
+            )
+            .is_ok());
+        assert!(policy
+            .authorize(
+                &cap,
+                &serde_json::json!({"id":"1", "body":{"x":1}}),
+                Some("dev"),
+                Some(&restriction)
             )
             .is_err());
     }

@@ -14,7 +14,14 @@ pub(crate) struct AgentAccess {
 pub(super) struct SessionAccess {
     pub restrictions: HashMap<String, PermissionRules>,
     pub(super) mode: String,
-    pub(super) rule: Option<String>,
+    pub(super) rule: Option<ConfirmationRuleAction>,
+}
+
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum ConfirmationRuleAction {
+    AllowAlways,
+    DenyAlways,
 }
 
 impl AgentAccess {
@@ -28,7 +35,7 @@ impl AgentAccess {
             )
             .map_err(|e| format!("Cannot load current conversation permissions: {e}"))?;
         let sources: Vec<Value> = serde_json::from_str(&sources).map_err(|e| e.to_string())?;
-        let rule = db
+        let rule: Option<String> = db
             .query_row(
                 "SELECT action FROM confirmation_rules WHERE session_id = ?1 AND tool_name = ?2",
                 [&self.session_id, tool],
@@ -36,6 +43,10 @@ impl AgentAccess {
             )
             .optional()
             .map_err(|e| e.to_string())?;
+        let rule = rule
+            .map(|action| serde_json::from_value(Value::String(action)))
+            .transpose()
+            .map_err(|e| format!("Cannot load current confirmation rule: {e}"))?;
         let mut restrictions = HashMap::new();
         for config in self.connections.values() {
             let Some(id) = config.get("connectionId").and_then(Value::as_str) else {
@@ -109,10 +120,12 @@ fn intersect(a: &PermissionRules, b: &PermissionRules) -> PermissionRules {
 
 impl SessionAccess {
     pub fn confirmation_required(&self, risk: RiskLevel) -> Result<bool, String> {
-        match self.rule.as_deref() {
-            Some("deny") => Err("Tool call denied by conversation rule".into()),
-            Some("allow") => Ok(false),
-            _ => Ok(match risk {
+        match self.rule {
+            Some(ConfirmationRuleAction::DenyAlways) => {
+                Err("Tool call denied by conversation rule".into())
+            }
+            Some(ConfirmationRuleAction::AllowAlways) => Ok(false),
+            None => Ok(match risk {
                 RiskLevel::Safe => false,
                 RiskLevel::Destructive => true,
                 RiskLevel::Elevated => self.mode != "Auto",
@@ -245,7 +258,7 @@ mod tests {
             .unwrap()
             .confirmation_required(RiskLevel::Elevated)
             .unwrap());
-        access.db.0.lock().unwrap().execute("INSERT INTO confirmation_rules (id,session_id,tool_name,action,created_at) VALUES ('rule','chat','tool','allow',0)", []).unwrap();
+        access.db.0.lock().unwrap().execute("INSERT INTO confirmation_rules (id,session_id,tool_name,action,created_at) VALUES ('rule','chat','tool','allow_always',0)", []).unwrap();
         assert!(!access
             .current("tool")
             .unwrap()
@@ -256,13 +269,20 @@ mod tests {
             .0
             .lock()
             .unwrap()
-            .execute("UPDATE confirmation_rules SET action='deny'", [])
+            .execute("UPDATE confirmation_rules SET action='deny_always'", [])
             .unwrap();
         assert!(access
             .current("tool")
             .unwrap()
             .confirmation_required(RiskLevel::Safe)
             .is_err());
+    }
+
+    #[test]
+    fn malformed_confirmation_rules_fail_closed() {
+        let access = setup(false);
+        access.db.0.lock().unwrap().execute("INSERT INTO confirmation_rules (id,session_id,tool_name,action,created_at) VALUES ('rule','chat','tool','unknown',0)", []).unwrap();
+        assert!(access.current("tool").is_err());
     }
 
     #[test]

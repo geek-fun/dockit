@@ -68,7 +68,7 @@ export type UseChatAgentConfig = {
   };
   contextProvider?: () => ChatContextConfig;
   confirmationRules?: Ref<Array<ConfirmationRule>>;
-  addConfirmationRule?: (rule: ConfirmationRule) => void;
+  addConfirmationRule?: (rule: ConfirmationRule) => Promise<void>;
   findConfirmationRule?: (
     sessionId: string,
     toolName: string,
@@ -490,24 +490,26 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       return;
     }
 
-    if (action === 'allow_always' && config.addConfirmationRule) {
-      config.addConfirmationRule({
-        sessionId: session.id,
-        toolName: toolCall.toolName,
-        action: 'allow_always',
-      });
-    }
-    if (action === 'deny_always' && config.addConfirmationRule) {
-      config.addConfirmationRule({
-        sessionId: session.id,
-        toolName: toolCall.toolName,
-        action: 'deny_always',
-      });
+    if ((action === 'allow_always' || action === 'deny_always') && config.addConfirmationRule) {
+      try {
+        await config.addConfirmationRule({
+          sessionId: session.id,
+          toolName: toolCall.toolName,
+          action,
+        });
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        localError.value = errMsg;
+        dataStudioStore.setSessionError(session.id, errMsg);
+        return;
+      }
     }
 
     const allowed = action === 'allow_once' || action === 'allow_always';
     try {
       await invokeConfirmToolCall(toolCallId, allowed);
+      localError.value = undefined;
+      dataStudioStore.clearSessionError(session.id);
     } catch {
       config.sessionStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'error');
       config.sessionStore.setSessionStatus(session.id, 'idle');
