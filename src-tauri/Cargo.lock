@@ -1894,8 +1894,8 @@ checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
 name = "data-studio-agent"
-version = "0.1.9"
-source = "git+https://github.com/geek-fun/data-studio-agent.git?rev=dc58625cdc721b64ef46a27bd6dcf1257fdd6f7b#dc58625cdc721b64ef46a27bd6dcf1257fdd6f7b"
+version = "0.2.0"
+source = "git+https://github.com/geek-fun/data-studio-agent.git?tag=v0.2.0#fa67e809d810350ff0029b10069a6311ed81b0af"
 dependencies = [
  "async-openai",
  "async-trait",
