@@ -3,6 +3,7 @@ import type { AiAction, AiPermissions } from '@/common';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { AI_ACTIONS, aiPreset, getAiPolicy, resolveAiPermissions } from '@/common';
+import AccessLevelPicker from './AccessLevelPicker.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -13,22 +14,32 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+import { useEntitlementStore } from '@/store';
+import { UltimateFeatureStrip } from '@/components/upgrade';
+
 const props = defineProps<{ modelValue?: AiPermissions; connectionId?: string | number }>();
 const emit = defineEmits<{ 'update:modelValue': [value: AiPermissions] }>();
 const { t } = useI18n();
+const entitlementStore = useEntitlementStore();
+const canEdit = computed(() => entitlementStore.isLocalUltimate);
 const loading = ref(true);
 const error = ref('');
 const defaults = ref<AiPermissions>({});
-const custom = ref(false);
+const editingCustom = ref(false);
 const expanded = ref(false);
 watch(error, value => {
   if (value) expanded.value = true;
 });
 let request = 0;
 const load = async () => {
+  editingCustom.value = false;
   const current = ++request;
   loading.value = true;
   error.value = '';
+  if (!canEdit.value) {
+    loading.value = false;
+    return;
+  }
   try {
     const policy = await getAiPolicy();
     if (current !== request) return;
@@ -40,31 +51,35 @@ const load = async () => {
     if (current === request) loading.value = false;
   }
 };
-watch(() => props.connectionId, load, { immediate: true });
+watch(() => [props.connectionId, canEdit.value], load, { immediate: true });
 const presets = ['inherit', 'none', 'read', 'data', 'full'];
-const preset = computed(
-  () =>
-    presets.find(value =>
-      AI_ACTIONS.every(action => aiPreset(value)[action] === props.modelValue?.[action]),
-    ) ?? 'custom',
+const preset = computed(() =>
+  editingCustom.value
+    ? 'custom'
+    : (presets.find(value =>
+        AI_ACTIONS.every(action => aiPreset(value)[action] === props.modelValue?.[action]),
+      ) ?? 'custom'),
 );
 const effective = computed(() => resolveAiPermissions(defaults.value, props.modelValue));
 const update = (action: AiAction, value: string) => {
+  if (!canEdit.value) return;
+  editingCustom.value = true;
   const { [action]: _previous, ...rest } = props.modelValue ?? {};
   emit('update:modelValue', value === 'inherit' ? rest : { ...rest, [action]: value === 'allow' });
 };
-defineExpose({ ready: computed(() => !loading.value && !error.value) });
+defineExpose({ ready: computed(() => !canEdit.value || (!loading.value && !error.value)) });
 const selectPreset = (value: string) => {
-  if (value === 'custom') {
-    custom.value = true;
-    return;
-  }
+  if (!canEdit.value) return;
+  editingCustom.value = value === 'custom';
+  if (value === 'custom') return;
   emit('update:modelValue', aiPreset(value));
 };
 </script>
 
 <template>
+  <UltimateFeatureStrip v-if="!canEdit" :label="t('aiPermissions.ultimateOnly')" />
   <details
+    v-else
     :open="expanded"
     class="group border border-border rounded-lg"
     @toggle="expanded = ($event.target as HTMLDetailsElement).open"
@@ -105,50 +120,22 @@ const selectPreset = (value: string) => {
         </Button>
       </div>
       <template v-else>
-        <div class="space-y-2">
-          <Label :for="`ai-preset-${connectionId ?? 'new'}`">
-            {{ t('aiPermissions.accessLevel') }}
-          </Label>
-          <Select :model-value="preset" @update:model-value="selectPreset(String($event))">
-            <SelectTrigger :id="`ai-preset-${connectionId ?? 'new'}`" class="text-left">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="value in presets" :key="value" :value="value">
-                {{ t(`aiPermissions.${value === 'read' ? 'readPreset' : value}`) }}
-              </SelectItem>
-              <SelectItem v-if="preset === 'custom'" value="custom">
-                {{ t('aiPermissions.custom') }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-xs text-muted-foreground leading-relaxed">
-            {{ t('aiPermissions.effective') }}:
-            {{
-              AI_ACTIONS.filter(action => effective[action])
-                .map(action => t(`aiPermissions.${action}`))
-                .join(', ') || t('aiPermissions.none')
-            }}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          class="-ml-3 gap-2"
-          :aria-expanded="custom"
-          :aria-controls="`ai-actions-${connectionId ?? 'new'}`"
-          @click="custom = !custom"
-        >
-          <span
-            aria-hidden="true"
-            class="i-lucide-chevron-right h-4 w-4"
-            :class="{ 'rotate-90': custom }"
-          />
-          {{ t('aiPermissions.customize') }}
-        </Button>
+        <AccessLevelPicker
+          :id="`ai-preset-${connectionId ?? 'new'}`"
+          :model-value="preset"
+          inherit
+          @update:model-value="selectPreset"
+        />
+        <p class="text-xs text-muted-foreground leading-relaxed" role="status">
+          {{ t('aiPermissions.effective') }}:
+          {{
+            AI_ACTIONS.filter(action => effective[action])
+              .map(action => t(`aiPermissions.${action}`))
+              .join(', ') || t('aiPermissions.none')
+          }}
+        </p>
         <div
-          v-if="custom"
+          v-if="preset === 'custom'"
           :id="`ai-actions-${connectionId ?? 'new'}`"
           class="border-t border-border"
         >
@@ -188,7 +175,7 @@ const selectPreset = (value: string) => {
               <SelectTrigger
                 :id="`ai-${connectionId ?? 'new'}-${action}`"
                 :aria-describedby="`ai-origin-${connectionId ?? 'new'}-${action}`"
-                class="text-left w-36 shrink-0"
+                class="text-left w-44 shrink-0"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -198,7 +185,15 @@ const selectPreset = (value: string) => {
                   :key="value"
                   :value="value"
                 >
-                  {{ t(`aiPermissions.${value === 'inherit' ? 'fromSystem' : value}`) }}
+                  {{
+                    value === 'inherit'
+                      ? t('aiPermissions.defaultDecision', {
+                          decision: t(
+                            defaults[action] ? 'aiPermissions.allow' : 'aiPermissions.deny',
+                          ),
+                        })
+                      : t(`aiPermissions.${value}`)
+                  }}
                 </SelectItem>
               </SelectContent>
             </Select>

@@ -65,6 +65,9 @@ jest.mock('../src/common/monaco', () => ({
   configureDynamicOptions: jest.fn(),
 }));
 
+const mockEntitlement = { isLocalUltimate: true };
+jest.mock('../src/store/entitlementStore', () => ({ useEntitlementStore: () => mockEntitlement }));
+
 const ALL_TABLES = ['alpha', 'beta', 'gamma', 'prod-orders', 'prod-users', 'dev-cache'];
 
 describe('applyTableFilter', () => {
@@ -969,6 +972,7 @@ describe('connectionStore actions', () => {
   let storeApi: { set: jest.Mock; get: jest.Mock; delete: jest.Mock };
 
   beforeEach(() => {
+    mockEntitlement.isLocalUltimate = true;
     setActivePinia(createPinia());
     const { useConnectionStore } = require('../src/store/connectionStore');
     store = useConnectionStore();
@@ -1061,6 +1065,20 @@ describe('connectionStore actions', () => {
       expect(store.connections[0].id).toBe(43);
     });
 
+    it('preserves permission decisions while Community users save ordinary connection changes', async () => {
+      mockEntitlement.isLocalUltimate = false;
+      const savePermissions = require('../src/common').saveAiPermissions;
+      savePermissions.mockClear();
+      const result = await store.saveConnection({
+        ...esConnection,
+        id: 7,
+        aiPermissions: { delete: true },
+      });
+      expect(result.success).toBe(true);
+      expect(savePermissions).not.toHaveBeenCalled();
+      expect(store.connections[0].aiPermissions).toBeUndefined();
+    });
+
     it('saves explicit connection decisions before committing a connection', async () => {
       const permissions = { update: false, delete: true };
       const result = await store.saveConnection({ ...esConnection, aiPermissions: permissions });
@@ -1100,6 +1118,34 @@ describe('connectionStore actions', () => {
       await store.removeConnection(store.connections[0]);
       expect(store.connections).toHaveLength(1);
       expect(store.connections[0].name).toBe('es-2');
+    });
+
+    it('preserves the connection and rules when deletion storage fails', async () => {
+      await store.saveConnection(esConnection);
+      const connection = store.connections[0];
+      const savePermissions = require('../src/common').saveAiPermissions;
+      savePermissions.mockClear();
+      jest.spyOn(storeApi, 'set').mockRejectedValueOnce(new Error('Storage unavailable'));
+      await expect(store.removeConnection(connection)).rejects.toThrow('Storage unavailable');
+      expect(store.connections).toEqual([connection]);
+      expect(savePermissions).not.toHaveBeenCalled();
+    });
+
+    it('keeps deletion successful if permission cleanup fails', async () => {
+      await store.saveConnection(esConnection);
+      const error = new Error('Permission storage unavailable');
+      require('../src/common').saveAiPermissions.mockRejectedValueOnce(error);
+      const warning = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      try {
+        await expect(store.removeConnection(store.connections[0])).resolves.toBeUndefined();
+        expect(store.connections).toHaveLength(0);
+        expect(warning).toHaveBeenCalledWith(
+          'Connection deleted, but AI permission cleanup failed:',
+          error,
+        );
+      } finally {
+        warning.mockRestore();
+      }
     });
 
     it('removes the last connection', async () => {

@@ -1,5 +1,6 @@
 export const enUS = {
   aiPermissions: {
+    ultimateOnly: 'Per-connection AI permissions require Ultimate',
     accessLevel: 'Access level',
     unavailable: 'Unavailable',
     loadError: 'Could not load permissions',
@@ -12,7 +13,7 @@ export const enUS = {
     cancel: 'Cancel',
     conversationReadOnly: 'Read-only for this conversation',
     title: 'AI permissions',
-    help: 'Applies to Data Studio and external MCP clients. Each explicit connection decision takes priority over the system default.',
+    help: 'Applies to Data Studio and external MCP clients. Use system defaults or set permissions for this connection.',
     loading: 'Loading permissions…',
     loadFailed: 'Could not load permissions. Retry before saving this connection.',
     retry: 'Retry',
@@ -22,7 +23,6 @@ export const enUS = {
     data: 'Read & modify data',
     full: 'Full access',
     custom: 'Custom',
-    customize: 'Customize permissions',
     effective: 'Effective access',
     create: 'Create data',
     update: 'Update data',
@@ -31,15 +31,20 @@ export const enUS = {
     allow: 'Allow',
     deny: 'Deny',
     fromSystem: 'System default',
-    fromConnection: 'Connection setting',
+    fromConnection: 'This connection',
     defaults: 'Default AI permissions',
     defaultsHelp:
-      'Used for actions that a connection inherits. Explicit connection decisions take priority. Conversation restrictions can only narrow access.',
+      'Applies to Data Studio and external MCP clients. Connections follow these defaults unless an action is set on the connection.',
     save: 'Save defaults',
     saved: 'Permissions saved',
     saveFailed: 'Could not save permissions',
-    manageHelp:
-      'Full access also permits schema, index, table, collection, and administrative changes.',
+    inheritHelp: 'Follow system defaults, including future changes.',
+    noneHelp: 'No data access or administrative actions.',
+    readHelp: 'Read data and inspect structure; no changes.',
+    dataHelp: 'Data changes, including deletion. No structure or admin changes.',
+    fullHelp: 'All data actions, structure changes and administration.',
+    customHelp: 'Choose which individual actions AI can perform.',
+    defaultDecision: 'Use default ({decision})',
     readPreset: 'Read-only',
   },
 
