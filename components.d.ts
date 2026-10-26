@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AboutDialog: typeof import('./src/components/AboutDialog.vue')['default']
+    AccessLevelPicker: typeof import('./src/components/ai-permissions/AccessLevelPicker.vue')['default']
     AgentMessageBubble: typeof import('./src/components/agent-message-bubble.vue')['default']
     AiPoster: typeof import('./src/components/upgrade/FeaturePoster/AiPoster.vue')['default']
     Alert: typeof import('./src/components/ui/alert/Alert.vue')['default']

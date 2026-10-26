@@ -862,12 +862,17 @@ export const useConnectionStore = defineStore('connectionStore', {
             ) + 1,
         } as Connection;
 
+        const permissionDraft =
+          connection.aiPermissions !== undefined &&
+          (await import('./entitlementStore')).useEntitlementStore().isLocalUltimate
+            ? connection.aiPermissions
+            : undefined;
         const previousPermissions =
-          connection.aiPermissions === undefined
+          permissionDraft === undefined
             ? undefined
             : ((await getAiPolicy()).connection_permissions[String(newConnection.id)] ?? {});
-        if (connection.aiPermissions !== undefined)
-          await saveAiPermissions(String(newConnection.id), connection.aiPermissions);
+        if (permissionDraft !== undefined)
+          await saveAiPermissions(String(newConnection.id), permissionDraft);
         const nextConnections = this.connections.some(
           c => String(c.id) === String(newConnection.id),
         )
@@ -893,10 +898,14 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async removeConnection(connection: Connection) {
       const updatedConnections = this.connections.filter(c => c.id !== connection.id);
-      this.connections = updatedConnections;
-
       await storeApi.set('connections', pureObject(updatedConnections));
-      await saveAiPermissions(String(connection.id), {});
+      this.connections = updatedConnections;
+      try {
+        await saveAiPermissions(String(connection.id), {});
+      } catch (error) {
+        // eslint-disable-next-line no-console -- Keep cleanup failures observable after successful deletion.
+        console.warn('Connection deleted, but AI permission cleanup failed:', error);
+      }
     },
     async fetchIndices(con: Connection, tableName?: string) {
       const connection = this.connections.find(({ id }) => id === con.id);

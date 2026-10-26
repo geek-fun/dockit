@@ -67,6 +67,41 @@ pub fn get_ai_permissions(app: AppHandle) -> Result<AiPolicy, String> {
     load_permission_policy(&app)
 }
 
+fn authorize_permission_change(
+    access: Result<(), String>,
+    defaults: &Option<PermissionRules>,
+    connection_id: Option<&str>,
+    permissions: &Option<PermissionRules>,
+    saved_connections: impl FnOnce() -> Result<Option<Value>, String>,
+) -> Result<(), String> {
+    if access.is_ok()
+        || defaults.is_some()
+        || permissions
+            .as_ref()
+            .is_some_and(|rules| *rules != PermissionRules::default())
+    {
+        return access;
+    }
+    let Some(id) = connection_id else {
+        return access;
+    };
+    match saved_connections()? {
+        None => Ok(()),
+        Some(Value::Array(connections))
+            if connections
+                .iter()
+                .all(|connection| match connection.get("id") {
+                    Some(Value::String(saved)) => saved != id,
+                    Some(Value::Number(saved)) => saved.to_string() != id,
+                    _ => false,
+                }) =>
+        {
+            Ok(())
+        }
+        _ => access,
+    }
+}
+
 #[tauri::command]
 pub fn save_ai_permissions(
     defaults: Option<PermissionRules>,
@@ -74,6 +109,19 @@ pub fn save_ai_permissions(
     permissions: Option<PermissionRules>,
     app: AppHandle,
 ) -> Result<AiPolicy, String> {
+    authorize_permission_change(
+        crate::entitlement::ensure_local_ultimate(
+            &app.state::<crate::entitlement::EntitlementState>(),
+            "AI permissions",
+        ),
+        &defaults,
+        connection_id.as_deref(),
+        &permissions,
+        || {
+            let store = app.store(".store.dat").map_err(|e| e.to_string())?;
+            Ok(store.get("connections"))
+        },
+    )?;
     let _guard = AI_POLICY_LOCK.lock().map_err(|e| e.to_string())?;
     let mut policy = load_permission_policy_inner(&app)?;
     if let Some(defaults) = defaults {
@@ -92,4 +140,112 @@ pub fn save_ai_permissions(
     config.policy = policy.clone();
     config.save(&dir)?;
     Ok(policy)
+}
+
+#[cfg(test)]
+mod entitlement_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn denied() -> Result<(), String> {
+        Err(crate::entitlement::entitlement_required_error(
+            "AI permissions",
+        ))
+    }
+
+    #[test]
+    fn ultimate_can_edit_defaults_and_connection_decisions_without_cleanup_lookup() {
+        assert!(authorize_permission_change(
+            Ok(()),
+            &Some(PermissionRules::default()),
+            Some("saved"),
+            &Some(PermissionRules::explicit(true, false, false, false, false)),
+            || panic!("editing must not use the cleanup path"),
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn community_cannot_edit_defaults_or_explicit_connection_decisions() {
+        assert!(authorize_permission_change(
+            denied(),
+            &Some(PermissionRules::default()),
+            None,
+            &None,
+            || panic!("denied defaults must not inspect storage"),
+        )
+        .is_err());
+        assert!(authorize_permission_change(
+            denied(),
+            &None,
+            Some("saved"),
+            &Some(PermissionRules::explicit(false, false, false, false, false)),
+            || panic!("explicit denials are permission edits, not cleanup"),
+        )
+        .is_err());
+        assert!(authorize_permission_change(
+            denied(),
+            &None,
+            Some("new"),
+            &Some(PermissionRules::explicit(true, false, false, false, false)),
+            || panic!("new connection permissions also require Ultimate"),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn community_cannot_reset_a_saved_connections_permissions() {
+        for (id, connections) in [
+            ("saved", json!([{"id":"saved"}])),
+            ("42", json!([{"id":42}])),
+        ] {
+            let error = authorize_permission_change(
+                denied(),
+                &None,
+                Some(id),
+                &Some(PermissionRules::default()),
+                || Ok(Some(connections)),
+            )
+            .unwrap_err();
+            assert!(error.contains("ENTITLEMENT_REQUIRED"));
+        }
+    }
+
+    #[test]
+    fn community_can_only_cleanup_decisions_for_deleted_connections() {
+        assert!(authorize_permission_change(
+            denied(),
+            &None,
+            Some("deleted"),
+            &Some(PermissionRules::default()),
+            || Ok(Some(json!([{"id":"retained"}]))),
+        )
+        .is_ok());
+        assert!(
+            authorize_permission_change(denied(), &None, Some("last-deleted"), &None, || Ok(None),)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn unreadable_or_malformed_connections_do_not_authorize_cleanup() {
+        for connections in [
+            json!({}),
+            json!([{"name":"missing-id"}]),
+            json!([{"id":null}]),
+        ] {
+            assert!(
+                authorize_permission_change(denied(), &None, Some("saved"), &None, || Ok(Some(
+                    connections
+                )),)
+                .is_err()
+            );
+        }
+        assert!(
+            authorize_permission_change(denied(), &None, Some("saved"), &None, || Err(
+                "Storage unavailable".into()
+            ),)
+            .is_err()
+        );
+    }
 }

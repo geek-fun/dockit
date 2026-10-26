@@ -4,7 +4,6 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DefaultPermissionEditor } from '@/components/ai-permissions';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -55,10 +54,10 @@ const saveConfig = async (restart = false, start = autoStart.value) => {
 </script>
 
 <template>
-  <Card>
-    <CardHeader>
+  <div class="max-w-3xl space-y-6">
+    <div>
       <div class="flex flex-wrap gap-3 items-center justify-between">
-        <CardTitle>{{ t('setting.mcp.title') }}</CardTitle>
+        <h3 class="text-lg font-semibold">{{ t('setting.mcp.title') }}</h3>
         <span role="status" class="text-xs text-muted-foreground flex gap-2 items-center">
           <span class="sr-only">{{ t('setting.mcp.status') }}:</span>
           <span
@@ -77,8 +76,8 @@ const saveConfig = async (restart = false, start = autoStart.value) => {
           }}
         </span>
       </div>
-    </CardHeader>
-    <CardContent class="space-y-6">
+    </div>
+    <div class="py-4 px-5 border border-border rounded-lg bg-card space-y-5">
       <div v-if="error" role="alert" class="space-y-2">
         <p class="text-sm text-destructive break-words">
           {{ t('setting.mcp.saveFailed') }}: {{ error }}
@@ -95,7 +94,7 @@ const saveConfig = async (restart = false, start = autoStart.value) => {
       </div>
       <p v-if="feedback" role="status" class="text-xs text-muted-foreground">{{ feedback }}</p>
       <fieldset
-        class="p-0 border-0 min-w-0 max-w-lg space-y-5"
+        class="p-0 border-0 min-w-0 space-y-5"
         :disabled="loading || saving || !loaded"
         :aria-busy="loading || saving"
       >
@@ -144,7 +143,9 @@ const saveConfig = async (restart = false, start = autoStart.value) => {
           />
         </div>
       </fieldset>
-      <div class="pt-5 border-t border-border"><DefaultPermissionEditor /></div>
-    </CardContent>
-  </Card>
+    </div>
+    <div class="py-4 px-5 border border-border rounded-lg bg-card">
+      <DefaultPermissionEditor />
+    </div>
+  </div>
 </template>
