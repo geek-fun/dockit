@@ -62,7 +62,7 @@
     "@vueuse/core": "^14.1.0",
     "antlr4": "^4.13.2",
     "debug": "^4.4.3",
-    "dompurify": "^3.4.7",
+    "dompurify": "^3.4.17",
     "highlight.js": "^11.11.1",
     "json-with-bigint": "^3.5.3",
     "json5": "^2.2.3",
