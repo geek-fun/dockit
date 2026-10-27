@@ -12,7 +12,12 @@ import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dat
 import { useDataStudioStore } from '@/store/dataStudioStore';
 import { useAppStore } from '@/store';
 import { useConnectionStore } from '@/store/connectionStore';
-import { assembleSystemPrompt } from '@/common/agentPrompt';
+import {
+  assembleSystemPrompt,
+  buildAgentModeInstructions,
+  buildAgentPermissionInstructions,
+  type AiPermissions,
+} from '@/common';
 import {
   agentApi,
   type ToolMetadata,
@@ -25,7 +30,7 @@ import { getSessionRuntime, clearSessionRuntime } from './agentRuntime';
 type PromptSource = {
   connectionId: string;
   databaseType: string;
-  permissions?: { read: boolean; create: boolean; update: boolean; delete: boolean };
+  permissions?: AiPermissions;
 };
 
 type UseChatAgentConfirmationRule = Pick<ConfirmationRule, 'action'>;
@@ -132,7 +137,7 @@ const buildSourceSummary = (sources: Array<PromptSource>): string =>
                 .filter(([, v]) => v)
                 .map(([k]) => k)
                 .join(', ') || 'none'
-            : 'read';
+            : 'unavailable; application must check';
           return `- ${source.connectionId}: ${source.databaseType} (permissions: ${permStr})`;
         }),
       ].join('\n');
@@ -190,26 +195,12 @@ const buildSystemPrompt = ({
     'You help users query, analyze, and manage their database data through natural language.',
     '',
     buildSourceSummary(sources),
+    ...buildAgentPermissionInstructions(sources),
     '',
-    `Current mode: ${isAskMode ? 'ASK' : 'AUTO'}.`,
-    ...(isAskMode
-      ? [
-          '',
-          '- In ASK mode, prefer answering from your knowledge and expertise.',
-          '- Do NOT call tools unless the user explicitly asks you to execute an action.',
-          '- Requests for "sample", "example", "demonstration", "generate", "show me the syntax/DSL/code", or "how to" are NOT execution requests. Show the code in a fenced block and explain it — do not run it.',
-          '- Explicit execution requests are direct commands to perform an action on live data, such as "run this query", "create the index now", "insert the data", "delete that document", "do it", "go ahead", "proceed", "execute", "apply".',
-          '- When the user describes a scenario or asks "what if" / "how would I" questions, explain the approach without executing anything.',
-          '- If you are unsure whether the user wants you to act or just explain, default to explaining and ask if they want you to proceed.',
-        ]
-      : [
-          '',
-          '- Use database-specific tools (e.g. dynamo__*, es__*, mongo__*) to interact with the database.',
-          '- Tool selection priority:',
-          '  1. Attached sources (listed above) — use these directly. When the user says "this connection" or "current connection", they mean the first attached source.',
-          '  2. User explicitly names a connection — use that connection.',
-          '  3. dockit__list_connections — ONLY if: no attached source exists AND the user asks what connections are available AND you have NOT already called it in this conversation.',
-        ]),
+    ...buildAgentModeInstructions(!isAskMode),
+    '- Use database-specific tools (e.g. dynamo__*, es__*, mongo__*) to interact with the database.',
+    '- Use attached sources first. When the user says "this connection", use the first attached source. Only list other connections when the user asks for them.',
+    '- Requests for sample code, syntax, explanations, and hypothetical scenarios do not authorize changes to live data.',
     '',
     'Rules (apply regardless of mode):',
     '- Never fabricate data — only return actual query results.',
@@ -366,7 +357,10 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       const base = buildSystemPrompt({
         schema,
         noConnection,
-        sources: promptSources,
+        sources: promptSources.map(source => ({
+          ...source,
+          permissions: aiContext.effectivePermissions[source.connectionId],
+        })),
         databaseType: context?.databaseType,
         permissionsMode: session.permissionsMode,
       });
@@ -415,7 +409,12 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       };
 
       if (context?.connections) {
-        settings.connections = context.connections;
+        settings.connections = Object.fromEntries(
+          Object.entries(context.connections).map(([alias, connection]) => [
+            alias,
+            { ...connection, permissions: aiContext.effectivePermissions[alias] },
+          ]),
+        );
       }
 
       await invokeAgentLoop(sessionId, userMessage, settings);
@@ -482,11 +481,29 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     const toolCall = assistantMsg?.toolCalls?.find(entry => entry.id === toolCallId);
     if (!toolCall) return;
 
+    const markUserRejection = () => {
+      config.sessionStore.setMessageToolCalls(
+        session.id,
+        assistantMsgId,
+        (assistantMsg?.toolCalls ?? []).map(call =>
+          call.id === toolCallId
+            ? {
+                ...call,
+                status: 'denied',
+                requiresConfirmation: false,
+                denial: { kind: 'user', source: 'unknown', message: 'Rejected by you' },
+              }
+            : call,
+        ),
+      );
+    };
+
     if (action === 'cancel') {
       await invokeCancelAgentLoop(session.id).catch(() => undefined);
       config.sessionStore.setSessionStatus(session.id, 'idle');
       dataStudioStore.clearSessionError(session.id);
       config.sessionStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'denied');
+      markUserRejection();
       return;
     }
 
@@ -522,6 +539,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       toolCallId,
       allowed ? 'executing' : 'denied',
     );
+
+    if (!allowed) markUserRejection();
 
     const updatedSession = getSessionById(sessions.value, session.id);
     const updatedAssistantMsg = updatedSession?.messages.find(

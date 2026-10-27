@@ -121,9 +121,7 @@ fn intersect(a: &PermissionRules, b: &PermissionRules) -> PermissionRules {
 impl SessionAccess {
     pub fn confirmation_required(&self, risk: RiskLevel) -> Result<bool, String> {
         match self.rule {
-            Some(ConfirmationRuleAction::DenyAlways) => {
-                Err("Tool call denied by conversation rule".into())
-            }
+            Some(ConfirmationRuleAction::DenyAlways) => Err(super::AccessDenial::rule().encode()),
             Some(ConfirmationRuleAction::AllowAlways) => Ok(false),
             None => Ok(match risk {
                 RiskLevel::Safe => false,

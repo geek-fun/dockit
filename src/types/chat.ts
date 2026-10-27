@@ -20,7 +20,13 @@ export type ChatMessage = {
   preparingInProgress?: boolean;
 };
 
-export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
+export type ChatSessionStatus =
+  | 'idle'
+  | 'running'
+  | 'waiting_confirmation'
+  | 'blocked'
+  | 'error'
+  | 'stopped';
 
 export type ChatSessionStopReason =
   | 'iteration_cap'

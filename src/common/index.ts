@@ -18,3 +18,5 @@ export * from './connectQuery';
 export * from './sessionExpiry';
 
 export * from './aiPermissions';
+
+export * from './agentPrompt';

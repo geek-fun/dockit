@@ -6,6 +6,7 @@ import {
   onAgentLoopToolCall,
   onAgentLoopToolResult,
   onAgentLoopStepDone,
+  onAgentLoopBlocked,
   onAgentLoopDone,
   onAgentLoopStopped,
   onAgentLoopError,
@@ -205,7 +206,16 @@ const initAgentRuntime = async (): Promise<void> => {
       },
     ),
     onAgentLoopToolResult(
-      ({ session_id, tool_call_id, envelope, error, denied, tool_name, arguments: args }) => {
+      ({
+        session_id,
+        tool_call_id,
+        envelope,
+        error,
+        denied,
+        denial,
+        tool_name,
+        arguments: args,
+      }) => {
         const store = useDataStudioStore();
         const session = getSessionById(store.sessions, session_id);
         if (!session) return;
@@ -231,6 +241,7 @@ const initAgentRuntime = async (): Promise<void> => {
               riskLevel: 'safe',
               requiresConfirmation: false,
               result: envelope.summary,
+              denial,
             };
             store.setMessageToolCalls(session_id, target.id, [
               ...(target.toolCalls ?? []),
@@ -249,8 +260,41 @@ const initAgentRuntime = async (): Promise<void> => {
             envelope.metadata?.duration_ms,
           );
         }
+        if (assistantMsg && denial) {
+          const updated = getSessionById(store.sessions, session_id)?.messages.find(
+            message => message.id === assistantMsg.id,
+          );
+          store.setMessageToolCalls(
+            session_id,
+            assistantMsg.id,
+            (updated?.toolCalls ?? []).map(call =>
+              call.id === tool_call_id ? { ...call, denial, requiresConfirmation: false } : call,
+            ),
+          );
+        }
       },
     ),
+    onAgentLoopBlocked(({ session_id }) => {
+      const store = useDataStudioStore();
+      const session = getSessionById(store.sessions, session_id);
+      session?.messages.forEach(message => {
+        const calls = message.toolCalls ?? [];
+        if (calls.some(call => ['pending', 'confirmed', 'executing'].includes(call.status))) {
+          store.setMessageToolCalls(
+            session_id,
+            message.id,
+            calls.map(call => {
+              if (!['pending', 'confirmed', 'executing'].includes(call.status)) return call;
+              return { ...call, status: 'interrupted', requiresConfirmation: false };
+            }),
+          );
+        }
+        if (message.status === 'streaming') store.setMessageStatus(session_id, message.id, 'done');
+      });
+      store.setSessionStatus(session_id, 'blocked');
+      store.clearSessionProgress(session_id);
+      store.removeOrphanedStreamingMessages(session_id, '');
+    }),
     onAgentLoopStepDone(({ session_id }) => {
       const store = useDataStudioStore();
       const session = getSessionById(store.sessions, session_id);

@@ -1949,9 +1949,13 @@ export const enUS = {
       inheritDesc: 'Uses the current connection permission chain.',
       customTitle: 'Custom',
       customDesc: 'Manually define which operations are allowed for this source.',
+      approvalMode: 'Approval mode',
+      askHelp: 'Permitted reads run automatically. Changes require approval.',
+      autoHelp:
+        'Ordinary permitted inserts and updates run automatically. Deletes and administration still require approval.',
       autoMode: 'Auto Mode',
       autoModeDesc:
-        'When enabled, elevated and destructive tools run automatically. Safe tools always execute without confirmation.',
+        'Permitted reads and ordinary inserts/updates run automatically. Deletes and administration require approval unless an Always Allow rule applies. Approval never grants a denied permission.',
       read: 'Read',
       create: 'Create',
       update: 'Update',
@@ -2001,6 +2005,40 @@ export const enUS = {
       },
       message: {
         toolResult: 'Tool Result',
+        toolBlocked: 'Blocked',
+        toolRejected: 'Rejected',
+        blockedNotice: 'Blocked by permissions — action not executed',
+        historicalBlockedNotice: 'Previous attempt blocked — action not executed',
+        rejectedNotice: 'Rejected by you — action not executed',
+        interruptedNotice: 'Execution outcome unavailable',
+        unavailableNotice: 'Action unavailable — action not executed',
+        connectionLabel: 'Connection: {name}',
+        requiredAction: 'Required: {action}',
+        reviewPermissions: 'Review permissions',
+        reviewHelp:
+          'Saving permission changes does not run the blocked action. Return to chat and choose Retry request when ready.',
+        reviewConnectionHelp:
+          'Changes apply only to this connection. System defaults stay unchanged. Save, then return to chat to retry the request.',
+        connectionUnavailable:
+          'The saved connection could not be identified. Reattach the connection in chat before reviewing its permissions.',
+        backToChat: 'Back to chat',
+        retryRequest: 'Retry request',
+        retryPrompt:
+          'Retry the previously blocked or rejected request using {tool} with these original arguments:\n{args}\nRecheck current permissions and request any required approval. Do not repeat earlier successful actions.',
+        awaitingPermissionDecision:
+          'Paused. Review the blocked action, then retry or send a new request.',
+        removeDenyRule: 'Remove Always deny rule',
+        ruleRemoved:
+          'Rule removed. Retry the request to check current access and confirmation requirements.',
+        sourceUnavailable:
+          'The original source is no longer available in this conversation. Attach it before retrying.',
+        denialSource: {
+          system: 'Denied by system AI defaults.',
+          connection: 'Denied by this connection’s AI permissions.',
+          conversation: 'Denied by this conversation’s source restrictions.',
+          rule: 'An Always deny rule blocks this tool in this conversation.',
+          unknown: 'AI permissions blocked this action. Review access before retrying.',
+        },
         toolDenied: 'Tool execution denied',
         toolError: 'Tool execution failed',
         thinking: 'Thinking',
