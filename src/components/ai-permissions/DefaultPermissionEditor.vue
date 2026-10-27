@@ -106,7 +106,7 @@ const selectPreset = (value: string) => {
         <div
           v-for="action in AI_ACTIONS"
           :key="action"
-          class="py-3 border-b border-border flex gap-4 items-center justify-between last:border-b-0"
+          class="py-2 border-b border-border flex gap-4 items-center justify-between last:border-b-0"
         >
           <Label :for="`ai-default-${action}`" class="leading-snug">
             {{ t(`aiPermissions.${action}`) }}

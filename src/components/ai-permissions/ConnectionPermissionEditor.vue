@@ -6,13 +6,7 @@ import { AI_ACTIONS, aiPreset, getAiPolicy, resolveAiPermissions } from '@/commo
 import AccessLevelPicker from './AccessLevelPicker.vue';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 import { useEntitlementStore } from '@/store';
 import { UltimateFeatureStrip } from '@/components/upgrade';
@@ -65,11 +59,17 @@ const preset = computed(() =>
       ) ?? 'custom'),
 );
 const effective = computed(() => resolveAiPermissions(defaults.value, props.modelValue));
-const update = (action: AiAction, value: string) => {
+const decisionText = (action: AiAction) =>
+  props.modelValue?.[action] === undefined
+    ? t('aiPermissions.defaultDecision', {
+        decision: t(defaults.value[action] ? 'aiPermissions.allow' : 'aiPermissions.deny'),
+      })
+    : `${t(props.modelValue[action] ? 'aiPermissions.allow' : 'aiPermissions.deny')} · ${t('aiPermissions.fromConnection')}`;
+const update = (action: AiAction, value: boolean) => {
   if (!canEdit.value) return;
   editingCustom.value = true;
   const { [action]: _previous, ...rest } = props.modelValue ?? {};
-  emit('update:modelValue', value === 'inherit' ? rest : { ...rest, [action]: value === 'allow' });
+  emit('update:modelValue', { ...rest, [action]: value });
 };
 defineExpose({ ready: computed(() => !canEdit.value || (!loading.value && !error.value)) });
 const selectPreset = (value: string) => {
@@ -146,61 +146,19 @@ const selectPreset = (value: string) => {
           <div
             v-for="action in AI_ACTIONS"
             :key="action"
-            class="py-3 border-b border-border flex gap-3 items-center justify-between last:pb-0 last:border-b-0"
+            class="py-2 border-b border-border flex gap-3 items-center justify-between last:pb-0 last:border-b-0"
           >
-            <div class="min-w-0 space-y-1">
-              <Label :for="`ai-${connectionId ?? 'new'}-${action}`" class="leading-snug">
-                {{ t(`aiPermissions.${action}`) }}
-              </Label>
-              <p
-                :id="`ai-origin-${connectionId ?? 'new'}-${action}`"
-                class="text-xs text-muted-foreground leading-snug"
-              >
-                {{ t(effective[action] ? 'aiPermissions.allow' : 'aiPermissions.deny') }} ·
-                {{
-                  t(
-                    modelValue?.[action] === undefined
-                      ? 'aiPermissions.fromSystem'
-                      : 'aiPermissions.fromConnection',
-                  )
-                }}
-              </p>
-            </div>
-            <Select
-              :model-value="
-                modelValue?.[action] === undefined
-                  ? 'inherit'
-                  : modelValue[action]
-                    ? 'allow'
-                    : 'deny'
-              "
-              @update:model-value="update(action, String($event))"
-            >
-              <SelectTrigger
+            <Label :for="`ai-${connectionId ?? 'new'}-${action}`" class="leading-snug">
+              {{ t(`aiPermissions.${action}`) }}
+            </Label>
+            <div class="flex shrink-0 gap-3 items-center">
+              <span class="text-xs text-muted-foreground">{{ decisionText(action) }}</span>
+              <Switch
                 :id="`ai-${connectionId ?? 'new'}-${action}`"
-                :aria-describedby="`ai-origin-${connectionId ?? 'new'}-${action}`"
-                class="text-left w-44 shrink-0"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="value in ['inherit', 'allow', 'deny']"
-                  :key="value"
-                  :value="value"
-                >
-                  {{
-                    value === 'inherit'
-                      ? t('aiPermissions.defaultDecision', {
-                          decision: t(
-                            defaults[action] ? 'aiPermissions.allow' : 'aiPermissions.deny',
-                          ),
-                        })
-                      : t(`aiPermissions.${value}`)
-                  }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+                :checked="effective[action] === true"
+                @update:checked="update(action, $event)"
+              />
+            </div>
           </div>
         </div>
       </template>

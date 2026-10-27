@@ -1,8 +1,5 @@
 <template>
   <div class="basic-setting space-y-8">
-    <!-- Plan Section -->
-    <PlanSection />
-
     <!-- Theme Section -->
     <div class="space-y-4">
       <div>
@@ -38,6 +35,9 @@
         </Card>
       </div>
     </div>
+
+    <!-- Plan Section -->
+    <PlanSection />
 
     <!-- Language Section -->
     <div class="space-y-4">
