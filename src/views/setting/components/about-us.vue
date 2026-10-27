@@ -1,8 +1,8 @@
 <template>
   <div class="about-us max-w-3xl space-y-6">
     <div class="space-y-2">
-      <h1 class="text-3xl font-bold">About Us</h1>
-      <p class="text-muted-foreground">Learn more about DocKit</p>
+      <h1 class="text-3xl font-bold">{{ $t('setting.about') }}</h1>
+      <p class="text-muted-foreground">{{ $t('setting.aboutUs.tagline') }}</p>
     </div>
 
     <Card>
@@ -11,8 +11,7 @@
           <div>
             <CardTitle>DocKit {{ version }}</CardTitle>
             <CardDescription class="mt-1.5">
-              DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time
-              from your Mac, Windows, and Linux.
+              {{ $t('setting.aboutUs.description') }}
             </CardDescription>
           </div>
           <Button
@@ -51,32 +50,13 @@
 
     <Card>
       <CardHeader>
-        <CardTitle>Features</CardTitle>
+        <CardTitle>{{ $t('setting.aboutUs.features') }}</CardTitle>
       </CardHeader>
       <CardContent class="space-y-3">
-        <div class="flex gap-3">
+        <div v-for="feature in features" :key="feature" class="flex gap-3">
           <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
           <p class="text-sm">
-            Full-featured editor, powered by monaco-editor, the backbone of VSCode, providing a
-            familiar editor environment for developers.
-          </p>
-        </div>
-        <div class="flex gap-3">
-          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
-          <p class="text-sm">
-            Keep your connections in desktop apps, moving the dependencies of dashboard tools.
-          </p>
-        </div>
-        <div class="flex gap-3">
-          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
-          <p class="text-sm">
-            File persistence, allowing you to save your code in your machine as a file, never lost.
-          </p>
-        </div>
-        <div class="flex gap-3">
-          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
-          <p class="text-sm">
-            Supports multiple engines including Elasticsearch, OpenSearch, and more to come.
+            {{ $t(`setting.aboutUs.${feature}`) }}
           </p>
         </div>
       </CardContent>
@@ -84,9 +64,9 @@
 
     <Card>
       <CardHeader>
-        <CardTitle>License</CardTitle>
+        <CardTitle>{{ $t('setting.aboutUs.license') }}</CardTitle>
         <CardDescription>
-          DocKit is an open-source project under the Apache 2.0 License.
+          {{ $t('setting.aboutUs.licenseDesc') }}
         </CardDescription>
       </CardHeader>
     </Card>
@@ -100,6 +80,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAppUpdater } from '@/composables';
 
+const features = ['feature1', 'feature2', 'feature3', 'feature4'];
 const version = ref('');
 const { isChecking, checkForUpdates } = useAppUpdater();
 

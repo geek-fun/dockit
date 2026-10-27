@@ -563,17 +563,14 @@
                 @create-profile="openSshProfileDialog(null)"
                 @edit-profile="openSshProfileDialog($event)"
               />
-              <ConnectionPermissionEditor
-                ref="aiPermissionEditor"
-                v-model="formData.aiPermissions"
-                :connection-id="formData.id"
-              />
-              <UltimateFeatureStrip
-                v-if="!entitlementStore.isLocalUltimate"
-                class="w-full"
-                :label="$t('connection.prompt.ultimateOnly')"
-              />
-              <div v-else class="prompt-header-row">
+              <div class="mt-3 pt-3 border-t border-border">
+                <ConnectionPermissionEditor
+                  ref="aiPermissionEditor"
+                  v-model="formData.aiPermissions"
+                  :connection-id="formData.id"
+                />
+              </div>
+              <div v-if="entitlementStore.isLocalUltimate" class="prompt-header-row">
                 <span class="i-carbon-chat-bot h-4 w-4 shrink-0 text-muted-foreground" />
                 <span class="text-sm font-medium whitespace-nowrap">
                   {{ $t('connection.prompt.label') }}

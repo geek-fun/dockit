@@ -1,16 +1,11 @@
 export const enUS = {
   aiPermissions: {
-    ultimateOnly: 'Per-connection AI permissions require Ultimate',
+    ultimateOnly: 'Per-connection AI settings require Ultimate',
     accessLevel: 'Access level',
     unavailable: 'Unavailable',
     loadError: 'Could not load permissions',
     saving: 'Saving…',
-    conversationHelp:
-      'Uses the current connection permissions. Conversation limits can only restrict access; Ask/Auto only controls confirmation.',
-    useConnection: 'Use connection permissions',
-    limitConversation: 'Limit this conversation',
     deniedByConnection: 'Denied by connection permissions',
-    cancel: 'Cancel',
     conversationReadOnly: 'Read-only for this conversation',
     title: 'AI permissions',
     help: 'Applies to Data Studio and external MCP clients. Use system defaults or set permissions for this connection.',
@@ -30,7 +25,6 @@ export const enUS = {
     manage: 'Manage structure & administration',
     allow: 'Allow',
     deny: 'Deny',
-    fromSystem: 'System default',
     fromConnection: 'This connection',
     defaults: 'Default AI permissions',
     defaultsHelp:
@@ -114,6 +108,21 @@ export const enUS = {
     zhCN: '简体中文',
     enUS: 'English',
     about: 'About Us',
+    aboutUs: {
+      tagline: 'Learn more about DocKit',
+      description:
+        'DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time from your Mac, Windows, and Linux.',
+      features: 'Features',
+      feature1:
+        'Full-featured editor, powered by monaco-editor, the backbone of VSCode, providing a familiar editor environment for developers.',
+      feature2:
+        'Keep your connections in desktop apps, moving the dependencies of dashboard tools.',
+      feature3:
+        'File persistence, allowing you to save your code in your machine as a file, never lost.',
+      feature4: 'Supports multiple engines including Elasticsearch, OpenSearch, and more to come.',
+      license: 'License',
+      licenseDesc: 'DocKit is an open-source project under the Apache 2.0 License.',
+    },
     auto: 'Follow OS',
     dark: 'Dark Theme',
     light: 'Light Theme',
@@ -1076,7 +1085,6 @@ export const enUS = {
     prompt: {
       title: 'Agent Prompt',
       label: 'Agent Prompt',
-      ultimateOnly: 'Agent Prompt is an Ultimate feature — click to upgrade',
       add: 'Add agent prompt',
       edit: 'Edit agent prompt',
       configured: 'Configured',
@@ -1946,27 +1954,13 @@ export const enUS = {
       title: 'Modify Datasource',
       accessPermissions: 'Access Permissions',
       inheritTitle: 'Use connection permissions',
-      inheritDesc: 'Uses the current connection permission chain.',
-      customTitle: 'Custom',
-      customDesc: 'Manually define which operations are allowed for this source.',
       approvalMode: 'Approval mode',
       askHelp: 'Permitted reads run automatically. Changes require approval.',
       autoHelp:
         'Ordinary permitted inserts and updates run automatically. Deletes and administration still require approval.',
-      autoMode: 'Auto Mode',
-      autoModeDesc:
-        'Permitted reads and ordinary inserts/updates run automatically. Deletes and administration require approval unless an Always Allow rule applies. Approval never grants a denied permission.',
-      read: 'Read',
-      create: 'Create',
-      update: 'Update',
-      delete: 'Delete',
       saveChanges: 'Save Changes',
       modeDefault: 'Ask',
       modeFull: 'Auto',
-      modeDefaultDesc:
-        'Safe reads run automatically. Elevated and destructive operations require your confirmation before executing.',
-      modeFullDesc:
-        'All tools run automatically, including writes. Budget limits and the kill switch still protect you.',
     },
     detachSource: {
       title: 'Detach Source',
