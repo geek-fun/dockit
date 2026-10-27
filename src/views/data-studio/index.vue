@@ -232,13 +232,14 @@
                   </button>
                   <div v-if="permissionMenuOpen" class="permission-menu">
                     <div class="permission-menu-title">
-                      {{ $t('dataStudio.modifySource.accessPermissions') }}
+                      {{ $t('dataStudio.modifySource.approvalMode') }}
                     </div>
                     <button
                       class="permission-menu-item"
                       :class="{
                         'permission-menu-item--active': sessionPermissionsMode === 'Ask',
                       }"
+                      :title="$t('dataStudio.modifySource.askHelp')"
                       @click="setAutoMode(false)"
                     >
                       <span class="i-carbon-locked h-4 w-4 permission-menu-icon" />
@@ -255,6 +256,7 @@
                       :class="{
                         'permission-menu-item--active': sessionPermissionsMode === 'Auto',
                       }"
+                      :title="$t('dataStudio.modifySource.autoHelp')"
                       @click="setAutoMode(true)"
                     >
                       <span class="i-carbon-unlocked h-4 w-4 permission-menu-icon" />
@@ -657,7 +659,7 @@ onBeforeUnmount(() => {
 }
 
 .permission-trigger-icon {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .permission-trigger-label {
@@ -747,7 +749,7 @@ onBeforeUnmount(() => {
 .permission-check {
   color: hsl(var(--foreground));
   flex-shrink: 0;
-  animation: check-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: check-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes check-pop {

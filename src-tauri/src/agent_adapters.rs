@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 use data_studio_agent as lib;
 use data_studio_agent::storage;
-use data_studio_agent::traits::{CancelMap, ConfirmMap, EventEmitter};
+use data_studio_agent::traits::{CancelMap, ConfirmMap, EventEmitter, SessionStore};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -41,12 +41,16 @@ pub async fn run_agent_loop(
     )?;
     let db_state: State<storage::db::AgentDb> = app.state::<storage::db::AgentDb>();
     let store = storage::session_store::SqliteSessionStore::new(db_state.inner().clone());
-    let emitter = TauriEmitter(app.clone());
 
     let confirm_state: State<ConfirmMap> = app.state::<ConfirmMap>();
     let confirm_map: ConfirmMap = confirm_state.inner().clone();
     let cancel_state: State<CancelMap> = app.state::<CancelMap>();
     let cancel_map: CancelMap = cancel_state.inner().clone();
+    let emitter = crate::agent::events::AgentRunEmitter {
+        inner: TauriEmitter(app.clone()),
+        cancel_map: cancel_map.clone(),
+        blocked: std::sync::Mutex::new(None),
+    };
 
     let connections: HashMap<String, Value> = settings
         .get("connections")
@@ -97,7 +101,7 @@ pub async fn run_agent_loop(
     // The executor owns authorization before confirmation and again before execution.
     let legacy_deny_hook = |_: &str, _: Option<&str>| false;
 
-    lib::loop_runner::run_agent_loop(
+    let result = lib::loop_runner::run_agent_loop(
         &session_id,
         &user_message,
         &settings,
@@ -111,7 +115,20 @@ pub async fn run_agent_loop(
         &is_parallel_ok,
         &legacy_deny_hook,
     )
-    .await
+    .await;
+    let blocked = emitter
+        .blocked
+        .lock()
+        .map_err(|error| error.to_string())?
+        .clone();
+    if let Some(payload) = blocked {
+        if result.is_ok() || result.as_ref().is_err_and(|error| error == "cancelled") {
+            store.update_session_status(&session_id, "blocked").await?;
+            emitter.inner.emit("agent-loop-blocked", payload);
+            return Ok(());
+        }
+    }
+    result
 }
 
 #[tauri::command]

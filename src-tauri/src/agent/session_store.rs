@@ -46,12 +46,18 @@ pub struct AgentMessage {
     pub role: String,
     pub content: String,
     pub created_at: i64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<AgentToolCallRow>,
 }
 
-/// Pass-through. The frontend hydrator parses `_compact_boundary` JSON for `system` rows
-/// into structured UI data; non-boundary content is returned unchanged.
-fn normalize_message_content(_role: &str, content: &str) -> String {
-    content.to_string()
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentToolCallRow {
+    pub id: String,
+    pub tool_name: String,
+    pub arguments: String,
+    pub status: String,
+    pub result: Option<String>,
+    pub denial: Option<serde_json::Value>,
 }
 
 fn now_ms() -> i64 {
@@ -207,35 +213,83 @@ pub async fn load_session_messages(
     db: State<'_, AgentDb>,
 ) -> Result<Vec<AgentMessage>, String> {
     let conn_arc = db.0.clone();
-    tokio::task::spawn_blocking(move || -> Result<Vec<AgentMessage>, String> {
+    tokio::task::spawn_blocking(move || {
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;
-        let mut stmt = conn
-            .prepare(
-                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC",
-            )
-            .map_err(|e| e.to_string())?;
-        let rows = stmt
-            .query_map(rusqlite::params![session_id], |row| {
-                Ok(AgentMessage {
-                    id: row.get(0)?,
-                    session_id: row.get(1)?,
-                    role: row.get(2)?,
-                    content: normalize_message_content(
-                        &row.get::<_, String>(2)?,
-                        &row.get::<_, String>(3)?,
-                    ),
-                    created_at: row.get(4)?,
-                })
-            })
-            .map_err(|e| e.to_string())?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r.map_err(|e| e.to_string())?);
-        }
-        Ok(out)
+        load_session_history(&conn, &session_id)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+fn load_session_history(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<Vec<AgentMessage>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC")
+        .map_err(|e| format!("Failed to prepare: {}", e))?;
+
+    let mut messages: Vec<AgentMessage> = stmt
+        .query_map(rusqlite::params![session_id], |row| {
+            Ok(AgentMessage {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                role: row.get(2)?,
+                content: row.get(3)?,
+                created_at: row.get(4)?,
+                tool_calls: Vec::new(),
+            })
+        })
+        .map_err(|e| format!("Failed to query: {}", e))?
+        .collect::<Result<_, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let results: std::collections::HashMap<String, String> = messages
+        .iter()
+        .filter(|message| message.role == "tool")
+        .filter_map(|message| {
+            let value: serde_json::Value = serde_json::from_str(&message.content).ok()?;
+            Some((
+                value["tool_call_id"].as_str()?.to_owned(),
+                value["content"].as_str()?.to_owned(),
+            ))
+        })
+        .collect();
+    let mut stmt = conn.prepare("SELECT t.message_id, t.id, t.tool_name, t.arguments, t.status, (SELECT full_result FROM tool_result_store r WHERE r.tool_call_id=t.id ORDER BY r.rowid DESC LIMIT 1) FROM agent_tool_calls t WHERE t.session_id=?1 ORDER BY t.rowid ASC").map_err(|e| e.to_string())?;
+    let calls = stmt
+        .query_map([session_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                AgentToolCallRow {
+                    id: row.get(1)?,
+                    tool_name: row.get(2)?,
+                    arguments: row.get(3)?,
+                    status: row.get(4)?,
+                    result: row.get(5)?,
+                    denial: None,
+                },
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    for call in calls {
+        let (message_id, mut call) = call.map_err(|e| e.to_string())?;
+        call.result = results.get(&call.id).cloned().or(call.result);
+        if call.status == "failed" && call.result.as_deref() == Some("Tool call was cancelled.") {
+            call.status = "interrupted".into();
+        }
+        if call.status == "denied" {
+            let denial = crate::ai_permissions::AccessDenial::from_message(
+                call.result.as_deref().unwrap_or("Access denied"),
+            );
+            call.result = Some(denial.message.clone());
+            call.denial = Some(serde_json::to_value(denial).map_err(|e| e.to_string())?);
+        }
+        if let Some(message) = messages.iter_mut().find(|message| message.id == message_id) {
+            message.tool_calls.push(call);
+        }
+    }
+
+    Ok(messages)
 }
 
 #[tauri::command]
@@ -265,29 +319,7 @@ pub async fn export_agent_session(
             )
             .map_err(|e| format!("Session not found: {}", e))?;
 
-        let mut stmt = conn
-            .prepare(
-                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC",
-            )
-            .map_err(|e| e.to_string())?;
-        let rows = stmt
-            .query_map(rusqlite::params![session_id], |row| {
-                Ok(AgentMessage {
-                    id: row.get(0)?,
-                    session_id: row.get(1)?,
-                    role: row.get(2)?,
-                    content: normalize_message_content(
-                        &row.get::<_, String>(2)?,
-                        &row.get::<_, String>(3)?,
-                    ),
-                    created_at: row.get(4)?,
-                })
-            })
-            .map_err(|e| e.to_string())?;
-        let mut messages = Vec::new();
-        for r in rows {
-            messages.push(r.map_err(|e| e.to_string())?);
-        }
+        let messages = load_session_history(&conn, &session_id)?;
         Ok(json!({"session": session, "messages": messages}))
     })
     .await
@@ -714,4 +746,56 @@ pub async fn migrate_session_metadata(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+    use serde_json::json;
+    use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn history_restores_outcomes_results_and_denial_context_without_promoting_pending_calls() {
+        let db = AgentDb(Arc::new(Mutex::new(
+            rusqlite::Connection::open_in_memory().unwrap(),
+        )));
+        data_studio_agent::storage::db::migrate(&db).unwrap();
+        let conn = db.0.lock().unwrap();
+        conn.execute("INSERT INTO agent_sessions (id,title,created_at,updated_at) VALUES ('chat','Chat',0,0)", []).unwrap();
+        conn.execute("INSERT INTO agent_messages (id,session_id,role,content,created_at) VALUES ('assistant','chat','assistant',?1,0)", [json!({"content":"","tool_calls":[]}).to_string()]).unwrap();
+        let denied = crate::ai_permissions::AccessDenial::permission(
+            crate::ai_permissions::Permission::Manage,
+            "db",
+            "connection",
+        );
+        let outcomes = [
+            ("completed", "completed", "Created example".to_owned()),
+            ("failed", "failed", "Database execution failed".to_owned()),
+            ("blocked", "denied", denied.encode()),
+            (
+                "rejected",
+                "denied",
+                "Tool call 'ddl' was denied by the user. Try an alternative approach.".to_owned(),
+            ),
+        ];
+        for (id, status, result) in outcomes {
+            conn.execute("INSERT INTO agent_tool_calls (id,message_id,session_id,tool_name,arguments,status,created_at) VALUES (?1,'assistant','chat','ddl','{}',?2,0)", rusqlite::params![id,status]).unwrap();
+            conn.execute("INSERT INTO agent_messages (id,session_id,role,content,created_at) VALUES (?1,'chat','tool',?2,0)", rusqlite::params![format!("result-{id}"), json!({"tool_call_id":id,"content":result}).to_string()]).unwrap();
+        }
+        conn.execute("INSERT INTO agent_tool_calls (id,message_id,session_id,tool_name,arguments,status,created_at) VALUES ('unfinished','assistant','chat','ddl','{}','approved',0)", []).unwrap();
+        let messages = load_session_history(&conn, "chat").unwrap();
+        let calls = &messages[0].tool_calls;
+        assert_eq!(calls.len(), 5);
+        assert_eq!(calls[0].status, "completed");
+        assert_eq!(calls[0].result.as_deref(), Some("Created example"));
+        assert_eq!(calls[1].status, "failed");
+        assert_eq!(calls[2].status, "denied");
+        assert_eq!(calls[2].denial.as_ref().unwrap()["source"], "connection");
+        assert_eq!(calls[2].denial.as_ref().unwrap()["action"], "manage");
+        assert_eq!(calls[2].result.as_deref(), Some(denied.message.as_str()));
+        assert_eq!(calls[3].denial.as_ref().unwrap()["kind"], "user");
+        assert_eq!(calls[4].status, "approved");
+        assert!(calls[4].result.is_none());
+        assert_eq!(messages[1].id, "result-completed");
+    }
 }

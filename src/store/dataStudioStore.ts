@@ -1,3 +1,4 @@
+import type { AccessDenial } from '@/common';
 /* eslint-disable no-console */
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
@@ -74,7 +75,8 @@ export type AgentToolCallStatus =
   | 'denied'
   | 'executing'
   | 'done'
-  | 'error';
+  | 'error'
+  | 'interrupted';
 
 export type AgentToolCall = {
   id: string;
@@ -87,6 +89,7 @@ export type AgentToolCall = {
   durationMs?: number;
   riskLevel: RiskLevel;
   requiresConfirmation: boolean;
+  denial?: AccessDenial;
 };
 
 export type AgentMessageRole = 'user' | 'assistant' | 'tool' | 'system';
@@ -123,7 +126,13 @@ export type AgentMessage = {
   preparingInProgress?: boolean;
 };
 
-export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
+export type AgentSessionStatus =
+  | 'idle'
+  | 'running'
+  | 'waiting_confirmation'
+  | 'blocked'
+  | 'error'
+  | 'stopped';
 
 export type AgentSessionStopReason =
   | 'iteration_cap'
@@ -251,8 +260,8 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
 
   if (m.role === 'tool') {
     try {
-      const parsed = JSON.parse(m.content) as { content?: string };
-      return { ...base, content: parsed.content ?? m.content };
+      const parsed = JSON.parse(m.content) as { content?: string; tool_call_id?: string };
+      return { ...base, content: parsed.content ?? m.content, toolCallId: parsed.tool_call_id };
     } catch {
       return { ...base, content: m.content };
     }
@@ -273,20 +282,47 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
       parsed !== null &&
       ('content' in parsed || 'thinking' in parsed || 'tool_calls' in parsed)
     ) {
-      const toolCalls: AgentToolCall[] = (parsed.tool_calls ?? []).map(tc => ({
-        id: tc.id,
-        toolName: tc.function?.name ?? '',
-        args: (() => {
-          try {
-            return JSON.parse(tc.function?.arguments ?? '{}');
-          } catch {
-            return {};
-          }
-        })(),
-        status: 'done' as AgentToolCallStatus,
-        riskLevel: 'safe' as RiskLevel,
-        requiresConfirmation: false,
-      }));
+      const toolCalls: AgentToolCall[] =
+        m.tool_calls?.map(tc => ({
+          id: tc.id,
+          toolName: tc.tool_name,
+          args: (() => {
+            try {
+              return JSON.parse(tc.arguments);
+            } catch {
+              return {};
+            }
+          })(),
+          status:
+            tc.status === 'completed'
+              ? 'done'
+              : tc.status === 'failed' && tc.result
+                ? 'error'
+                : tc.status === 'denied'
+                  ? 'denied'
+                  : 'interrupted',
+          result: tc.result ?? undefined,
+          denial: tc.denial ?? undefined,
+          riskLevel:
+            tc.denial?.action === 'manage' || tc.denial?.action === 'delete'
+              ? 'destructive'
+              : 'elevated',
+          requiresConfirmation: false,
+        })) ??
+        (parsed.tool_calls ?? []).map(tc => ({
+          id: tc.id,
+          toolName: tc.function?.name ?? '',
+          args: (() => {
+            try {
+              return JSON.parse(tc.function?.arguments ?? '{}');
+            } catch {
+              return {};
+            }
+          })(),
+          status: 'interrupted' as AgentToolCallStatus,
+          riskLevel: 'safe' as RiskLevel,
+          requiresConfirmation: false,
+        }));
       return {
         ...base,
         content: parsed.content ?? '',
@@ -761,6 +797,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
                 return {
                   ...tc,
                   status,
+                  requiresConfirmation: status === 'pending',
                   ...(storedResult !== undefined ? { result: storedResult } : {}),
                   ...(resultTruncated ? { resultTruncated: true, resultFullLength } : {}),
                   ...(durationMs !== undefined ? { durationMs } : {}),
@@ -970,7 +1007,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
           if (!inMemory) return hydrated;
           return {
             ...hydrated,
-            toolCalls: inMemory.toolCalls ?? hydrated.toolCalls,
+            toolCalls: hydrated.toolCalls ?? inMemory.toolCalls,
             status: inMemory.status ?? hydrated.status,
           };
         }),

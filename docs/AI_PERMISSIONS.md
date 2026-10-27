@@ -33,3 +33,11 @@ Settings separate MCP service controls from the AI defaults shared by Data Studi
 Connection dialogs default to system inheritance. Each custom action offers Use default (with the current decision), Allow, or Deny, alongside its effective decision and source. Within the connection section, saved custom combinations show their action controls automatically. Choosing a preset sets explicit decisions for every action; choosing Use system default clears them.
 
 Editing AI permission defaults and per-connection decisions requires the existing local Ultimate entitlement, including eligible version-locked releases. Community users see the existing upgrade prompt in connection dialogs. Ordinary connection edits preserve saved decisions. Permission cleanup after deletion remains available only when the connection no longer exists; it cannot reset the permissions of a saved connection.
+
+## Data Studio outcomes and recovery
+
+The application traces each tool call through live policy preparation, confirmation, execution revalidation, structured tool-result events, persisted tool-call/result rows, history hydration, and the shared chat view. The same interaction applies to Data Studio and the sidebar assistant; database-specific action classification stays in the application permission chain.
+
+Permission denials carry the connection, required action, and decision source. They persist a blocked outcome and pause further agent work at the existing cancellation boundary. Already dispatched work is not undone. User rejection is identified separately, and missing or interrupted outcomes are never shown as successful.
+
+Review permissions edits the blocked connection, conversation restriction, or saved deny rule. Connection changes preserve system defaults and use the existing Ultimate gate. Saving never executes the action. Retry request starts a fresh turn with the original arguments, refreshed effective permissions (including management), and the normal live authorization and confirmation checks. Earlier denials are historical evidence rather than proof that a new attempt failed.

@@ -1,4 +1,8 @@
-import { assembleSystemPrompt } from '../../src/common/agentPrompt';
+import {
+  assembleSystemPrompt,
+  buildAgentModeInstructions,
+  buildAgentPermissionInstructions,
+} from '../../src/common/agentPrompt';
 
 describe('assembleSystemPrompt', () => {
   const base = 'You are a Data Studio agent embedded in DocKit.';
@@ -72,5 +76,30 @@ describe('assembleSystemPrompt', () => {
     expect(result.indexOf(base)).toBeLessThan(result.indexOf('GGG'));
     expect(result.indexOf('GGG')).toBeLessThan(result.indexOf('CCC'));
     expect(result.indexOf('CCC')).toBeLessThan(result.indexOf('SSS'));
+  });
+});
+
+describe('agent permission guidance', () => {
+  it.each([false, true])('keeps permission and confirmation separate in Auto=%s', auto => {
+    const text = buildAgentModeInstructions(auto).join('\n');
+    expect(text).toContain('read-only queries and metadata reads execute automatically');
+    expect(text).toContain('structure/administration changes require approval');
+    expect(text).toContain('Approval does not grant a denied permission');
+  });
+  it('uses refreshed management grants and requires a fresh result for retries', () => {
+    const text = buildAgentPermissionInstructions([
+      {
+        connectionId: 'example',
+        permissions: { read: true, create: true, update: true, delete: false, manage: true },
+      },
+    ]).join('\n');
+    expect(text).toContain('allowed actions: read, create, update, manage');
+    expect(text).toContain('denied actions: delete');
+    expect(text).toContain('Never claim a new attempt failed without a new tool result');
+  });
+  it('does not label unavailable permission context as read-only', () => {
+    const text = buildAgentPermissionInstructions([{ connectionId: 'missing' }]).join('\n');
+    expect(text).toContain('permissions unavailable');
+    expect(text).not.toContain('allowed actions: read');
   });
 });

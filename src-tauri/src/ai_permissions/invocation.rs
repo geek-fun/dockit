@@ -114,7 +114,11 @@ pub(crate) fn prepare_agent_call(
     args: &Value,
     config: &Value,
 ) -> Result<ToolCallPreparation, String> {
-    let authorization = authorize(name, args, config, Some(access))?;
+    let authorization = authorize(name, args, config, Some(access)).map_err(|error| {
+        super::AccessDenial::from_error(&error)
+            .with_context(config)
+            .encode()
+    })?;
     let mut config = if config.is_object() {
         config.clone()
     } else {
@@ -146,7 +150,16 @@ pub(crate) async fn invoke_ai(
     config: &Value,
     access: Option<&AgentAccess>,
 ) -> Result<String, ToolExecutionError> {
-    let initial = authorize(name, args, config, access).map_err(ToolExecutionError::Denied)?;
+    let denial = |error: String| {
+        ToolExecutionError::Denied(if access.is_some() {
+            super::AccessDenial::from_error(&error)
+                .with_context(config)
+                .encode()
+        } else {
+            super::display_denial(&error)
+        })
+    };
+    let initial = authorize(name, args, config, access).map_err(&denial)?;
     if access.is_some() {
         check_confirmation(config, initial.confirmation)?;
     }
@@ -155,8 +168,7 @@ pub(crate) async fn invoke_ai(
         None => None,
     };
     // Resolution can await connection/SSH setup. Revalidate at dispatch after it completes.
-    let authorization =
-        authorize(name, args, config, access).map_err(ToolExecutionError::Denied)?;
+    let authorization = authorize(name, args, config, access).map_err(&denial)?;
     if access.is_some() {
         check_confirmation(config, authorization.confirmation)?;
     }
@@ -245,7 +257,45 @@ pub async fn get_ai_context(
         let _ = alias;
         readable.push(id.to_owned());
     }
-    Ok(json!({"readableConnectionIds": readable, "schema": schemas.join("\n")}))
+    let policy = load_permission_policy(&app)?;
+    let session = access.current("")?;
+    let effective_permissions =
+        connection_permission_context(&policy, &access.connections, &session.restrictions);
+    Ok(
+        json!({"readableConnectionIds": readable, "schema": schemas.join("\n"), "effectivePermissions": effective_permissions}),
+    )
+}
+
+fn connection_permission_context(
+    policy: &AiPolicy,
+    connections: &std::collections::HashMap<String, Value>,
+    restrictions: &std::collections::HashMap<String, super::PermissionRules>,
+) -> std::collections::HashMap<String, super::PermissionRules> {
+    connections
+        .iter()
+        .filter_map(|(alias, config)| {
+            let id = config["connectionId"].as_str()?;
+            let restriction = restrictions.get(id)?;
+            let effective = policy.effective_permissions(id);
+            let allowed = |action| {
+                effective.get(action) == Some(true)
+                    && restriction.get(action) != Some(false)
+                    && (action != super::chain::Permission::Manage
+                        || restriction.manage == Some(true))
+            };
+            use super::chain::Permission::{Create, Delete, Manage, Read, Update};
+            Some((
+                alias.clone(),
+                super::PermissionRules::explicit(
+                    allowed(Read),
+                    allowed(Create),
+                    allowed(Update),
+                    allowed(Delete),
+                    allowed(Manage),
+                ),
+            ))
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -430,5 +480,30 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+    #[test]
+    fn refreshed_context_follows_connection_grants_and_current_conversation_limits() {
+        let connections = HashMap::from([("example".into(), json!({"connectionId":"42"}))]);
+        let mut policy = policy();
+        policy.permission_defaults =
+            Some(PermissionRules::explicit(true, true, true, false, false));
+        let mut restrictions = session().restrictions;
+        let initial = connection_permission_context(&policy, &connections, &restrictions);
+        assert_eq!(initial["example"].manage, Some(false));
+        let saved = serde_json::to_string(&PermissionRules::explicit(true, true, true, true, true))
+            .unwrap();
+        policy
+            .connection_permissions
+            .insert("42".into(), serde_json::from_str(&saved).unwrap());
+        let refreshed = connection_permission_context(&policy, &connections, &restrictions);
+        assert_eq!(refreshed["example"].manage, Some(true));
+        assert_eq!(refreshed["example"].delete, Some(true));
+        restrictions.get_mut("42").unwrap().manage = Some(false);
+        assert_eq!(
+            connection_permission_context(&policy, &connections, &restrictions)["example"].manage,
+            Some(false)
+        );
+        restrictions.clear();
+        assert!(connection_permission_context(&policy, &connections, &restrictions).is_empty());
     }
 }

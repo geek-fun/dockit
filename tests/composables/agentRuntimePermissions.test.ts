@@ -15,6 +15,9 @@ const mockStore = {
   removePreparingPlaceholder: jest.fn(),
   setSessionActiveTool: jest.fn(),
   setSessionStatus: jest.fn(),
+  setMessageStatus: jest.fn(),
+  clearSessionProgress: jest.fn(),
+  removeOrphanedStreamingMessages: jest.fn(),
   updateToolCallStatus: jest.fn(),
   findConfirmationRule: jest.fn(),
   setMessageToolCalls: jest.fn((_sessionId: string, messageId: string, calls: AgentToolCall[]) => {
@@ -37,6 +40,7 @@ jest.mock('@/datasources/agentApi', () => {
     onAgentLoopError: register('onAgentLoopError'),
     onAgentLoopIteration: register('onAgentLoopIteration'),
     onAgentLoopStepDone: register('onAgentLoopStepDone'),
+    onAgentLoopBlocked: register('onAgentLoopBlocked'),
     onAgentLoopStopped: register('onAgentLoopStopped'),
     onAgentLoopSummaryInjected: register('onAgentLoopSummaryInjected'),
     onAgentLoopThinkingDelta: register('onAgentLoopThinkingDelta'),
@@ -125,6 +129,41 @@ describe('agent permission events', () => {
       'Permission revoked',
       undefined,
     );
+  });
+
+  it('retains structured denial context and clears queued approvals', () => {
+    mockHandlers.onAgentLoopToolCall(call(true));
+    const denial = {
+      kind: 'permission',
+      source: 'connection',
+      connectionId: '42',
+      action: 'manage',
+      message: 'Manage access denied',
+    };
+    mockHandlers.onAgentLoopToolResult({
+      ...call(),
+      denied: true,
+      denial,
+      error: true,
+      envelope: { summary: denial.message },
+    });
+    expect(mockSession.messages[0].toolCalls[0]).toMatchObject({
+      denial,
+      requiresConfirmation: false,
+    });
+    mockHandlers.onAgentLoopBlocked({ session_id: 'chat' });
+    expect(mockStore.setSessionStatus).toHaveBeenCalledWith('chat', 'blocked');
+    expect(mockStore.setMessageStatus).toHaveBeenCalledWith('chat', 'assistant', 'done');
+    expect(mockStore.clearSessionProgress).toHaveBeenCalledWith('chat');
+  });
+
+  it('marks unresolved calls unavailable when another action blocks the run', () => {
+    mockHandlers.onAgentLoopToolCall(call(true));
+    mockHandlers.onAgentLoopBlocked({ session_id: 'chat' });
+    expect(mockSession.messages[0].toolCalls[0]).toMatchObject({
+      status: 'interrupted',
+      requiresConfirmation: false,
+    });
   });
 
   it('retains existing confirmation behavior for runtimes without host metadata', () => {

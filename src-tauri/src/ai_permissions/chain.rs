@@ -1,3 +1,4 @@
+use super::AccessDenial;
 use super::{policy::PolicyAction, AiPolicy};
 use data_studio_agent::capabilities::types::{Capability, RiskLevel, SourceKind};
 use serde::{Deserialize, Serialize};
@@ -162,26 +163,29 @@ impl AiPolicy {
         }
         let id = id.ok_or("A saved connection must be specified for database operations")?;
         let effective = self.effective_permissions(id);
-        if !effective.any_allowed() {
-            return Err(format!("AI access denied for connection '{id}'"));
-        }
         let actions = required_permissions(cap, args)?;
         let requires_confirmation = matches!(cap.risk_level, RiskLevel::Destructive)
             || actions.contains(&Permission::Delete)
             || actions.contains(&Permission::Manage);
         for action in actions {
             if effective.get(action) != Some(true) {
-                return Err(format!(
-                    "{action:?} access denied for connection '{id}' by AI permissions"
-                ));
+                let source = if self
+                    .connection_permissions
+                    .get(id)
+                    .and_then(|rules| rules.get(action))
+                    == Some(false)
+                {
+                    "connection"
+                } else {
+                    "system"
+                };
+                return Err(AccessDenial::permission(action, id, source).encode());
             }
             if let Some(rules) = restriction {
                 if rules.get(action) == Some(false)
                     || (action == Permission::Manage && rules.manage != Some(true))
                 {
-                    return Err(format!(
-                        "{action:?} access denied by conversation permissions"
-                    ));
+                    return Err(AccessDenial::permission(action, id, "conversation").encode());
                 }
             }
         }

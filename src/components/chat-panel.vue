@@ -23,7 +23,14 @@
           :scroll-ref="viewportEl"
           :item-size="160"
         >
-          <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
+          <AgentMessageBubble
+            :message="msg"
+            :iteration-index="iterationIndexMap[msg.id]"
+            :can-retry="!recoveryBusy"
+            :historical="messages.findIndex(message => message.id === msg.id) < currentTurnStart"
+            @review-permissions="reviewingTool = $event"
+            @retry-tool-call="retryToolCall"
+          />
           <template
             v-if="
               msg.role === 'assistant' &&
@@ -50,6 +57,14 @@
     </div>
 
     <div class="chat-input-area">
+      <p
+        v-if="awaitingDecision"
+        role="status"
+        class="text-xs text-foreground mb-2 flex gap-2 items-center"
+      >
+        <span aria-hidden="true" class="i-carbon-pause-filled shrink-0 h-3.5 w-3.5" />
+        {{ t('dataStudio.agent.message.awaitingPermissionDecision') }}
+      </p>
       <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status">
         <div class="loop-stopped-banner__body">
           <span class="loop-stopped-banner__icon i-carbon-pause-filled" />
@@ -131,6 +146,21 @@
 
       <slot name="input-append" />
     </div>
+    <ToolPermissionReview
+      v-if="reviewingTool && sessionId"
+      :key="reviewingTool.id"
+      :open="true"
+      :denial="
+        reviewingTool.denial ?? {
+          kind: 'permission',
+          source: 'unknown',
+          message: reviewingTool.result ?? '',
+        }
+      "
+      :tool-name="reviewingTool.toolName"
+      :session-id="sessionId"
+      @update:open="!$event && (reviewingTool = null)"
+    />
   </div>
 </template>
 
@@ -143,6 +173,7 @@ import { Virtualizer } from 'virtua/vue';
 import { useAppStore } from '@/store';
 import type { ChatMessage } from '@/types/chat';
 import type { AgentToolCall } from '@/store/dataStudioStore';
+import { ToolPermissionReview } from '@/components/ai-permissions';
 import AgentMessageBubble from './agent-message-bubble.vue';
 import ToolConfirmationCard from '@/views/data-studio/components/tool-confirmation-card.vue';
 import ModelPicker from './model-picker.vue';
@@ -220,6 +251,36 @@ const virtualizerRef = ref<{
 } | null>(null);
 const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
+const reviewingTool = ref<AgentToolCall | null>(null);
+const recoveryBusy = computed(
+  () => props.isLoading || (props.progress?.phase === 'preparing' && !props.error),
+);
+const retryToolCall = (tool: AgentToolCall) => {
+  if (recoveryBusy.value) return;
+  forceScrollToBottom();
+  emit(
+    'send',
+    t('dataStudio.agent.message.retryPrompt', {
+      tool: tool.toolName,
+      args: JSON.stringify(tool.args, null, 2),
+    }),
+  );
+};
+const currentTurnStart = computed(() =>
+  props.messages.reduce(
+    (index, message, current) => (message.role === 'user' ? current : index),
+    -1,
+  ),
+);
+const awaitingDecision = computed(() => {
+  if (props.isLoading) return false;
+  return props.messages
+    .slice(currentTurnStart.value + 1)
+    .some(message =>
+      message.toolCalls?.some(call => call.status === 'denied' && call.denial?.kind !== 'user'),
+    );
+});
+
 const modelVerified = ref<boolean | null>(null);
 
 // ── Scroll behavior ───────────────────────────────────────────────

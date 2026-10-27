@@ -200,6 +200,7 @@
               </span>
               <span
                 v-if="
+                  tc.status !== 'denied' &&
                   toolResultText(tc) &&
                   (tc.status === 'done' || tc.status === 'error' || tc.status === 'denied')
                 "
@@ -223,6 +224,72 @@
               >
             </div>
           </details>
+          <div
+            v-if="tc.status === 'denied' || tc.status === 'error' || tc.status === 'interrupted'"
+            class="tool-outcome-notice"
+            :class="{
+              'tool-outcome-notice--rejected':
+                tc.denial?.kind === 'user' || tc.status === 'interrupted',
+            }"
+            role="alert"
+          >
+            <span aria-hidden="true" class="i-carbon-warning shrink-0 h-4 w-4" />
+            <div class="min-w-0 space-y-2">
+              <p class="leading-relaxed font-medium">
+                {{ outcomeTitle(tc) }}
+              </p>
+              <p v-if="connectionLabel(tc)" class="text-xs text-foreground break-words">
+                {{ t('dataStudio.agent.message.connectionLabel', { name: connectionLabel(tc) }) }}
+                <span v-if="tc.denial?.action">
+                  ·
+                  {{
+                    t('dataStudio.agent.message.requiredAction', {
+                      action: t(`aiPermissions.${tc.denial.action}`),
+                    })
+                  }}
+                </span>
+              </p>
+              <p
+                v-if="
+                  tc.status === 'denied' &&
+                  tc.denial?.kind !== 'user' &&
+                  tc.denial?.kind !== 'unavailable'
+                "
+                class="text-xs text-foreground leading-relaxed"
+              >
+                {{ t(`dataStudio.agent.message.denialSource.${tc.denial?.source ?? 'unknown'}`) }}
+              </p>
+              <p
+                v-if="tc.denial?.kind === 'unavailable'"
+                class="text-xs text-foreground leading-relaxed"
+              >
+                {{ tc.denial.message }}
+              </p>
+              <div v-if="tc.status === 'denied'" class="flex flex-wrap gap-2">
+                <Button
+                  v-if="tc.denial?.kind !== 'user' && tc.denial?.kind !== 'unavailable'"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  class="text-foreground"
+                  :disabled="!canRetry"
+                  @click="emit('reviewPermissions', tc)"
+                >
+                  {{ t('dataStudio.agent.message.reviewPermissions') }}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="text-foreground"
+                  :disabled="!canRetry"
+                  @click="emit('retryToolCall', tc)"
+                >
+                  {{ t('dataStudio.agent.message.retryRequest') }}
+                </Button>
+              </div>
+            </div>
+          </div>
         </template>
       </div>
 
@@ -240,12 +307,45 @@
 <script setup lang="ts">
 import { computed, ref, type Directive } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Button } from '@/components/ui/button';
+import { useConnectionStore } from '@/store';
 import MarkdownRender from '@/components/markdown-render.vue';
 import { useDataStudioStore } from '@/store/dataStudioStore';
 import type { AgentToolCall } from '@/store/dataStudioStore';
 
 const { t } = useI18n();
 const dataStudioStore = useDataStudioStore();
+
+const emit = defineEmits<{
+  reviewPermissions: [toolCall: AgentToolCall];
+  retryToolCall: [toolCall: AgentToolCall];
+}>();
+const connectionStore = useConnectionStore();
+const connectionLabel = (call: AgentToolCall) => {
+  const id = call.denial?.connectionId;
+  if (id)
+    return connectionStore.connections.find(connection => String(connection.id) === id)?.name ?? id;
+  try {
+    return call.args.connection_id ?? '';
+  } catch {
+    return '';
+  }
+};
+const outcomeTitle = (call: AgentToolCall) => {
+  const key =
+    call.status === 'denied'
+      ? call.denial?.kind === 'user'
+        ? 'rejectedNotice'
+        : call.denial?.kind === 'unavailable'
+          ? 'unavailableNotice'
+          : props.historical
+            ? 'historicalBlockedNotice'
+            : 'blockedNotice'
+      : call.status === 'interrupted'
+        ? 'interruptedNotice'
+        : 'toolError';
+  return t(`dataStudio.agent.message.${key}`);
+};
 
 const summaryOpen = ref(false);
 
@@ -279,6 +379,8 @@ const vAutoStick: Directive<HTMLElement> = {
 const props = defineProps<{
   message: any;
   iterationIndex?: number;
+  canRetry?: boolean;
+  historical?: boolean;
 }>();
 
 const normalizedRole = computed(() => {
@@ -317,7 +419,7 @@ const activeToolName = computed(() => {
 
 const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
   if (tc.status === 'denied') return 'denied';
-  if (tc.status === 'error') return 'error';
+  if (tc.status === 'error' || tc.status === 'interrupted') return 'error';
   return 'success';
 };
 
@@ -402,6 +504,17 @@ const toolIcon = (toolName: string): string => {
 };
 
 const toolVerb = (toolName: string, tc: AgentToolCall): string => {
+  if (tc.status === 'denied')
+    return t(
+      `dataStudio.agent.message.${tc.denial?.kind === 'user' ? 'toolRejected' : 'toolBlocked'}`,
+    );
+  if (tc.status === 'error') return t('dataStudio.agent.message.toolError');
+  if (tc.status === 'interrupted') return t('dataStudio.agent.message.interruptedNotice');
+  if (tc.status !== 'done')
+    return t(
+      `dataStudio.agent.message.${tc.status === 'pending' ? 'awaitingConfirm' : 'executingTool'}`,
+      { tool: toolName },
+    );
   const name = toolName.toLowerCase();
   const args = tc.args ?? {};
   const displayArg =
@@ -678,7 +791,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 }
 
 .activity-status-icon.denied {
-  color: hsl(var(--muted-foreground) / 0.5);
+  color: hsl(var(--destructive));
 }
 
 /* ── Inline result preview ── */
@@ -693,7 +806,8 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   min-width: 0;
 }
 
-.result-preview-error {
+.result-preview-error,
+.result-preview-denied {
   color: hsl(var(--destructive) / 0.7);
 }
 
@@ -722,7 +836,8 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   border-radius: 4px;
 }
 
-.result-body-error {
+.result-body-error,
+.result-body-denied {
   color: hsl(var(--destructive) / 0.8);
 }
 
@@ -1119,5 +1234,32 @@ details[open] .activity-chevron {
 .compaction-marker--in-progress .compaction-row {
   background: hsl(var(--muted) / 0.55);
   border-color: hsl(var(--primary) / 0.3);
+}
+.activity-status-icon.denied,
+.result-preview-denied,
+.result-preview-error,
+.tool-result-pre.result-body-denied,
+.tool-result-pre.result-body-error {
+  color: color-mix(in srgb, hsl(var(--destructive)) 65%, hsl(var(--foreground)));
+}
+
+.tool-outcome-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0 12px 20px;
+  padding: 10px 12px;
+  border: 1px solid hsl(var(--destructive) / 0.35);
+  border-radius: 6px;
+  background: hsl(var(--destructive) / 0.06);
+  color: color-mix(in srgb, hsl(var(--destructive)) 65%, hsl(var(--foreground)));
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.tool-outcome-notice--rejected {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 </style>

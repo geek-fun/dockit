@@ -142,6 +142,7 @@ declare module 'vue' {
     TabsTrigger: typeof import('./src/components/ui/tabs/TabsTrigger.vue')['default']
     Toast: typeof import('./src/components/ui/toast/Toast.vue')['default']
     ToolBar: typeof import('./src/components/tool-bar.vue')['default']
+    ToolPermissionReview: typeof import('./src/components/ai-permissions/ToolPermissionReview.vue')['default']
     Tooltip: typeof import('./src/components/ui/tooltip/Tooltip.vue')['default']
     TooltipContent: typeof import('./src/components/ui/tooltip/TooltipContent.vue')['default']
     TooltipProvider: typeof import('./src/components/ui/tooltip/TooltipProvider.vue')['default']

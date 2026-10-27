@@ -8,16 +8,37 @@ const mockStore = {
   clearSessionError: jest.fn(),
   setSessionError: jest.fn(),
   getSessionError: jest.fn(),
+  insertPreparingPlaceholder: jest.fn(),
+  setSessionProgress: jest.fn(),
 };
 
-jest.mock('@/store', () => ({ useAppStore: () => ({}) }));
+const mockRun = jest.fn().mockResolvedValue(undefined);
+const mockContext = jest.fn();
+const mockTools = jest.fn().mockResolvedValue({ tools: [], metadata: {} });
+jest.mock('@/store', () => ({
+  useAppStore: () => ({
+    chatConfig: {},
+    getFeatureModelConfig: async () => ({
+      provider: { apiCompatibility: 'openai' },
+      model: { label: 'synthetic-model' },
+    }),
+  }),
+}));
 jest.mock('@/store/dataStudioStore', () => ({ useDataStudioStore: () => mockStore }));
-jest.mock('@/store/connectionStore', () => ({ useConnectionStore: () => ({}) }));
+jest.mock('@/store/connectionStore', () => ({ useConnectionStore: () => ({ connections: [] }) }));
 jest.mock('@/datasources/agentApi', () => ({
-  agentApi: {},
+  agentApi: {
+    getAiContext: (...args: unknown[]) => mockContext(...args),
+    getAvailableTools: (...args: unknown[]) => mockTools(...args),
+  },
+  runAgentLoop: (...args: unknown[]) => mockRun(...args),
+  cancelAgentLoop: jest.fn().mockResolvedValue(undefined),
   confirmToolCall: (...args: unknown[]) => mockConfirm(...args),
 }));
-jest.mock('@/composables/agentRuntime', () => ({}));
+jest.mock('@/composables/agentRuntime', () => ({
+  getSessionRuntime: () => ({}),
+  clearSessionRuntime: jest.fn(),
+}));
 jest.mock('@/composables/useDialogService', () => ({}));
 jest.mock('@/composables/useMessageService', () => ({}));
 jest.mock('@/composables/useLoadingBarService', () => ({}));
@@ -133,4 +154,57 @@ describe('persistent tool confirmation', () => {
     expect(mockSaveRule).not.toHaveBeenCalled();
     expect(mockConfirm).toHaveBeenCalledWith('call', true);
   });
+});
+
+it('refreshes resolved permissions on every retry instead of trusting the attachment snapshot', async () => {
+  const { agent, config } = setup();
+  (config.sessionStore.getOrCreateSession as jest.Mock).mockResolvedValue('chat');
+  const context = {
+    databaseTypes: { example: 'ELASTICSEARCH' },
+    connections: {
+      example: {
+        connectionId: '42',
+        dbType: 'ELASTICSEARCH',
+        permissions: { read: true, create: false, update: false, delete: false, manage: false },
+      },
+    },
+  };
+  mockContext.mockResolvedValueOnce({
+    readableConnectionIds: ['42'],
+    schema: '',
+    effectivePermissions: {
+      example: { read: true, create: true, update: true, delete: true, manage: true },
+    },
+  });
+  await agent.sendMessage({ content: 'Retry the blocked index creation', context });
+  expect(agent.error.value).toBeUndefined();
+  const granted = mockRun.mock.calls[mockRun.mock.calls.length - 1][2];
+  expect(granted.connections.example.permissions.manage).toBe(true);
+  expect(granted.systemPrompt).toContain('allowed actions: read, create, update, delete, manage');
+  expect(granted.systemPrompt).toContain(
+    'Never claim a new attempt failed without a new tool result',
+  );
+  mockContext.mockResolvedValueOnce({
+    readableConnectionIds: ['42'],
+    schema: '',
+    effectivePermissions: {
+      example: { read: true, create: false, update: false, delete: false, manage: false },
+    },
+  });
+  await agent.sendMessage({ content: 'Try again', context });
+  const revoked = mockRun.mock.calls[mockRun.mock.calls.length - 1][2];
+  expect(revoked.connections.example.permissions.manage).toBe(false);
+  expect(revoked.systemPrompt).toContain('denied actions: create, update, delete, manage');
+});
+
+it('labels cancellation by the user separately from policy denial', async () => {
+  const { agent, config } = setup();
+  await agent.handleConfirmation('assistant', 'call', 'cancel');
+  expect(config.sessionStore.setMessageToolCalls).toHaveBeenCalledWith('chat', 'assistant', [
+    expect.objectContaining({
+      status: 'denied',
+      denial: expect.objectContaining({ kind: 'user' }),
+      requiresConfirmation: false,
+    }),
+  ]);
 });

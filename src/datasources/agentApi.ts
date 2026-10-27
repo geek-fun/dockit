@@ -1,3 +1,4 @@
+import type { AccessDenial, AiPermissions } from '@/common';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { jsonify } from '../common';
@@ -39,7 +40,7 @@ export type AddQueryHistoryInput = {
 export type AgentSession = {
   id: string;
   title: string;
-  status: 'idle' | 'running' | 'error';
+  status: 'idle' | 'running' | 'waiting_confirmation' | 'blocked' | 'error' | 'stopped';
   sources: string;
   permissions_mode: string;
   model_id: string | null;
@@ -53,6 +54,14 @@ export type AgentMessage = {
   role: string;
   content: string;
   created_at: number;
+  tool_calls?: Array<{
+    id: string;
+    tool_name: string;
+    arguments: string;
+    status: string;
+    result?: string | null;
+    denial?: AccessDenial | null;
+  }>;
 };
 
 export type ToolResultMetadata = {
@@ -143,8 +152,11 @@ const agentApi = {
     sessionId: string,
     connections: Record<string, unknown>,
     contextKind: string,
-  ): Promise<{ readableConnectionIds: string[]; schema: string }> =>
-    invoke('get_ai_context', { sessionId, connections, contextKind }),
+  ): Promise<{
+    readableConnectionIds: string[];
+    schema: string;
+    effectivePermissions: Record<string, AiPermissions>;
+  }> => invoke('get_ai_context', { sessionId, connections, contextKind }),
 
   runAgentStep: async (params: {
     requestId: string;
@@ -311,10 +323,14 @@ const onAgentLoopToolResult = (
     envelope: ToolEnvelope;
     error?: boolean;
     denied?: boolean;
+    denial?: AccessDenial;
     tool_name?: string;
     arguments?: unknown;
   }) => void,
 ) => listen('agent-loop-tool-result', e => handler(e.payload as any));
+
+const onAgentLoopBlocked = (handler: (payload: { session_id: string }) => void) =>
+  listen('agent-loop-blocked', e => handler(e.payload as any));
 
 const onAgentLoopStepDone = (
   handler: (payload: { session_id: string; message_id: string }) => void,
@@ -412,6 +428,7 @@ export {
   onAgentLoopToolCall,
   onAgentLoopToolResult,
   onAgentLoopStepDone,
+  onAgentLoopBlocked,
   onAgentLoopDone,
   onAgentLoopStopped,
   onAgentLoopError,

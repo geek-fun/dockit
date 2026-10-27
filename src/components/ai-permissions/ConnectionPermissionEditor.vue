@@ -17,7 +17,11 @@ import {
 import { useEntitlementStore } from '@/store';
 import { UltimateFeatureStrip } from '@/components/upgrade';
 
-const props = defineProps<{ modelValue?: AiPermissions; connectionId?: string | number }>();
+const props = defineProps<{
+  modelValue?: AiPermissions;
+  connectionId?: string | number;
+  initiallyExpanded?: boolean;
+}>();
 const emit = defineEmits<{ 'update:modelValue': [value: AiPermissions] }>();
 const { t } = useI18n();
 const entitlementStore = useEntitlementStore();
@@ -26,7 +30,7 @@ const loading = ref(true);
 const error = ref('');
 const defaults = ref<AiPermissions>({});
 const editingCustom = ref(false);
-const expanded = ref(false);
+const expanded = ref(props.initiallyExpanded ?? false);
 watch(error, value => {
   if (value) expanded.value = true;
 });

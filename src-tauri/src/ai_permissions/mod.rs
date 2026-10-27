@@ -1,4 +1,6 @@
 mod chain;
+mod denial;
+pub(crate) use denial::{display_denial, AccessDenial};
 pub(crate) mod invocation;
 mod policy;
 mod scope;
@@ -6,6 +8,8 @@ pub(crate) use invocation::{invoke_ai, prepare_agent_call};
 pub(crate) use scope::AgentAccess;
 
 pub(crate) use chain::PermissionRules;
+#[cfg(test)]
+pub(crate) use chain::Permission;
 pub(crate) use policy::AiPolicy;
 #[cfg(test)]
 pub(crate) use policy::{ConnectionMcpOverride, McpPermissionMode};
