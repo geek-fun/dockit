@@ -4,7 +4,7 @@ export const AI_ACTIONS = ['read', 'create', 'update', 'delete', 'manage'] as co
 export type AiAction = (typeof AI_ACTIONS)[number];
 export type AiPermissions = Partial<Record<AiAction, boolean>>;
 export type AccessDenial = {
-  kind: 'permission' | 'rule' | 'user' | 'unavailable';
+  kind: 'permission' | 'rule' | 'user' | 'unavailable' | 'invalid_input';
   source: 'system' | 'connection' | 'conversation' | 'rule' | 'unknown';
   message: string;
   connectionId?: string;

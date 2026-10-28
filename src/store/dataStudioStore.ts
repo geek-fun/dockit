@@ -2,6 +2,8 @@ import type { AccessDenial } from '@/common';
 /* eslint-disable no-console */
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
+import { createTaskQueue } from './persistence';
+
 import {
   clearAgentSessionMessages,
   createAgentSession,
@@ -20,6 +22,8 @@ import {
   type AgentSession as BackendAgentSession,
   type AgentMessage as BackendAgentMessage,
 } from '../datasources/agentApi';
+
+const persistSessionChange = createTaskQueue();
 
 export type DataSourcePermissions = {
   manage?: boolean;
@@ -175,6 +179,7 @@ export const toAlias = (name: string): string => {
 export const attachSourceToSession = (
   session: AgentSession,
   source: AttachedSource,
+  permissionsMode: SourcePermissionsMode = 'inherit',
 ): AgentSession => {
   const existingAliases = session.sources.map(s => s.alias);
   const base = toAlias(source.name);
@@ -201,7 +206,7 @@ export const attachSourceToSession = (
     kind: source.kind,
     databaseType,
     permissions,
-    permissionsMode: 'inherit',
+    permissionsMode,
   };
 
   return { ...session, sources: [...session.sources, snapshot] };
@@ -219,6 +224,19 @@ const dedupAdjacentCompactions = (messages: AgentMessage[]): AgentMessage[] => {
     }
     return acc;
   }, [] as AgentMessage[]);
+};
+
+const TOOL_RESULT_PREVIEW_CHARS = 200;
+
+const parseToolArguments = (input: string): Record<string, unknown> => {
+  try {
+    const parsed: unknown = JSON.parse(input);
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
 };
 
 const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
@@ -286,13 +304,7 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
         m.tool_calls?.map(tc => ({
           id: tc.id,
           toolName: tc.tool_name,
-          args: (() => {
-            try {
-              return JSON.parse(tc.arguments);
-            } catch {
-              return {};
-            }
-          })(),
+          args: parseToolArguments(tc.arguments),
           status:
             tc.status === 'completed'
               ? 'done'
@@ -301,7 +313,10 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
                 : tc.status === 'denied'
                   ? 'denied'
                   : 'interrupted',
-          result: tc.result ?? undefined,
+          result: tc.result?.slice(0, TOOL_RESULT_PREVIEW_CHARS) ?? undefined,
+          ...(tc.result && tc.result.length > TOOL_RESULT_PREVIEW_CHARS
+            ? { resultTruncated: true, resultFullLength: tc.result.length }
+            : {}),
           denial: tc.denial ?? undefined,
           riskLevel:
             tc.denial?.action === 'manage' || tc.denial?.action === 'delete'
@@ -312,13 +327,7 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
         (parsed.tool_calls ?? []).map(tc => ({
           id: tc.id,
           toolName: tc.function?.name ?? '',
-          args: (() => {
-            try {
-              return JSON.parse(tc.function?.arguments ?? '{}');
-            } catch {
-              return {};
-            }
-          })(),
+          args: parseToolArguments(tc.function?.arguments ?? '{}'),
           status: 'interrupted' as AgentToolCallStatus,
           riskLevel: 'safe' as RiskLevel,
           requiresConfirmation: false,
@@ -515,39 +524,53 @@ export const useDataStudioStore = defineStore('dataStudio', {
 
     // ── Session source management ────────────────────────────────────────────
 
-    async attachSourceToActiveSession(source: AttachedSource): Promise<boolean> {
-      const session = this.activeSession;
-      if (!session) return false;
-      const updated = attachSourceToSession(session, source);
-      this.sessions = this.sessions.map(s => (s.id === session.id ? updated : s));
-      await updateSessionMeta(session.id, JSON.stringify(updated.sources)).catch(e =>
-        console.warn('[persist] updateSessionMeta failed:', e),
+    async persistSessionSourceChange(
+      sessionId: string,
+      transform: (session: AgentSession) => AgentSession,
+    ): Promise<boolean> {
+      return persistSessionChange(async () => {
+        const session = this.sessions.find(s => s.id === sessionId);
+        if (!session) return false;
+        const updated = transform(session);
+        await updateSessionMeta(
+          sessionId,
+          JSON.stringify(updated.sources),
+          updated.permissionsMode,
+        );
+        this.sessions = this.sessions.map(s =>
+          s.id === sessionId
+            ? { ...s, sources: updated.sources, permissionsMode: updated.permissionsMode }
+            : s,
+        );
+        return true;
+      });
+    },
+
+    async attachSourceToActiveSession(
+      source: AttachedSource,
+      mode: SourcePermissionsMode = 'inherit',
+    ): Promise<boolean> {
+      const sessionId = this.activeSessionId;
+      if (!sessionId) return false;
+      return this.persistSessionSourceChange(sessionId, session =>
+        attachSourceToSession(session, source, mode),
       );
-      return true;
     },
 
     async detachSourceFromSession(sessionId: string, sourceId: string) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      if (!session) return;
-      const updatedSources = session.sources.map(s =>
-        s.sourceId === sourceId ? { ...s, detached: true, detachedAt: Date.now() } : s,
-      );
-      this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, sources: updatedSources } : s,
-      );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(e =>
-        console.warn('[persist] updateSessionMeta failed:', e),
-      );
+      return this.persistSessionSourceChange(sessionId, session => ({
+        ...session,
+        sources: session.sources.map(s =>
+          s.sourceId === sourceId ? { ...s, detached: true, detachedAt: Date.now() } : s,
+        ),
+      }));
     },
 
     async setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
-      const updatedSources = this.sessions.find(s => s.id === sessionId)?.sources ?? [];
-      this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, permissionsMode: mode, sources: updatedSources } : s,
-      );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources), mode).catch(e =>
-        console.warn('[persist] updateSessionMeta failed:', e),
-      );
+      return this.persistSessionSourceChange(sessionId, session => ({
+        ...session,
+        permissionsMode: mode,
+      }));
     },
 
     async updateSessionSourcePermissions(
@@ -555,15 +578,12 @@ export const useDataStudioStore = defineStore('dataStudio', {
       sourceId: string,
       permissions: DataSourcePermissions,
     ) {
-      const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
-        s.sourceId === sourceId ? { ...s, permissions, permissionsMode: 'custom' as const } : s,
-      );
-      this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, sources: updatedSources } : s,
-      );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(e =>
-        console.warn('[persist] updateSessionMeta failed:', e),
-      );
+      return this.persistSessionSourceChange(sessionId, session => ({
+        ...session,
+        sources: session.sources.map(s =>
+          s.sourceId === sourceId ? { ...s, permissions, permissionsMode: 'custom' as const } : s,
+        ),
+      }));
     },
 
     async updateSessionSourceMode(
@@ -571,28 +591,12 @@ export const useDataStudioStore = defineStore('dataStudio', {
       sourceId: string,
       mode: SourcePermissionsMode,
     ) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      const inheritedPermissions: DataSourcePermissions = {
-        read: true,
-        create: true,
-        update: true,
-        delete: true,
-      };
-      const updatedSources = (session?.sources ?? []).map(s =>
-        s.sourceId === sourceId
-          ? {
-              ...s,
-              permissionsMode: mode,
-              permissions: mode === 'inherit' ? inheritedPermissions : s.permissions,
-            }
-          : s,
-      );
-      this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, sources: updatedSources } : s,
-      );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(e =>
-        console.warn('[persist] updateSessionMeta failed:', e),
-      );
+      return this.persistSessionSourceChange(sessionId, session => ({
+        ...session,
+        sources: session.sources.map(s =>
+          s.sourceId === sourceId ? { ...s, permissionsMode: mode } : s,
+        ),
+      }));
     },
 
     // ── One-time migration from localStorage to SQLite ─────────────────────
@@ -774,7 +778,6 @@ export const useDataStudioStore = defineStore('dataStudio', {
       result?: string,
       durationMs?: number,
     ) {
-      const TOOL_RESULT_PREVIEW_CHARS = 200;
       let storedResult = result;
       let resultTruncated = false;
       let resultFullLength: number | undefined;
@@ -783,6 +786,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
         storedResult = result.slice(0, TOOL_RESULT_PREVIEW_CHARS);
         resultTruncated = true;
         resultFullLength = result.length;
+      } else if (result !== undefined) {
+        const { [toolCallId]: _previous, ...remaining } = this.toolResultFullBodies;
+        this.toolResultFullBodies = remaining;
       }
       this.sessions = this.sessions.map(s => {
         if (s.id !== sessionId) return s;
@@ -798,8 +804,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
                   ...tc,
                   status,
                   requiresConfirmation: status === 'pending',
-                  ...(storedResult !== undefined ? { result: storedResult } : {}),
-                  ...(resultTruncated ? { resultTruncated: true, resultFullLength } : {}),
+                  ...(storedResult !== undefined
+                    ? { result: storedResult, resultTruncated, resultFullLength }
+                    : {}),
                   ...(durationMs !== undefined ? { durationMs } : {}),
                 };
               }),
@@ -994,10 +1001,26 @@ export const useDataStudioStore = defineStore('dataStudio', {
       await updateSessionMeta(sessionId, undefined, undefined, modelId).catch(() => {});
     },
 
+    cacheSessionToolResults(messages: BackendAgentMessage[]) {
+      this.toolResultFullBodies = {
+        ...this.toolResultFullBodies,
+        ...Object.fromEntries(
+          messages.flatMap(message =>
+            (message.tool_calls ?? []).flatMap(call =>
+              call.result && call.result.length > TOOL_RESULT_PREVIEW_CHARS
+                ? [[call.id, call.result]]
+                : [],
+            ),
+          ),
+        ),
+      };
+    },
+
     async reloadSessionMessages(sessionId: string) {
       const backendMessages = await loadSessionMessages(sessionId).catch(
         () => [] as BackendAgentMessage[],
       );
+      this.cacheSessionToolResults(backendMessages);
       const existing = this.sessions.find(s => s.id === sessionId)?.messages ?? [];
       const existingById = new Map(existing.map(m => [m.id, m]));
       const messages: Array<AgentMessage> = dedupAdjacentCompactions(
@@ -1072,6 +1095,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
           const backendMessages = await loadSessionMessages(s.id).catch(
             () => [] as BackendAgentMessage[],
           );
+          this.cacheSessionToolResults(backendMessages);
           const messages: Array<AgentMessage> = dedupAdjacentCompactions(
             backendMessages.map(hydrateMessage),
           );

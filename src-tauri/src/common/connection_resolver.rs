@@ -46,7 +46,7 @@ impl ConnectionResolver {
             .find(|c| c.get("id").and_then(|v| v.as_i64()) == Some(id))
             .ok_or_else(|| {
                 format!(
-                    "Connection '{}' not found in store. Connect manually first, or add it in Settings → MCP Bridge.",
+                    "Connection '{}' not found in store. Save or reconnect the connection in DocKit before using it.",
                     connection_id
                 )
             })?;

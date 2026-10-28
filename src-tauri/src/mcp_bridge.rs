@@ -11,7 +11,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Json;
 use data_studio_agent::capabilities::registry;
-use data_studio_agent::capabilities::types::Capability;
+use data_studio_agent::capabilities::types::{Capability, RiskLevel};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager, Runtime};
@@ -222,6 +222,7 @@ async fn handle_tools<R: Runtime>(State(state): State<Arc<BridgeState<R>>>) -> R
 /// Gate a capability against the MCP permission policy.
 /// /tools advertises connection-agnostically (None), so visibility reflects
 /// the global mode + confirm_destructive gate, not per-connection overrides.
+#[cfg(test)]
 fn check_policy(
     cap: &Capability,
     policy: &AiPolicy,
@@ -281,14 +282,29 @@ async fn invoke_with_policy(policy: &AiPolicy, payload: InvokeRequest) -> Invoke
         None => return InvokeResponse::error(404, format!("Unknown capability: {}", payload.name)),
     };
 
-    if let Err(msg) = if policy.permission_defaults.is_some() {
-        policy
-            .authorize(cap, &payload.args, payload.connection_id.as_deref(), None)
-            .map(|_| ())
-    } else {
-        check_policy(cap, policy, payload.connection_id.as_deref())
-    } {
-        return InvokeResponse::error(403, crate::ai_permissions::display_denial(&msg));
+    invoke_capability_with_policy(policy, payload, cap).await
+}
+
+async fn invoke_capability_with_policy(
+    policy: &AiPolicy,
+    payload: InvokeRequest,
+    cap: &Capability,
+) -> InvokeResponse {
+    if policy.permission_defaults.is_none() {
+        return InvokeResponse::error(
+            500,
+            "AI permissions must be migrated before tool execution".into(),
+        );
+    }
+    if let Err(msg) = policy.authorize(cap, &payload.args, payload.connection_id.as_deref(), None) {
+        let status = if crate::ai_permissions::AccessDenial::decode(&msg)
+            .is_some_and(|denial| matches!(denial.kind.as_str(), "permission" | "rule"))
+        {
+            403
+        } else {
+            400
+        };
+        return InvokeResponse::error(status, crate::ai_permissions::display_denial(&msg));
     }
 
     // Connection resolution is handled server-side via the configured connection
@@ -556,9 +572,19 @@ pub async fn start<R: Runtime>(
 
 fn to_metadata(cap: &Capability) -> Value {
     json!({
-        "riskLevel": cap.risk_level,
+        "riskLevel": advertised_risk_level(cap),
         "requiredPermission": cap.required_permission
     })
+}
+
+/// MCP clients approve a tool per call or session and cannot inspect the
+/// payload, so the advertised risk must cover every action the tool can take.
+fn advertised_risk_level(cap: &Capability) -> RiskLevel {
+    if crate::ai_permissions::may_require_confirmation(cap) {
+        RiskLevel::Destructive
+    } else {
+        cap.risk_level
+    }
 }
 
 fn to_safe_connection_summary(connection: &Value) -> Value {
@@ -883,10 +909,82 @@ mod tests {
         let meta = to_metadata(cap);
         assert_eq!(
             meta["riskLevel"],
-            serde_json::to_value(cap.risk_level).unwrap(),
+            serde_json::to_value(advertised_risk_level(cap)).unwrap(),
             "riskLevel should use the lowercase serde name"
         );
         assert_eq!(meta["requiredPermission"], cap.required_permission);
+    }
+
+    struct NoopHandler;
+
+    #[async_trait::async_trait]
+    impl data_studio_agent::capabilities::types::CapabilityHandler for NoopHandler {
+        async fn handle(&self, _: &Value, _: Option<&Value>) -> Result<String, String> {
+            Ok(String::new())
+        }
+    }
+
+    fn test_capability(
+        name: &'static str,
+        risk: RiskLevel,
+        required_permission: &'static str,
+    ) -> Capability {
+        Capability {
+            name,
+            description: "",
+            input_schema: json!({}),
+            risk_level: risk,
+            required_permission,
+            source_kind: data_studio_agent::capabilities::types::SourceKind::Database("TEST"),
+            handler: Arc::new(NoopHandler),
+            tags: &["agent"],
+            parallel_ok: false,
+        }
+    }
+
+    #[test]
+    fn test_mcp_advertises_worst_case_risk_so_clients_can_confirm() {
+        assert_eq!(
+            to_metadata(&test_capability(
+                "es__delete_document",
+                RiskLevel::Destructive,
+                "delete"
+            ))["riskLevel"],
+            json!("destructive")
+        );
+        for name in [
+            "es__bulk",
+            "es__update_document",
+            "es__reindex",
+            "es__create_index",
+            "es__put_mapping",
+            "es__restore_snapshot",
+            "mongo__bulk_write",
+            "mongo__aggregate",
+            "dynamo__execute_write",
+            "dynamo__transact_write_items",
+        ] {
+            assert_eq!(
+                to_metadata(&test_capability(name, RiskLevel::Elevated, "create"))["riskLevel"],
+                json!("destructive"),
+                "{name} can delete or manage data and must be advertised as destructive"
+            );
+        }
+        for name in [
+            "es__search",
+            "es__index_document",
+            "mongo__insert_one",
+            "mongo__update_many",
+            "dynamo__create_item",
+            "dynamo__batch_write_items",
+            "dockit__list_connections",
+        ] {
+            assert_ne!(
+                to_metadata(&test_capability(name, RiskLevel::Elevated, "create"))["riskLevel"],
+                json!("destructive"),
+                "{name} cannot delete data or manage structure on its own"
+            );
+        }
     }
 
     #[test]
@@ -901,6 +999,17 @@ mod tests {
             assert!(t["inputSchema"].is_object());
             assert!(t["metadata"]["riskLevel"].is_string());
             assert!(t["metadata"]["requiredPermission"].is_string());
+            let name = t["name"].as_str().unwrap();
+            if registry::registry()
+                .get(name)
+                .is_some_and(|cap| matches!(cap.risk_level, RiskLevel::Safe))
+            {
+                assert_eq!(
+                    t["metadata"]["riskLevel"],
+                    json!("safe"),
+                    "read-only tool '{name}' must stay safe"
+                );
+            }
         }
     }
 
@@ -1118,59 +1227,68 @@ mod tests {
     }
 
     #[test]
-    fn test_handle_invoke_rejects_elevated_and_destructive() {
-        init_registry_for_tests();
-        let tools = registry::registry().agent_tools();
-        // Concurrent tests may initialize the global registry (OnceLock) with
-        // Default (DataReadWrite) rejects Destructive, allows Elevated
-        let Some(risky) = tools
-            .iter()
-            .find(|c| matches!(c.risk_level, RiskLevel::Destructive))
-        else {
-            return;
-        };
-
+    fn test_handle_invoke_rejects_destructive_before_dispatch() {
+        let cap = test_capability("test__delete", RiskLevel::Destructive, "delete");
+        let mut policy = AiPolicy::default();
+        policy.migrate_permissions(&[]);
         let req = InvokeRequest {
-            name: risky.name.to_string(),
+            name: cap.name.into(),
             args: json!({}),
-            connection_id: None,
+            connection_id: Some("42".into()),
         };
-
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resp = rt.block_on(invoke_with_policy(&AiPolicy::default(), req));
-
+        let resp = rt.block_on(invoke_capability_with_policy(&policy, req, &cap));
         assert_eq!(resp.status, 403);
-        assert!(resp.message.unwrap().contains("blocked by MCP policy"));
+        assert!(resp.message.unwrap().contains("access denied"));
     }
 
     #[test]
     fn test_handle_invoke_safe_capability_without_app_handle() {
-        init_registry_for_tests();
-        let tools = registry::registry().agent_tools();
-        // Same OnceLock guard as above: skip when a concurrent test replaced the registry
-        let has_risky = tools
-            .iter()
-            .any(|c| !matches!(c.risk_level, RiskLevel::Safe));
-        if !has_risky {
-            return;
-        }
-        let safe = tools
-            .iter()
-            .find(|c| matches!(c.risk_level, RiskLevel::Safe))
-            .expect("registry should contain a safe capability");
-
+        let cap = test_capability("test__read", RiskLevel::Safe, "read");
+        let mut policy = AiPolicy::default();
+        policy.migrate_permissions(&[]);
         let req = InvokeRequest {
-            name: safe.name.to_string(),
+            name: cap.name.into(),
             args: json!({}),
-            connection_id: None,
+            connection_id: Some("42".into()),
         };
-
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resp = rt.block_on(invoke_with_policy(&AiPolicy::default(), req));
-
-        // Safe capability passes the policy check; with no connection config the
-        // capability itself fails, proving execution reached the invoke path.
+        let resp = rt.block_on(invoke_capability_with_policy(&policy, req, &cap));
         assert_eq!(resp.status, 400);
+        assert_eq!(resp.message.as_deref(), Some("App not initialized"));
+    }
+
+    #[test]
+    fn test_invalid_tool_input_is_not_reported_as_permission_denial() {
+        let cap = test_capability("es__bulk", RiskLevel::Elevated, "create");
+        let mut policy = AiPolicy::default();
+        policy.migrate_permissions(&[]);
+        let req = InvokeRequest {
+            name: cap.name.into(),
+            args: json!({}),
+            connection_id: Some("42".into()),
+        };
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(invoke_capability_with_policy(&policy, req, &cap));
+        assert_eq!(resp.status, 400);
+        assert_eq!(resp.message.as_deref(), Some("Missing bulk body"));
+    }
+
+    #[test]
+    fn test_invoke_refuses_an_unmigrated_policy() {
+        let cap = test_capability("test__read", RiskLevel::Safe, "read");
+        let req = InvokeRequest {
+            name: cap.name.into(),
+            args: json!({}),
+            connection_id: Some("42".into()),
+        };
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(invoke_capability_with_policy(
+            &AiPolicy::default(),
+            req,
+            &cap,
+        ));
+        assert_eq!(resp.status, 500);
     }
 
     fn mock_app(

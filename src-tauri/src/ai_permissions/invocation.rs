@@ -39,11 +39,18 @@ fn authorize(
                 _ => false,
             })
         {
-            return Err("Saved connection is no longer available".into());
+            return Err(super::AccessDenial::other(
+                "permission",
+                "connection",
+                "Saved connection is no longer available",
+            )
+            .encode());
         }
     }
     let policy = load_permission_policy(app)?;
-    let cap = registry::registry().get(name).ok_or("Unknown capability")?;
+    let cap = registry::registry().get(name).ok_or_else(|| {
+        super::AccessDenial::other("invalid_input", "unknown", "Unknown capability").encode()
+    })?;
     let session = access.map(|access| access.current(name)).transpose()?;
     evaluate(policy, cap, args, config, session)
 }
@@ -57,15 +64,23 @@ fn evaluate(
 ) -> Result<Authorization, String> {
     let id = config.get("connectionId").and_then(Value::as_str);
     let restriction = match (id, &session) {
-        (Some(id), Some(session)) => Some(
-            session
-                .restrictions
-                .get(id)
-                .ok_or("Connection is no longer attached to this conversation")?,
-        ),
+        (Some(id), Some(session)) => Some(session.restrictions.get(id).ok_or_else(|| {
+            super::AccessDenial::other(
+                "permission",
+                "conversation",
+                "Connection is no longer attached to this conversation",
+            )
+            .encode()
+        })?),
         _ => None,
     };
-    let decision = policy.authorize(cap, args, id, restriction)?;
+    let decision = policy
+        .authorize(cap, args, id, restriction)
+        .map_err(|error| {
+            super::AccessDenial::decode(&error)
+                .unwrap_or_else(|| super::AccessDenial::other("invalid_input", "unknown", &error))
+                .encode()
+        })?;
     let risk = if decision == PolicyAction::Ask {
         RiskLevel::Destructive
     } else {
@@ -151,13 +166,14 @@ pub(crate) async fn invoke_ai(
     access: Option<&AgentAccess>,
 ) -> Result<String, ToolExecutionError> {
     let denial = |error: String| {
-        ToolExecutionError::Denied(if access.is_some() {
-            super::AccessDenial::from_error(&error)
-                .with_context(config)
-                .encode()
+        let denial = super::AccessDenial::from_error(&error).with_context(config);
+        if access.is_some() {
+            ToolExecutionError::Denied(denial.encode())
+        } else if matches!(denial.kind.as_str(), "permission" | "rule") {
+            ToolExecutionError::Denied(denial.message)
         } else {
-            super::display_denial(&error)
-        })
+            ToolExecutionError::Failed(denial.message)
+        }
     };
     let initial = authorize(name, args, config, access).map_err(&denial)?;
     if access.is_some() {
@@ -344,6 +360,35 @@ mod tests {
             rule: None,
         }
     }
+    #[test]
+    fn invalid_payloads_are_distinct_from_revoked_conversation_access() {
+        let invalid = evaluate(
+            policy(),
+            &cap(),
+            &json!({}),
+            &json!({"connectionId":"42"}),
+            Some(session()),
+        )
+        .err()
+        .unwrap();
+        assert_eq!(
+            super::super::AccessDenial::decode(&invalid).unwrap().kind,
+            "invalid_input"
+        );
+        let revoked = evaluate(
+            policy(),
+            &cap(),
+            &json!({"sql":"UPDATE t SET x=1"}),
+            &json!({"connectionId":"99"}),
+            Some(session()),
+        )
+        .err()
+        .unwrap();
+        let denial = super::super::AccessDenial::decode(&revoked).unwrap();
+        assert_eq!(denial.kind, "permission");
+        assert_eq!(denial.source, "conversation");
+    }
+
     #[test]
     fn connection_revocation_denies_even_after_successful_preflight() {
         let cap = cap();

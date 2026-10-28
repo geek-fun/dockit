@@ -119,6 +119,7 @@ reddit-post-dockit.md
 .claude/
 .omo/
 .impeccable.md
+.impeccable/
 .codegraph/
 
 # Local agent tooling (opencode/playwright MCP)

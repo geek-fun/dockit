@@ -33,7 +33,15 @@ impl AgentAccess {
                 [&self.session_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
-            .map_err(|e| format!("Cannot load current conversation permissions: {e}"))?;
+            .map_err(|e| match e {
+                rusqlite::Error::QueryReturnedNoRows => super::AccessDenial::other(
+                    "permission",
+                    "conversation",
+                    "Conversation is no longer available",
+                )
+                .encode(),
+                _ => format!("Cannot load current conversation permissions: {e}"),
+            })?;
         let sources: Vec<Value> = serde_json::from_str(&sources).map_err(|e| e.to_string())?;
         let rule: Option<String> = db
             .query_row(

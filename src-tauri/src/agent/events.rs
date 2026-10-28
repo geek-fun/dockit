@@ -13,7 +13,12 @@ pub(crate) struct AgentRunEmitter<E> {
 
 impl<E: EventEmitter> EventEmitter for AgentRunEmitter<E> {
     fn emit(&self, event: &str, mut payload: Value) {
-        if event == "agent-loop-tool-result" && payload["denied"] == true {
+        if event == "agent-loop-tool-result"
+            && (payload["denied"] == true
+                || (payload["error"] == true
+                    && AccessDenial::decode(payload["envelope"]["summary"].as_str().unwrap_or(""))
+                        .is_some()))
+        {
             let denial = AccessDenial::from_message(
                 payload["envelope"]["summary"]
                     .as_str()
@@ -21,7 +26,11 @@ impl<E: EventEmitter> EventEmitter for AgentRunEmitter<E> {
             );
             payload["envelope"]["summary"] = Value::String(denial.message.clone());
             payload["denial"] = serde_json::to_value(&denial).unwrap();
-            if denial.kind != "user" {
+            if matches!(denial.kind.as_str(), "unavailable" | "invalid_input") {
+                payload["denied"] = Value::Bool(false);
+                payload["error"] = Value::Bool(true);
+            }
+            if !matches!(denial.kind.as_str(), "user" | "invalid_input") {
                 let mut blocked = self
                     .blocked
                     .lock()
@@ -108,6 +117,29 @@ mod tests {
             emitter.inner.0.lock().unwrap()[0].1["denial"]["kind"],
             "user"
         );
+    }
+
+    #[test]
+    fn unavailable_stops_as_an_error_and_invalid_input_can_be_corrected() {
+        for (kind, stops) in [("unavailable", true), ("invalid_input", false)] {
+            let (tx, mut rx) = tokio::sync::oneshot::channel();
+            let emitter = AgentRunEmitter {
+                inner: Events::default(),
+                cancel_map: Arc::new(Mutex::new(HashMap::from([("chat".into(), tx)]))),
+                blocked: Mutex::new(None),
+            };
+            let error = AccessDenial::other(kind, "unknown", "Synthetic failure");
+            emitter.emit(
+                "agent-loop-tool-result",
+                json!({"session_id":"chat","denied":true,"envelope":{"summary":error.encode()}}),
+            );
+            assert_eq!(emitter.blocked.lock().unwrap().is_some(), stops);
+            assert_eq!(rx.try_recv().is_ok(), stops);
+            let events = emitter.inner.0.lock().unwrap();
+            assert_eq!(events[0].1["denied"], false);
+            assert_eq!(events[0].1["error"], true);
+            assert_eq!(events[0].1["denial"]["kind"], kind);
+        }
     }
 
     #[tokio::test]

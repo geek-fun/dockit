@@ -273,7 +273,11 @@ fn load_session_history(
         .map_err(|e| e.to_string())?;
     for call in calls {
         let (message_id, mut call) = call.map_err(|e| e.to_string())?;
-        call.result = results.get(&call.id).cloned().or(call.result);
+        call.result = if call.status == "completed" {
+            call.result.or_else(|| results.get(&call.id).cloned())
+        } else {
+            results.get(&call.id).cloned().or(call.result)
+        };
         if call.status == "failed" && call.result.as_deref() == Some("Tool call was cancelled.") {
             call.status = "interrupted".into();
         }
@@ -281,6 +285,9 @@ fn load_session_history(
             let denial = crate::ai_permissions::AccessDenial::from_message(
                 call.result.as_deref().unwrap_or("Access denied"),
             );
+            if matches!(denial.kind.as_str(), "unavailable" | "invalid_input") {
+                call.status = "failed".into();
+            }
             call.result = Some(denial.message.clone());
             call.denial = Some(serde_json::to_value(denial).map_err(|e| e.to_string())?);
         }
@@ -753,6 +760,53 @@ mod history_tests {
     use super::*;
     use serde_json::json;
     use std::sync::{Arc, Mutex};
+
+    #[test]
+    fn history_preserves_full_success_results_and_does_not_replace_errors_with_old_results() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        let db = AgentDb(Arc::new(Mutex::new(conn)));
+        data_studio_agent::storage::db::migrate(&db).unwrap();
+        let conn = db.0.lock().unwrap();
+        conn.execute("INSERT INTO agent_sessions (id,title,created_at,updated_at) VALUES ('chat','Chat',0,0)", []).unwrap();
+        conn.execute("INSERT INTO agent_messages (id,session_id,role,content,created_at) VALUES ('assistant','chat','assistant','{}',0)", []).unwrap();
+        let full = "Full result ".repeat(1000);
+        for (id, status, summary) in [
+            ("success", "completed", "Summary".to_owned()),
+            ("failed", "failed", "Latest failure".to_owned()),
+            (
+                "environment",
+                "denied",
+                crate::ai_permissions::AccessDenial::other(
+                    "unavailable",
+                    "unknown",
+                    "Cannot read policy",
+                )
+                .encode(),
+            ),
+            (
+                "input",
+                "denied",
+                crate::ai_permissions::AccessDenial::other(
+                    "invalid_input",
+                    "unknown",
+                    "Missing argument",
+                )
+                .encode(),
+            ),
+        ] {
+            conn.execute("INSERT INTO agent_tool_calls (id,message_id,session_id,tool_name,arguments,status,created_at) VALUES (?1,'assistant','chat','test','{}',?2,0)", rusqlite::params![id,status]).unwrap();
+            conn.execute("INSERT INTO tool_result_store (id,tool_call_id,full_result,created_at) VALUES (?1,?1,?2,0)", rusqlite::params![id,full]).unwrap();
+            conn.execute("INSERT INTO agent_messages (id,session_id,role,content,created_at) VALUES (?1,'chat','tool',?2,0)", rusqlite::params![id,json!({"tool_call_id":id,"content":summary}).to_string()]).unwrap();
+        }
+        let messages = load_session_history(&conn, "chat").unwrap();
+        let calls = &messages[0].tool_calls;
+        assert_eq!(calls[0].result.as_deref(), Some(full.as_str()));
+        assert_eq!(calls[1].result.as_deref(), Some("Latest failure"));
+        assert_eq!(calls[2].status, "failed");
+        assert_eq!(calls[2].result.as_deref(), Some("Cannot read policy"));
+        assert_eq!(calls[3].status, "failed");
+        assert_eq!(calls[3].result.as_deref(), Some("Missing argument"));
+    }
 
     #[test]
     fn history_restores_outcomes_results_and_denial_context_without_promoting_pending_calls() {

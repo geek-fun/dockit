@@ -10,7 +10,8 @@ export const enUS = {
     title: 'AI permissions',
     help: 'Applies to Data Studio and external MCP clients. Use system defaults or set permissions for this connection.',
     loading: 'Loading permissions…',
-    loadFailed: 'Could not load permissions. Retry before saving this connection.',
+    loadFailed:
+      'Could not load AI permissions. Connection details can still be saved; AI permissions will stay unchanged.',
     retry: 'Retry',
     inherit: 'Use system default',
     none: 'No access',
@@ -1941,6 +1942,7 @@ export const enUS = {
     modelUnavailableSend:
       'Cannot send — selected model is unavailable. Check your API key or provider settings.',
     addSource: {
+      saveFailed: 'Could not attach the data source. Please retry.',
       title: 'Add Data Source',
       selectConnection: 'SELECT CONNECTION',
       selectConnectionPlaceholder: 'Search connections...',

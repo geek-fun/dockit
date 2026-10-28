@@ -71,7 +71,11 @@ const update = (action: AiAction, value: boolean) => {
   const { [action]: _previous, ...rest } = props.modelValue ?? {};
   emit('update:modelValue', { ...rest, [action]: value });
 };
-defineExpose({ ready: computed(() => !canEdit.value || (!loading.value && !error.value)) });
+defineExpose({
+  ready: computed(
+    () => !canEdit.value || (!loading.value && (!error.value || props.modelValue === undefined)),
+  ),
+});
 const selectPreset = (value: string) => {
   if (!canEdit.value) return;
   editingCustom.value = value === 'custom';

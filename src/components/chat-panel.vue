@@ -150,13 +150,7 @@
       v-if="reviewingTool && sessionId"
       :key="reviewingTool.id"
       :open="true"
-      :denial="
-        reviewingTool.denial ?? {
-          kind: 'permission',
-          source: 'unknown',
-          message: reviewingTool.result ?? '',
-        }
-      "
+      :denial="reviewDenial"
       :tool-name="reviewingTool.toolName"
       :session-id="sessionId"
       @update:open="!$event && (reviewingTool = null)"
@@ -252,6 +246,14 @@ const virtualizerRef = ref<{
 const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const reviewingTool = ref<AgentToolCall | null>(null);
+const reviewDenial = computed(
+  () =>
+    reviewingTool.value?.denial ?? {
+      kind: 'permission' as const,
+      source: 'unknown' as const,
+      message: reviewingTool.value?.result ?? '',
+    },
+);
 const recoveryBusy = computed(
   () => props.isLoading || (props.progress?.phase === 'preparing' && !props.error),
 );
@@ -277,7 +279,11 @@ const awaitingDecision = computed(() => {
   return props.messages
     .slice(currentTurnStart.value + 1)
     .some(message =>
-      message.toolCalls?.some(call => call.status === 'denied' && call.denial?.kind !== 'user'),
+      message.toolCalls?.some(
+        call =>
+          call.status === 'denied' &&
+          (!call.denial || ['permission', 'rule'].includes(call.denial.kind)),
+      ),
     );
 });
 

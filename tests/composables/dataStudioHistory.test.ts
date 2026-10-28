@@ -91,3 +91,51 @@ it('keeps legacy calls with no recorded outcome unavailable', async () => {
   await store.reloadSessionMessages('chat');
   expect(store.sessions[0].messages[0].toolCalls![0].status).toBe('interrupted');
 });
+
+it('restores full result previews and validates legacy argument shapes', async () => {
+  const store = useDataStudioStore();
+  store.sessions = [{ id: 'chat', messages: [], sources: [] } as never];
+  const full = 'Complete result '.repeat(400);
+  mockLoadMessages.mockResolvedValue([
+    backend([
+      {
+        id: 'long',
+        tool_name: 'es__search',
+        arguments: 'null',
+        status: 'completed',
+        result: full,
+      },
+    ]),
+  ]);
+  await store.reloadSessionMessages('chat');
+  expect(store.sessions[0].messages[0].toolCalls![0]).toMatchObject({
+    args: {},
+    result: full.slice(0, 200),
+    resultTruncated: true,
+    resultFullLength: full.length,
+  });
+  expect(store.getToolResultFullBody('long')).toBe(full);
+});
+
+it('replaces a cached long result with a later error without showing stale content', async () => {
+  const store = useDataStudioStore();
+  store.sessions = [{ id: 'chat', sources: [], messages: [] } as never];
+  mockLoadMessages.mockResolvedValue([
+    backend([
+      {
+        id: 'call',
+        tool_name: 'es__search',
+        arguments: '{}',
+        status: 'completed',
+        result: 'x'.repeat(500),
+      },
+    ]),
+  ]);
+  await store.reloadSessionMessages('chat');
+  store.updateToolCallStatus('chat', 'assistant', 'call', 'error', 'Latest failure');
+  expect(store.sessions[0].messages[0].toolCalls![0]).toMatchObject({
+    result: 'Latest failure',
+    resultTruncated: false,
+  });
+  expect(store.getToolResultFullBody('call')).toBeUndefined();
+});

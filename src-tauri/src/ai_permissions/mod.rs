@@ -7,9 +7,10 @@ mod scope;
 pub(crate) use invocation::{invoke_ai, prepare_agent_call};
 pub(crate) use scope::AgentAccess;
 
-pub(crate) use chain::PermissionRules;
+pub(crate) use chain::may_require_confirmation;
 #[cfg(test)]
 pub(crate) use chain::Permission;
+pub(crate) use chain::PermissionRules;
 pub(crate) use policy::AiPolicy;
 #[cfg(test)]
 pub(crate) use policy::{ConnectionMcpOverride, McpPermissionMode};
