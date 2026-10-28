@@ -60,7 +60,7 @@ pub struct AgentToolCallRow {
     pub denial: Option<serde_json::Value>,
 }
 
-fn now_ms() -> i64 {
+pub(crate) fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)

@@ -280,12 +280,26 @@ const clearSessionConfirmationRules = (sessionId: string) =>
 
 const loadAttachedSources = () => invoke<AttachedSourceRow[]>('load_attached_sources');
 
+// Tauri matches command arguments by camelCase key, and silently treats missing
+// optional keys as `None` — so the row-shaped payload must be translated here.
 const saveAttachedSource = (
   fields: Omit<AttachedSourceRow, 'created_at' | 'updated_at'> & {
     created_at?: number;
     updated_at?: number;
   },
-) => invoke<AttachedSourceRow>('save_attached_source', fields);
+) =>
+  invoke<AttachedSourceRow>('save_attached_source', {
+    id: fields.id,
+    kind: fields.kind,
+    alias: fields.alias,
+    name: fields.name,
+    databaseType: fields.database_type,
+    fileType: fields.file_type,
+    filePath: fields.file_path,
+    connectionId: fields.connection_id,
+    createdAt: fields.created_at,
+    updatedAt: fields.updated_at,
+  });
 
 const deleteAttachedSource = (id: string) => invoke<void>('delete_attached_source', { id });
 
