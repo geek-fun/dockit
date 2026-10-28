@@ -15,6 +15,7 @@ const mockStore = {
   removePreparingPlaceholder: jest.fn(),
   setSessionActiveTool: jest.fn(),
   setSessionStatus: jest.fn(),
+  setSessionError: jest.fn(),
   setMessageStatus: jest.fn(),
   clearSessionProgress: jest.fn(),
   removeOrphanedStreamingMessages: jest.fn(),
@@ -97,6 +98,22 @@ describe('agent permission events', () => {
     expect(mockStore.updateToolCallStatus).not.toHaveBeenCalled();
   });
 
+  it('uses the full envelope result for the expanded tool result', () => {
+    mockHandlers.onAgentLoopToolCall(call(false));
+    mockHandlers.onAgentLoopToolResult({
+      ...call(false),
+      envelope: { summary: 'Preview', full_result: 'Full result with remaining rows' },
+    });
+    expect(mockStore.updateToolCallStatus).toHaveBeenCalledWith(
+      'chat',
+      'assistant',
+      'call',
+      'done',
+      'Full result with remaining rows',
+      undefined,
+    );
+  });
+
   it('renders a preflight denial without requesting confirmation', () => {
     mockHandlers.onAgentLoopToolResult({
       ...call(),
@@ -111,6 +128,32 @@ describe('agent permission events', () => {
       result: 'Read access denied',
       requiresConfirmation: false,
     });
+  });
+
+  it('clears queued approvals when unavailable infrastructure stops the run', () => {
+    mockHandlers.onAgentLoopToolCall(call(true));
+    mockHandlers.onAgentLoopError({ session_id: 'chat', error: 'Cannot load AI permissions' });
+    expect(mockSession.messages[0].toolCalls[0].status).toBe('interrupted');
+    expect(mockSession.messages[0].toolCalls[0].requiresConfirmation).toBe(false);
+    expect(mockStore.setSessionStatus).toHaveBeenCalledWith('chat', 'error');
+    expect(mockStore.clearSessionProgress).toHaveBeenCalledWith('chat');
+  });
+
+  it('renders a preflight infrastructure error even without a tool-call event', () => {
+    mockHandlers.onAgentLoopToolResult({
+      ...call(),
+      denied: false,
+      error: true,
+      denial: { kind: 'unavailable', source: 'unknown', message: 'Cannot load policy' },
+      envelope: { summary: 'Cannot load policy' },
+    });
+    expect(mockSession.messages[0].toolCalls[0]).toMatchObject({
+      status: 'error',
+      result: 'Cannot load policy',
+      requiresConfirmation: false,
+      denial: { kind: 'unavailable' },
+    });
+    expect(mockConfirm).not.toHaveBeenCalled();
   });
 
   it('reports execution-time revocation as denial', () => {

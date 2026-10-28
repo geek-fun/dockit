@@ -156,7 +156,12 @@ impl AiPolicy {
         }
         if matches!(cap.source_kind, SourceKind::File) {
             return if restriction.and_then(|r| r.read) == Some(false) {
-                Err("Read access to this source is denied".into())
+                Err(AccessDenial::other(
+                    "permission",
+                    "conversation",
+                    "Read access to this source is denied",
+                )
+                .encode())
             } else {
                 Ok(PolicyAction::Allow)
             };
@@ -209,6 +214,79 @@ fn es_update_permissions(body: &Value) -> Vec<Permission> {
     .into_iter()
     .flatten()
     .collect()
+}
+
+/// Operations that change schema or administration state; they require the
+/// manage action regardless of the payload.
+const MANAGE_OPS: &[&str] = &[
+    "update_ttl",
+    "update_pitr",
+    "update_streams",
+    "tag_resource",
+    "untag_resource",
+    "create_gsi",
+    "update_gsi",
+    "delete_gsi",
+    "create_backup",
+    "delete_backup",
+    "rename_collection",
+    "clone_collection",
+];
+
+/// Verb-prefixed operations on a structural object (index, table, user, ...).
+const MANAGE_OBJECTS: &[&str] = &[
+    "index",
+    "table",
+    "collection",
+    "database",
+    "mapping",
+    "alias",
+    "snapshot",
+    "repository",
+    "privilege",
+    "session",
+    "user",
+    "role",
+];
+
+const MANAGE_PREFIXES: &[&str] = &[
+    "create_", "delete_", "drop_", "put_", "update_", "restore_", "grant_", "revoke_", "kill_",
+];
+
+fn is_manage_op(op: &str) -> bool {
+    MANAGE_OPS.contains(&op)
+}
+
+fn is_manage_object_op(op: &str) -> bool {
+    MANAGE_PREFIXES.iter().any(|prefix| op.starts_with(prefix))
+        && MANAGE_OBJECTS.iter().any(|object| op.contains(object))
+}
+
+/// Operations whose permission depends on the payload and can delete or manage.
+fn can_delete_or_manage(cap: &Capability, op: &str) -> bool {
+    cap.name == "es__update_document"
+        || matches!(
+            op,
+            "bulk"
+                | "bulk_write"
+                | "transact_write_items"
+                | "reindex"
+                | "aggregate"
+                | "execute_write"
+        )
+        || is_manage_op(op)
+        || is_manage_object_op(op)
+}
+
+/// Worst-case confirmation requirement for a tool, independent of its payload.
+///
+/// Connecting MCP agents approve a tool once (and may remember it for the
+/// session), so the advertised risk must cover every action the tool can take.
+pub fn may_require_confirmation(cap: &Capability) -> bool {
+    let op = cap.name.rsplit("__").next().unwrap_or(cap.name);
+    matches!(cap.risk_level, RiskLevel::Destructive)
+        || matches!(cap.required_permission, "delete" | "manage")
+        || can_delete_or_manage(cap, op)
 }
 
 /// Payload-dependent tools require every action they can perform, rather than using risk as permission.
@@ -326,22 +404,7 @@ pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permis
         .flatten()
         .collect());
     }
-    if [
-        "update_ttl",
-        "update_pitr",
-        "update_streams",
-        "tag_resource",
-        "untag_resource",
-        "create_gsi",
-        "update_gsi",
-        "delete_gsi",
-        "create_backup",
-        "delete_backup",
-        "rename_collection",
-        "clone_collection",
-    ]
-    .contains(&op)
-    {
+    if is_manage_op(op) {
         return Ok(vec![Permission::Manage]);
     }
     if op == "aggregate" {
@@ -404,33 +467,7 @@ pub fn required_permissions(cap: &Capability, args: &Value) -> Result<Vec<Permis
     if op == "create_item" && args.get("skip_existing").and_then(Value::as_bool) != Some(true) {
         return Ok(vec![Permission::Create, Permission::Update]);
     }
-    if [
-        "index",
-        "table",
-        "collection",
-        "database",
-        "mapping",
-        "alias",
-        "snapshot",
-        "repository",
-        "privilege",
-        "session",
-        "user",
-        "role",
-    ]
-    .iter()
-    .any(|object| {
-        (op.starts_with("create_")
-            || op.starts_with("delete_")
-            || op.starts_with("drop_")
-            || op.starts_with("put_")
-            || op.starts_with("update_")
-            || op.starts_with("restore_")
-            || op.starts_with("grant_")
-            || op.starts_with("revoke_")
-            || op.starts_with("kill_"))
-            && op.contains(object)
-    }) {
+    if is_manage_object_op(op) {
         return Ok(vec![Permission::Manage]);
     }
     match cap.required_permission {
@@ -901,5 +938,41 @@ mod mixed_operation_tests {
             )
             .unwrap();
         assert_eq!(decision, PolicyAction::Ask);
+    }
+
+    #[test]
+    fn worst_case_confirmation_covers_payload_dependent_and_management_tools() {
+        for name in [
+            "es__bulk",
+            "es__update_document",
+            "es__reindex",
+            "es__create_index",
+            "es__put_mapping",
+            "es__restore_snapshot",
+            "mongo__bulk_write",
+            "mongo__aggregate",
+            "dynamo__execute_write",
+            "dynamo__transact_write_items",
+        ] {
+            assert!(
+                may_require_confirmation(&cap(name, "create")),
+                "{name} can delete or manage data"
+            );
+        }
+        for name in [
+            "es__search",
+            "es__index_document",
+            "mongo__insert_one",
+            "mongo__update_many",
+            "dynamo__create_item",
+            "dynamo__update_item",
+            "dynamo__batch_write_items",
+            "dockit__list_connections",
+        ] {
+            assert!(
+                !may_require_confirmation(&cap(name, "create")),
+                "{name} cannot delete data or manage structure on its own"
+            );
+        }
     }
 }

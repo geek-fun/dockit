@@ -971,13 +971,21 @@ describe('connectionStore actions', () => {
   >;
   let storeApi: { set: jest.Mock; get: jest.Mock; delete: jest.Mock };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockEntitlement.isLocalUltimate = true;
     setActivePinia(createPinia());
     const { useConnectionStore } = require('../src/store/connectionStore');
     store = useConnectionStore();
     storeApi = require('../src/datasources').storeApi;
+    await storeApi.delete('nextConnectionId');
+    require('../src/common').getAiPolicy.mockReset().mockResolvedValue({
+      permission_defaults: {},
+      connection_permissions: {},
+    });
+    require('../src/common').saveAiPermissions.mockReset().mockResolvedValue({});
   });
+
+  afterEach(() => jest.restoreAllMocks());
 
   describe('saveConnection', () => {
     it('adds a new connection without id', async () => {
@@ -987,17 +995,17 @@ describe('connectionStore actions', () => {
       expect(store.connections[0].name).toBe('test-es');
     });
 
-    it('assigns sequential id to new connections', async () => {
+    it('assigns increasing identifiers to new connections', async () => {
       await store.saveConnection(esConnection);
       await store.saveConnection({ ...esConnection, name: 'test-es-2' });
       expect(store.connections).toHaveLength(2);
-      expect(store.connections[0].id).toBe(1);
-      expect(store.connections[1].id).toBe(2);
+      expect(Number(store.connections[0].id)).toBeGreaterThan(42);
+      expect(Number(store.connections[1].id)).toBeGreaterThan(Number(store.connections[0].id));
     });
 
     it('updates existing connection when id matches', async () => {
       await store.saveConnection(esConnection);
-      const updated = { ...esConnection, id: 1, host: 'http://updated' };
+      const updated = { ...esConnection, id: store.connections[0].id, host: 'http://updated' };
       const result = await store.saveConnection(updated);
       expect(result.success).toBe(true);
       expect(store.connections).toHaveLength(1);
@@ -1009,7 +1017,7 @@ describe('connectionStore actions', () => {
 
       const result = await store.saveConnection({
         ...esConnection,
-        id: 1,
+        id: store.connections[0].id,
         prompt: 'Orders cluster context',
       });
 
@@ -1055,6 +1063,37 @@ describe('connectionStore actions', () => {
   });
 
   describe('AI permission persistence', () => {
+    it('saves ordinary new and existing connections with an unreadable AI policy', async () => {
+      const policy = require('../src/common').getAiPolicy;
+      policy.mockRejectedValue(new Error('Policy unavailable'));
+      expect((await store.saveConnection(esConnection)).success).toBe(true);
+      expect(
+        (await store.saveConnection({ ...store.connections[0], name: 'Renamed' })).success,
+      ).toBe(true);
+      expect(policy).not.toHaveBeenCalled();
+    });
+
+    it('does not recycle reserved identifiers after deletion and store recreation', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
+      await store.saveConnection(esConnection);
+      const previous = Number(store.connections[0].id);
+      await store.removeConnection(store.connections[0]);
+      setActivePinia(createPinia());
+      const reloaded = require('../src/store/connectionStore').useConnectionStore();
+      await reloaded.saveConnection(esConnection);
+      expect(Number(reloaded.connections[0].id)).toBeGreaterThan(previous);
+    });
+
+    it('serializes concurrent connection creation without losing either save', async () => {
+      await Promise.all([
+        store.saveConnection(esConnection),
+        store.saveConnection({ ...esConnection, name: 'Second' }),
+      ]);
+      expect(store.connections).toHaveLength(2);
+      expect(new Set(store.connections.map(connection => connection.id)).size).toBe(2);
+      expect(await storeApi.get('connections', [])).toHaveLength(2);
+    });
+
     it('does not recycle an id with retained permission decisions', async () => {
       require('../src/common').getAiPolicy.mockResolvedValueOnce({
         permission_defaults: {},
@@ -1062,7 +1101,8 @@ describe('connectionStore actions', () => {
       });
       const result = await store.saveConnection(esConnection);
       expect(result.success).toBe(true);
-      expect(store.connections[0].id).toBe(43);
+      expect(Number(store.connections[0].id)).toBeGreaterThan(42);
+      expect(require('../src/common').getAiPolicy).not.toHaveBeenCalled();
     });
 
     it('preserves permission decisions while Community users save ordinary connection changes', async () => {
@@ -1103,10 +1143,11 @@ describe('connectionStore actions', () => {
       jest.spyOn(storeApi, 'set').mockRejectedValueOnce(new Error('Storage full'));
       const result = await store.saveConnection({
         ...esConnection,
+        id: 7,
         aiPermissions: { delete: true },
       });
       expect(result.success).toBe(false);
-      expect(require('../src/common').saveAiPermissions).toHaveBeenLastCalledWith('1', {});
+      expect(require('../src/common').saveAiPermissions).toHaveBeenLastCalledWith('7', {});
       expect(store.connections).toHaveLength(0);
     });
   });

@@ -74,6 +74,25 @@ const shouldRequireConfirmation = (
 const isDeniedByRule = (sessionId: string, toolName: string): boolean =>
   getPendingConfirmation(sessionId, toolName)?.action === 'deny_always';
 
+const finishSessionTools = (sessionId: string, status: 'done' | 'error') => {
+  const store = useDataStudioStore();
+  const session = getSessionById(store.sessions, sessionId);
+  session?.messages.forEach(message => {
+    const calls = message.toolCalls ?? [];
+    if (calls.some(call => ['pending', 'confirmed', 'executing'].includes(call.status))) {
+      store.setMessageToolCalls(
+        sessionId,
+        message.id,
+        calls.map(call => {
+          if (!['pending', 'confirmed', 'executing'].includes(call.status)) return call;
+          return { ...call, status: 'interrupted', requiresConfirmation: false };
+        }),
+      );
+    }
+    if (message.status === 'streaming') store.setMessageStatus(sessionId, message.id, status);
+  });
+};
+
 const initAgentRuntime = async (): Promise<void> => {
   if (runtimeInitialized) return;
   if (runtimeInitPromise) return runtimeInitPromise;
@@ -228,7 +247,7 @@ const initAgentRuntime = async (): Promise<void> => {
               message.toolCalls?.some(toolCall => toolCall.id === tool_call_id),
           );
 
-        if (!assistantMsg && denied && tool_name) {
+        if (!assistantMsg && (denied || error) && tool_name) {
           const target = [...session.messages]
             .reverse()
             .find(message => message.role === 'assistant');
@@ -237,7 +256,7 @@ const initAgentRuntime = async (): Promise<void> => {
               id: tool_call_id,
               toolName: tool_name,
               args: (args ?? {}) as Record<string, unknown>,
-              status: 'denied',
+              status: denied ? 'denied' : 'error',
               riskLevel: 'safe',
               requiresConfirmation: false,
               result: envelope.summary,
@@ -256,7 +275,7 @@ const initAgentRuntime = async (): Promise<void> => {
             assistantMsg.id,
             tool_call_id,
             denied ? 'denied' : error ? 'error' : 'done',
-            envelope.summary,
+            envelope.full_result ?? envelope.summary,
             envelope.metadata?.duration_ms,
           );
         }
@@ -276,21 +295,7 @@ const initAgentRuntime = async (): Promise<void> => {
     ),
     onAgentLoopBlocked(({ session_id }) => {
       const store = useDataStudioStore();
-      const session = getSessionById(store.sessions, session_id);
-      session?.messages.forEach(message => {
-        const calls = message.toolCalls ?? [];
-        if (calls.some(call => ['pending', 'confirmed', 'executing'].includes(call.status))) {
-          store.setMessageToolCalls(
-            session_id,
-            message.id,
-            calls.map(call => {
-              if (!['pending', 'confirmed', 'executing'].includes(call.status)) return call;
-              return { ...call, status: 'interrupted', requiresConfirmation: false };
-            }),
-          );
-        }
-        if (message.status === 'streaming') store.setMessageStatus(session_id, message.id, 'done');
-      });
+      finishSessionTools(session_id, 'done');
       store.setSessionStatus(session_id, 'blocked');
       store.clearSessionProgress(session_id);
       store.removeOrphanedStreamingMessages(session_id, '');
@@ -338,20 +343,11 @@ const initAgentRuntime = async (): Promise<void> => {
     }),
     onAgentLoopError(({ session_id, error }) => {
       const store = useDataStudioStore();
-      const session = getSessionById(store.sessions, session_id);
-
       store.setSessionError(session_id, error);
       store.setSessionStatus(session_id, 'error');
-
-      if (!session) return;
-
-      const streamingMsg = [...session.messages]
-        .reverse()
-        .find(message => message.role === 'assistant' && message.status === 'streaming');
-
-      if (streamingMsg) {
-        store.setMessageStatus(session_id, streamingMsg.id, 'error');
-      }
+      finishSessionTools(session_id, 'error');
+      store.clearSessionProgress(session_id);
+      store.removePreparingPlaceholder(session_id);
     }),
     onAgentLoopSummaryInjected(payload => {
       const store = useDataStudioStore();

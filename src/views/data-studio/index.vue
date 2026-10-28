@@ -193,7 +193,7 @@
                         </span>
                         <button
                           class="add-source-connect-btn"
-                          :disabled="!addSourceSelectedId"
+                          :disabled="!addSourceSelectedId || addingSource"
                           @click="confirmAddSource"
                         >
                           <span class="i-carbon-data-connected h-3.5 w-3.5" />
@@ -355,6 +355,7 @@ const permissionMenuOpen = ref(false);
 const modelVerified = ref<boolean | null>(null);
 
 const addSourceOpen = ref(false);
+const addingSource = ref(false);
 const addSourceQuery = ref('');
 const addSourceSelectedId = ref('');
 const addSourceMode = ref<'Ask' | 'Inherit'>('Inherit');
@@ -416,32 +417,32 @@ const selectAddConnection = (conn: Connection) => {
 };
 
 const confirmAddSource = async () => {
-  if (!addSourceSelectedId.value) return;
+  if (!addSourceSelectedId.value || addingSource.value) return;
   const conn = connections.value.find(c => String(c.id) === addSourceSelectedId.value);
   if (!conn || conn.id === undefined) return;
-  const newSource = await dataStudioStore.addDatabaseSourceFromConnection({
-    connectionId: Number(conn.id),
-    name: conn.name,
-    databaseType: conn.type as
-      | 'ELASTICSEARCH'
-      | 'OPENSEARCH'
-      | 'EASYSEARCH'
-      | 'DYNAMODB'
-      | 'MONGODB',
-    permissions: { read: true, create: false, update: false, delete: false },
-  });
-  if (!dataStudioStore.activeSession) {
-    await dataStudioStore.getOrCreateSession([]);
+  const mode = addSourceMode.value === 'Ask' ? 'custom' : 'inherit';
+  addingSource.value = true;
+  try {
+    const newSource = await dataStudioStore.addDatabaseSourceFromConnection({
+      connectionId: Number(conn.id),
+      name: conn.name,
+      databaseType: conn.type as
+        | 'ELASTICSEARCH'
+        | 'OPENSEARCH'
+        | 'EASYSEARCH'
+        | 'DYNAMODB'
+        | 'MONGODB',
+      permissions: { read: true, create: false, update: false, delete: false, manage: false },
+    });
+    if (!dataStudioStore.activeSession) await dataStudioStore.getOrCreateSession([]);
+    const attached = await dataStudioStore.attachSourceToActiveSession(newSource, mode);
+    if (!attached) throw new Error(lang.t('dataStudio.addSource.saveFailed'));
+    resetAddSourceState();
+  } catch (error) {
+    message.error(`${lang.t('dataStudio.addSource.saveFailed')} ${String(error)}`);
+  } finally {
+    addingSource.value = false;
   }
-  dataStudioStore.attachSourceToActiveSession(newSource);
-  if (addSourceMode.value === 'Ask' && dataStudioStore.activeSession) {
-    dataStudioStore.updateSessionSourceMode(
-      dataStudioStore.activeSession.id,
-      newSource.sourceId,
-      'custom',
-    );
-  }
-  resetAddSourceState();
 };
 
 const hasMessages = computed(() => messages.value.length > 0);
@@ -457,7 +458,9 @@ const setAutoMode = (auto: boolean) => {
   permissionMenuOpen.value = false;
   const sessionId = activeSession.value?.id;
   if (!sessionId) return;
-  dataStudioStore.setSessionPermissionsMode(sessionId, auto ? 'Auto' : 'Ask');
+  dataStudioStore
+    .setSessionPermissionsMode(sessionId, auto ? 'Auto' : 'Ask')
+    .catch(error => message.error(String(error)));
 };
 
 const closeOpenMenus = (e: MouseEvent) => {

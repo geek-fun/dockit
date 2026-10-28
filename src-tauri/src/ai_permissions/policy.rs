@@ -7,9 +7,8 @@ use data_studio_agent::capabilities::types::RiskLevel;
 
 /// Result of a policy decision for a capability invocation.
 ///
-/// `Ask` is informational this iteration: both the MCP bridge and the built-in
-/// agent loop execute on `Ask` (confirmation UX is client-driven). Only `Deny`
-/// short-circuits execution.
+/// The built-in agent routes `Ask` through its confirmation flow. External MCP
+/// clients receive risk annotations and apply their own approval policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PolicyAction {

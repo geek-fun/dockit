@@ -243,11 +243,6 @@ pub fn run() {
             let agent_db = storage::db::open(&db_path)?;
             storage::db::migrate(&agent_db)?;
             db::ensure_query_history(&agent_db)?;
-            match db::repair_unbound_attached_sources(app.handle(), &agent_db) {
-                Ok(0) => {}
-                Ok(repaired) => log::info!("[db] repaired {repaired} unbound attached sources"),
-                Err(error) => log::warn!("[db] failed to repair unbound attached sources: {error}"),
-            }
             {
                 let conn = agent_db.0.lock().map_err(|e| e.to_string())?;
                 storage::db::recover_stuck_sessions(&conn)?;
@@ -288,7 +283,9 @@ pub fn run() {
                 if let Ok(urls) = serde_json::from_str::<Vec<String>>(event.payload()) {
                     for url in &urls {
                         if let Some(payload) = parse_auth_from_url(url) {
-                            app_handle.state::<PendingAuthState>().store(payload.clone());
+                            app_handle
+                                .state::<PendingAuthState>()
+                                .store(payload.clone());
                             let _ = app_handle.emit("dockit://auth", payload);
                         }
                     }

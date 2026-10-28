@@ -123,8 +123,19 @@ pub async fn run_agent_loop(
         .clone();
     if let Some(payload) = blocked {
         if result.is_ok() || result.as_ref().is_err_and(|error| error == "cancelled") {
-            store.update_session_status(&session_id, "blocked").await?;
-            emitter.inner.emit("agent-loop-blocked", payload);
+            if payload["denial"]["kind"] == "unavailable" {
+                store.update_session_status(&session_id, "error").await?;
+                emitter.inner.emit(
+                    "agent-loop-error",
+                    serde_json::json!({
+                        "session_id": session_id,
+                        "error": payload["denial"]["message"],
+                    }),
+                );
+            } else {
+                store.update_session_status(&session_id, "blocked").await?;
+                emitter.inner.emit("agent-loop-blocked", payload);
+            }
             return Ok(());
         }
     }

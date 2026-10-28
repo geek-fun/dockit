@@ -1,6 +1,7 @@
 import type { AiPermissions } from '@/common';
 import { getAiPolicy, saveAiPermissions } from '@/common';
 import { defineStore } from 'pinia';
+import { createTaskQueue } from './persistence';
 import {
   buildAuthHeader,
   buildURL,
@@ -604,6 +605,8 @@ export const buildTransportLayers = (
   return [{ type: 'ssh', ...config, useSystemProxy: sshTunnel.useSystemProxy ?? false }];
 };
 
+const persistConnectionChange = createTaskQueue();
+
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
     connections: Connection[];
@@ -847,65 +850,77 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
-      try {
-        const { aiPermissions: _draftPermissions, ...connectionData } = connection;
-        const policyIds =
-          connection.id == null ? Object.keys((await getAiPolicy()).connection_permissions) : [];
-        const newConnection = {
-          ...connectionData,
-          id:
-            connection.id ??
-            Math.max(
-              0,
-              ...this.connections.map(c => Number(c.id) || 0),
-              ...policyIds.map(id => Number(id) || 0),
-            ) + 1,
-        } as Connection;
-
-        const permissionDraft =
-          connection.aiPermissions !== undefined &&
-          (await import('./entitlementStore')).useEntitlementStore().isLocalUltimate
-            ? connection.aiPermissions
-            : undefined;
-        const previousPermissions =
-          permissionDraft === undefined
-            ? undefined
-            : ((await getAiPolicy()).connection_permissions[String(newConnection.id)] ?? {});
-        if (permissionDraft !== undefined)
-          await saveAiPermissions(String(newConnection.id), permissionDraft);
-        const nextConnections = this.connections.some(
-          c => String(c.id) === String(newConnection.id),
-        )
-          ? this.connections.map(c =>
-              String(c.id) === String(newConnection.id) ? newConnection : c,
-            )
-          : [...this.connections, newConnection];
+      return persistConnectionChange(async () => {
         try {
-          await storeApi.set('connections', pureObject(nextConnections));
+          const { aiPermissions: _draftPermissions, ...connectionData } = connection;
+          const newId = connection.id == null;
+          const nextId = newId
+            ? Math.max(
+                Date.now(),
+                Number(await storeApi.get('nextConnectionId', 0)) || 0,
+                1,
+                ...this.connections.map(c => (Number(c.id) || 0) + 1),
+              )
+            : connection.id;
+          if (newId) {
+            if (!Number.isSafeInteger(nextId) || Number(nextId) >= Number.MAX_SAFE_INTEGER)
+              throw new Error('Cannot allocate a connection identifier');
+            await storeApi.set('nextConnectionId', Number(nextId) + 1);
+          }
+          const newConnection = { ...connectionData, id: nextId } as Connection;
+
+          const permissionDraft =
+            connection.aiPermissions !== undefined &&
+            (await import('./entitlementStore')).useEntitlementStore().isLocalUltimate
+              ? connection.aiPermissions
+              : undefined;
+          const previousPermissions =
+            permissionDraft === undefined
+              ? undefined
+              : ((await getAiPolicy()).connection_permissions[String(newConnection.id)] ?? {});
+          if (permissionDraft !== undefined)
+            await saveAiPermissions(String(newConnection.id), permissionDraft);
+          const nextConnections = this.connections.some(
+            c => String(c.id) === String(newConnection.id),
+          )
+            ? this.connections.map(c =>
+                String(c.id) === String(newConnection.id) ? newConnection : c,
+              )
+            : [...this.connections, newConnection];
+          try {
+            await storeApi.set('connections', pureObject(nextConnections));
+          } catch (error) {
+            if (previousPermissions !== undefined)
+              await saveAiPermissions(String(newConnection.id), previousPermissions);
+            throw error;
+          }
+          this.connections = nextConnections;
+          return { success: true, message: 'Connection saved successfully' };
         } catch (error) {
-          if (previousPermissions !== undefined)
-            await saveAiPermissions(String(newConnection.id), previousPermissions);
-          throw error;
+          return {
+            success: false,
+            message: error instanceof Error ? error.message : 'Unknown error',
+          };
         }
-        this.connections = nextConnections;
-        return { success: true, message: 'Connection saved successfully' };
-      } catch (error) {
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
-        };
-      }
+      });
     },
     async removeConnection(connection: Connection) {
-      const updatedConnections = this.connections.filter(c => c.id !== connection.id);
-      await storeApi.set('connections', pureObject(updatedConnections));
-      this.connections = updatedConnections;
-      try {
-        await saveAiPermissions(String(connection.id), {});
-      } catch (error) {
-        // eslint-disable-next-line no-console -- Keep cleanup failures observable after successful deletion.
-        console.warn('Connection deleted, but AI permission cleanup failed:', error);
-      }
+      return persistConnectionChange(async () => {
+        const nextId = Math.max(
+          Number(await storeApi.get('nextConnectionId', 0)) || 0,
+          (Number(connection.id) || 0) + 1,
+        );
+        await storeApi.set('nextConnectionId', nextId);
+        const updatedConnections = this.connections.filter(c => c.id !== connection.id);
+        await storeApi.set('connections', pureObject(updatedConnections));
+        this.connections = updatedConnections;
+        try {
+          await saveAiPermissions(String(connection.id), {});
+        } catch (error) {
+          // eslint-disable-next-line no-console -- Keep cleanup failures observable after successful deletion.
+          console.warn('Connection deleted, but AI permission cleanup failed:', error);
+        }
+      });
     },
     async fetchIndices(con: Connection, tableName?: string) {
       const connection = this.connections.find(({ id }) => id === con.id);

@@ -231,7 +231,8 @@
               'tool-outcome-notice--rejected':
                 tc.denial?.kind === 'user' || tc.status === 'interrupted',
             }"
-            role="alert"
+            :role="historical ? 'status' : 'alert'"
+            :aria-live="historical ? 'off' : 'assertive'"
           >
             <span aria-hidden="true" class="i-carbon-warning shrink-0 h-4 w-4" />
             <div class="min-w-0 space-y-2">
@@ -265,9 +266,12 @@
               >
                 {{ tc.denial.message }}
               </p>
-              <div v-if="tc.status === 'denied'" class="flex flex-wrap gap-2">
+              <div
+                v-if="tc.status === 'denied' || tc.denial?.kind === 'unavailable'"
+                class="flex flex-wrap gap-2"
+              >
                 <Button
-                  v-if="tc.denial?.kind !== 'user' && tc.denial?.kind !== 'unavailable'"
+                  v-if="!tc.denial || ['permission', 'rule'].includes(tc.denial.kind)"
                   type="button"
                   variant="outline"
                   size="sm"
@@ -325,11 +329,8 @@ const connectionLabel = (call: AgentToolCall) => {
   const id = call.denial?.connectionId;
   if (id)
     return connectionStore.connections.find(connection => String(connection.id) === id)?.name ?? id;
-  try {
-    return call.args.connection_id ?? '';
-  } catch {
-    return '';
-  }
+  const argument = call.args?.connection_id;
+  return typeof argument === 'string' || typeof argument === 'number' ? String(argument) : '';
 };
 const outcomeTitle = (call: AgentToolCall) => {
   const key =
@@ -790,10 +791,6 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   color: hsl(var(--destructive));
 }
 
-.activity-status-icon.denied {
-  color: hsl(var(--destructive));
-}
-
 /* ── Inline result preview ── */
 .result-preview {
   font-size: 11.5px;
@@ -804,11 +801,6 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   max-width: 180px;
   flex-shrink: 1;
   min-width: 0;
-}
-
-.result-preview-error,
-.result-preview-denied {
-  color: hsl(var(--destructive) / 0.7);
 }
 
 /* ── Tool body (expanded) ── */

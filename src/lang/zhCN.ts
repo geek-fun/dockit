@@ -10,7 +10,7 @@ export const zhCN = {
     title: 'AI 权限',
     help: '适用于 Data Studio 和外部 MCP 客户端。可使用系统默认值，也可为此连接单独设置权限。',
     loading: '正在加载权限…',
-    loadFailed: '无法加载权限。请重试后再保存连接。',
+    loadFailed: '无法加载 AI 权限。连接信息仍可保存，AI 权限保持不变。',
     retry: '重试',
     inherit: '使用系统默认值',
     none: '禁止访问',
@@ -1887,6 +1887,7 @@ export const zhCN = {
     modelUnavailable: '模型不可用：请检查 API Key 或提供商配置。',
     modelUnavailableSend: '无法发送——所选模型不可用，请检查 API Key 或提供商配置。',
     addSource: {
+      saveFailed: '无法添加数据源，请重试。',
       title: '添加数据源',
       selectConnection: '选择连接',
       selectConnectionPlaceholder: '搜索连接...',
