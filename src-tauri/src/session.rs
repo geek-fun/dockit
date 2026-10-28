@@ -6,13 +6,13 @@
 //! lease + device identity, receive the successor pair, and classify
 //! rejections so the frontend can drop dead leases.
 //!
-//! Rotations serialize through `SessionState::rotate_lock`: the lease is
-//! single-use and the server treats presenting an already-rotated token as a
-//! leak that revokes the device scope, so two concurrent rotations must
-//! never race.
+//! Successful rotations are shared by callers presenting the same lease so
+//! concurrent entitlement and activation requests cannot replay a consumed token,
+//! including when the app sleeps between queued callers.
 
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::VecDeque;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::common::console;
@@ -22,9 +22,15 @@ pub const SESSION_REJECTED_ERROR_TYPE: &str = "SESSION_REJECTED";
 
 #[derive(Default)]
 pub struct SessionState {
-    /// See module docs — guards the present-then-replace window.
-    pub rotate_lock: tokio::sync::Mutex<()>,
+    rotations: tokio::sync::Mutex<VecDeque<CachedRotation>>,
 }
+
+struct CachedRotation {
+    previous: String,
+    session: RefreshedSession,
+}
+
+const ROTATION_CACHE_LIMIT: usize = 64;
 
 pub fn session_rejected_error(message: &str) -> String {
     json!({
@@ -40,6 +46,8 @@ pub struct RefreshedSession {
     pub access_token: String,
     #[serde(rename = "refresh_token")]
     pub refresh_token: String,
+    #[serde(default, skip_deserializing)]
+    pub previous_refresh_token: String,
 }
 
 /// Exchange a lease for the successor pair. The caller must surface the
@@ -60,7 +68,13 @@ pub async fn rotate_session(
         return Err("no stored refresh token".to_string());
     }
 
-    let _guard = state.rotate_lock.lock().await;
+    let mut rotations = state.rotations.lock().await;
+    if let Some(cached) = rotations
+        .iter()
+        .find(|entry| entry.previous == refresh_token)
+    {
+        return Ok(cached.session.clone());
+    }
     let response = console::client()
         .post(format!("{}/api/v1/auth/refresh", console::api_base_url()))
         .json(&json!({ "refresh_token": refresh_token, "device": device_payload }))
@@ -86,8 +100,19 @@ pub async fn rotate_session(
     }
 
     let data = raw.get("data").cloned().unwrap_or(json!({}));
-    let session: RefreshedSession =
+    let mut session: RefreshedSession =
         serde_json::from_value(data).map_err(|e| format!("invalid refresh result: {e}"))?;
+    if !status.is_success() {
+        return Err(format!("refresh endpoint returned HTTP {status}"));
+    }
+    session.previous_refresh_token = refresh_token.to_string();
+    if rotations.len() >= ROTATION_CACHE_LIMIT {
+        rotations.pop_front();
+    }
+    rotations.push_back(CachedRotation {
+        previous: refresh_token.to_string(),
+        session: session.clone(),
+    });
     Ok(session)
 }
 
@@ -120,6 +145,7 @@ pub async fn rotate_session_now(
         json!({
             "accessToken": refreshed.access_token,
             "refreshToken": refreshed.refresh_token,
+            "previousRefreshToken": refreshed.previous_refresh_token,
         }),
     );
     Ok(refreshed)
@@ -140,7 +166,10 @@ pub async fn revoke_session(refresh_token: Option<String>) -> Result<(), String>
         .await
         .map_err(|e| format!("network error: {e}"))?;
     if !response.status().is_success() {
-        return Err(format!("logout endpoint returned HTTP {}", response.status()));
+        return Err(format!(
+            "logout endpoint returned HTTP {}",
+            response.status()
+        ));
     }
     Ok(())
 }

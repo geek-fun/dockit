@@ -13,6 +13,11 @@ export type PaidFeature =
   | 'mcp_bridge';
 
 export type EntitlementView = {
+  refreshedSession?: {
+    access_token: string;
+    refresh_token: string;
+    previous_refresh_token: string;
+  };
   ultimateActive: boolean;
   versionLocked: boolean;
   localUltimate: boolean;

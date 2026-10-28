@@ -187,6 +187,8 @@ pub struct EntitlementView {
     /// Session health verdict (`SESSION_PHASE_*`) — see the constant docs.
     pub session_phase: &'static str,
     pub last_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refreshed_session: Option<crate::session::RefreshedSession>,
 }
 
 /// Pure entitlement decision. Fail-closed: an unparseable release date or
@@ -290,6 +292,7 @@ impl EntitlementState {
             fetched_at_ms: binding.as_ref().map(|c| c.fetched_at_ms),
             session_phase,
             last_error,
+            refreshed_session: None,
         }
     }
 
@@ -507,16 +510,18 @@ pub async fn refresh_entitlement(
 }
 
 pub(crate) fn settle_refresh<R: Runtime>(
-    view: EntitlementView,
+    mut view: EntitlementView,
     rotated: Option<crate::session::RefreshedSession>,
     app: &AppHandle<R>,
 ) -> EntitlementView {
     if let Some(refreshed) = rotated {
+        view.refreshed_session = Some(refreshed.clone());
         let _ = app.emit(
             "session-refreshed",
             json!({
                 "accessToken": refreshed.access_token,
                 "refreshToken": refreshed.refresh_token,
+                "previousRefreshToken": refreshed.previous_refresh_token,
             }),
         );
     }
@@ -662,6 +667,66 @@ mod tests {
             version_lock_horizon: horizon.map(str::to_string),
             cancel_scheduled_at: None,
         })
+    }
+
+    #[tokio::test]
+    async fn a_transient_rotation_failure_can_retry_the_same_lease() {
+        let server = console_server().await;
+        let lease = format!("transient-{}", uuid::Uuid::new_v4().simple());
+        let state = crate::session::SessionState::default();
+        let identity = identity_state("transient-rotation").payload();
+        let failure = mock_refresh_lease(&lease, 503, json!({ "code": 5000 }))
+            .expect(1)
+            .mount_as_scoped(server)
+            .await;
+        assert!(crate::session::rotate_session(&state, &lease, &identity)
+            .await
+            .is_err());
+        drop(failure);
+        let success = mock_refresh_lease(
+            &lease,
+            200,
+            json!({
+                "code": 2000,
+                "data": { "access_token": "next-access", "refresh_token": "next-lease" }
+            }),
+        )
+        .expect(1)
+        .mount_as_scoped(server)
+        .await;
+        let rotated = crate::session::rotate_session(&state, &lease, &identity)
+            .await
+            .expect("retry after transient failure");
+        assert_eq!(rotated.previous_refresh_token, lease);
+        drop(success);
+    }
+
+    #[tokio::test]
+    async fn concurrent_rotations_share_the_successor_without_replaying_the_lease() {
+        let server = console_server().await;
+        let lease = format!("concurrent-{}", uuid::Uuid::new_v4().simple());
+        let response = mock_refresh_lease(
+            &lease,
+            200,
+            json!({
+                "code": 2000,
+                "data": { "access_token": "next-access", "refresh_token": "next-lease" }
+            }),
+        )
+        .expect(1)
+        .mount_as_scoped(server)
+        .await;
+        let state = crate::session::SessionState::default();
+        let identity = identity_state("concurrent-rotation").payload();
+        let (first, second) = tokio::join!(
+            crate::session::rotate_session(&state, &lease, &identity),
+            crate::session::rotate_session(&state, &lease, &identity),
+        );
+        let first = first.expect("first rotation");
+        let second = second.expect("shared rotation");
+        assert_eq!(first.refresh_token, second.refresh_token);
+        assert_eq!(second.previous_refresh_token, lease);
+        drop(response);
     }
 
     #[test]
@@ -1145,6 +1210,7 @@ mod tests {
             Some(crate::session::RefreshedSession {
                 access_token: "next-access".to_string(),
                 refresh_token: "next-refresh".to_string(),
+                previous_refresh_token: "previous-refresh".to_string(),
             }),
             app.handle(),
         );

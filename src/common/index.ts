@@ -20,3 +20,5 @@ export * from './sessionExpiry';
 export * from './aiPermissions';
 
 export * from './agentPrompt';
+
+export * from './sessionLifecycle';

@@ -22,6 +22,7 @@ export type DeviceLimitInfo = {
 };
 
 export type ActivatedResult = {
+  accessToken?: string | null;
   deviceId: string;
   limit: number;
   used: number;
@@ -48,6 +49,7 @@ export const useDeviceStore = defineStore('device', {
     used: number;
     limitInfo: DeviceLimitInfo | null;
     showReplaceDialog: boolean;
+    activationRevision: number;
     activating: boolean;
     /** Last activation failure — shown in the plan section (plan-section.vue). */
     activationError: string | null;
@@ -57,6 +59,7 @@ export const useDeviceStore = defineStore('device', {
     used: 0,
     limitInfo: null,
     showReplaceDialog: false,
+    activationRevision: -1,
     activating: false,
     activationError: null,
   }),
@@ -66,7 +69,7 @@ export const useDeviceStore = defineStore('device', {
   },
   actions: {
     shouldAttempt(force: boolean): boolean {
-      if (force) {
+      if (force || !useUserStore().refreshToken) {
         return true;
       }
       const last = Number(localStorage.getItem(LAST_ACTIVATED_KEY) ?? 0);
@@ -76,23 +79,33 @@ export const useDeviceStore = defineStore('device', {
     // cannot self-heal; 5030 needs the user's replace decision instead.
     async ensureActivated(force = false): Promise<void> {
       const userStore = useUserStore();
-      if (!userStore.isLoggedIn || this.activating || !this.shouldAttempt(force)) {
+      const revision = userStore.sessionRevision;
+      if (
+        !userStore.isLoggedIn ||
+        (this.activating && this.activationRevision === revision) ||
+        !this.shouldAttempt(force)
+      ) {
         return;
       }
+      this.activationRevision = revision;
       this.activating = true;
       try {
         for (let attempt = 0; ; attempt += 1) {
+          if (userStore.sessionRevision !== revision) return;
           try {
             const result = await invoke<ActivatedResult>('activate_device', {
               token: userStore.accessToken,
               refreshToken: userStore.refreshToken || null,
               replaceDeviceId: null,
             });
+            if (userStore.sessionRevision !== revision) return;
             this.applyActivated(result);
             this.activationError = null;
-            localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
+            if (userStore.refreshToken)
+              localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
             return;
           } catch (err) {
+            if (userStore.sessionRevision !== revision) return;
             const limitInfo = parseLimitReached(err);
             if (limitInfo) {
               this.limitInfo = limitInfo;
@@ -107,15 +120,21 @@ export const useDeviceStore = defineStore('device', {
           }
         }
       } finally {
-        this.activating = false;
+        if (this.activationRevision === revision) this.activating = false;
       }
     },
     /** Replace the picked device with this machine (geekfun#59 F2). */
     async replaceDevice(deviceId: string): Promise<boolean> {
       const userStore = useUserStore();
-      if (!userStore.isLoggedIn || !deviceId || this.activating) {
+      const revision = userStore.sessionRevision;
+      if (
+        !userStore.isLoggedIn ||
+        !deviceId ||
+        (this.activating && this.activationRevision === revision)
+      ) {
         return false;
       }
+      this.activationRevision = revision;
       this.activating = true;
       try {
         const result = await invoke<ActivatedResult>('activate_device', {
@@ -123,11 +142,13 @@ export const useDeviceStore = defineStore('device', {
           refreshToken: userStore.refreshToken || null,
           replaceDeviceId: deviceId,
         });
+        if (userStore.sessionRevision !== revision) return false;
         this.applyActivated(result);
         this.activationError = null;
         localStorage.setItem(LAST_ACTIVATED_KEY, String(Date.now()));
         return true;
       } catch (err) {
+        if (userStore.sessionRevision !== revision) return false;
         const limitInfo = parseLimitReached(err);
         if (limitInfo) {
           // The picked device may have been replaced concurrently — refresh
@@ -136,13 +157,14 @@ export const useDeviceStore = defineStore('device', {
         }
         return false;
       } finally {
-        this.activating = false;
+        if (this.activationRevision === revision) this.activating = false;
       }
     },
     /** Persist an activation outcome: device slots plus the (possibly
      * renewed) device-bound lease, which rides back to the account session. */
     applyActivated(result: ActivatedResult): void {
       const userStore = useUserStore();
+      if (result.accessToken) userStore.setToken(result.accessToken);
       this.deviceId = result.deviceId;
       this.limit = result.limit;
       this.used = result.used;
