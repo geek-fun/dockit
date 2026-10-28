@@ -19,7 +19,7 @@ import {
   useEntitlementStore,
   useUserStore,
 } from '../store';
-import { shouldRotateToken } from '../common';
+import { createSessionLifecycle } from '../common';
 import { useAppUpdater, useMessageService } from '@/composables';
 import { lang } from '../lang';
 import { resolveAvatarUrl } from '../datasources';
@@ -40,57 +40,45 @@ const message = useMessageService();
 const aboutDialog = ref<InstanceType<typeof AboutDialog> | null>(null);
 let showAboutListener: UnlistenFn | undefined;
 let checkForUpdatesListener: UnlistenFn | undefined;
-let unlistenAuth: UnlistenFn | undefined;
-let unlistenSessionRefresh: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
-type AuthPayload = {
-  token: string;
-  username?: string | null;
-  email?: string | null;
-  userId?: string | null;
-  avatar?: string | null;
-  ultimateExpiresAt?: string | null;
-  versionLockHorizon?: string | null;
-  cancelScheduledAt?: string | null;
-};
-
-// Idempotent: events and the cold-start pull may both deliver the same link.
-const handleAuth = async (payload: AuthPayload) => {
-  userStore.setAuth(
-    payload.token,
-    payload.username ?? '',
-    payload.email ?? '',
-    payload.userId ?? '',
-    resolveAvatarUrl(payload.avatar ?? ''),
-  );
-  // await the seed — it must not land after the refresh below
-  await entitlementStore.seedFromHandoff(payload);
-  entitlementStore.refreshEntitlement(true);
-  // geekfun#59: the deep-linked token comes from a web login with no
-  // device attached — register/verify this machine right away.
-  deviceStore.ensureActivated(true);
-};
-
-const rotateStaleSession = async () => {
-  if (
-    !userStore.refreshToken ||
-    !shouldRotateToken(userStore.accessToken, userStore.refreshToken)
-  ) {
-    return;
-  }
-  try {
-    const refreshed = await invoke<{ access_token: string; refresh_token: string }>(
-      'rotate_session_now',
-      { refreshToken: userStore.refreshToken },
+const sessionLifecycle = createSessionLifecycle({
+  read: () => ({
+    token: userStore.accessToken,
+    refreshToken: userStore.refreshToken,
+    revision: userStore.sessionRevision,
+  }),
+  authenticate: payload => {
+    entitlementStore.view = null;
+    entitlementStore.sessionRejections = 0;
+    deviceStore.$reset();
+    userStore.setAuth(
+      payload.token,
+      payload.username ?? '',
+      payload.email ?? '',
+      payload.userId ?? '',
+      resolveAvatarUrl(payload.avatar ?? ''),
     );
-    userStore.setToken(refreshed.access_token);
-    userStore.setRefreshToken(refreshed.refresh_token);
-  } catch {
-    // rejected or transient — the reactive 401 paths still recover
-  }
-};
+  },
+  applyRotation: payload =>
+    userStore.applySessionRefresh(
+      payload.previousRefreshToken,
+      payload.accessToken,
+      payload.refreshToken,
+    ),
+  seed: payload => entitlementStore.seedFromHandoff(payload),
+  hydrate: () => entitlementStore.hydrate(),
+  refresh: () => entitlementStore.refreshEntitlement(true),
+  activate: force => deviceStore.ensureActivated(force),
+  clearCache: () => entitlementStore.clearCachedEntitlement(),
+  rotate: refreshToken => invoke('rotate_session_now', { refreshToken }),
+  listenAuth: handler =>
+    listen('dockit://auth', event => handler(event.payload as Parameters<typeof handler>[0])),
+  listenRotation: handler =>
+    listen('session-refreshed', event => handler(event.payload as Parameters<typeof handler>[0])),
+  consumeAuth: () => invoke('consume_pending_auth'),
+});
 
 const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) => {
   setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK);
@@ -110,50 +98,14 @@ onMounted(async () => {
     checkForUpdates(true);
   });
 
-  // Listeners must exist before the pending-auth pull below.
-  unlistenAuth = await listen<AuthPayload>('dockit://auth', event => {
-    handleAuth(event.payload);
-  });
-
-  // Transparent session refresh (Rust rotates the lease): keep the frontend
-  // copy of both tokens in sync.
-  unlistenSessionRefresh = await listen<{ accessToken: string; refreshToken: string }>(
-    'session-refreshed',
-    event => {
-      userStore.setToken(event.payload.accessToken);
-      userStore.setRefreshToken(event.payload.refreshToken);
-    },
-  );
-
-  if (userStore.isLoggedIn) {
-    await entitlementStore.hydrate();
-    // Rotate before the refresh so it goes out with a valid bearer.
-    await rotateStaleSession();
-    entitlementStore.refreshEntitlement(true);
-    deviceStore.ensureActivated();
-  } else {
-    // A cached plan must not outlive the session.
-    void entitlementStore.clearCachedEntitlement();
-  }
-
-  // Cold start: a deep link can arrive before these listeners exist — Rust
-  // parks it in pending state; consume it now.
-  try {
-    const pending = await invoke<AuthPayload | null>('consume_pending_auth');
-    if (pending) {
-      handleAuth(pending);
-    }
-  } catch {
-    // no pending auth is the normal case
-  }
+  await sessionLifecycle.start();
 });
 
 onUnmounted(() => {
   sysPreferLight.removeEventListener('change', handleSystemThemeChange);
   showAboutListener?.();
   checkForUpdatesListener?.();
-  unlistenAuth?.();
-  unlistenSessionRefresh?.();
+  sessionLifecycle.dispose();
 });
 
 // Definite session loss (lease rejected, or bearer dead without a lease) is

@@ -22,6 +22,10 @@ jest.mock('../src/store/userStore', () => ({
     get refreshToken() {
       return mockLoggedIn ? 'lease-1' : '';
     },
+    applySessionRefresh: (_previous: string, access: string, refresh: string) => {
+      mockSetToken(access);
+      mockSetRefreshToken(refresh);
+    },
     setToken: mockSetToken,
     setRefreshToken: mockSetRefreshToken,
     resetToken: mockResetToken,

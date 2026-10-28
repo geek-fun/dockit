@@ -85,10 +85,11 @@ export const useEntitlementStore = defineStore('entitlement', {
     async clearSessionState(): Promise<void> {
       const userStore = useUserStore();
       const lease = userStore.refreshToken || null;
-      await this.clearCachedEntitlement();
       userStore.resetToken();
+      this.sessionRejections = 0;
       useDeviceStore().$reset();
       void invoke('revoke_session', { refreshToken: lease }).catch(() => {});
+      await this.clearCachedEntitlement();
     },
     // The session is definitively unrenewable (the server rejected the lease,
     // or the bearer is dead with no lease to rotate): wipe local state so the
@@ -96,11 +97,11 @@ export const useEntitlementStore = defineStore('entitlement', {
     async handleSessionLoss(): Promise<void> {
       const userStore = useUserStore();
       const hadIdentity = userStore.isLoggedIn;
-      await this.clearSessionState();
-      this.sessionRejections = 0;
+      const clearing = this.clearSessionState();
       if (hadIdentity) {
         this.sessionLostNotice = Date.now();
       }
+      await clearing;
     },
     // A deliberate rotation rejection is server policy, not transient — but a
     // single one only lands on the degraded login-CTA state; two in a row
@@ -121,6 +122,7 @@ export const useEntitlementStore = defineStore('entitlement', {
     // the caller's retry CTA.
     async attemptSessionRecovery(): Promise<'recovered' | 'lost'> {
       const userStore = useUserStore();
+      const revision = userStore.sessionRevision;
       const lease = userStore.refreshToken || '';
       if (lease.trim()) {
         try {
@@ -128,10 +130,12 @@ export const useEntitlementStore = defineStore('entitlement', {
             'rotate_session_now',
             { refreshToken: lease },
           );
-          userStore.setToken(refreshed.access_token);
-          userStore.setRefreshToken(refreshed.refresh_token);
+          if (userStore.sessionRevision !== revision) return 'recovered';
+          userStore.applySessionRefresh(lease, refreshed.access_token, refreshed.refresh_token);
           this.sessionRejections = 0;
         } catch (e) {
+          if (userStore.sessionRevision !== revision) return 'recovered';
+          if (userStore.refreshToken !== lease) return 'recovered';
           if (isSessionRejected(e)) {
             await this.resolveSessionRejection();
             return 'lost';
@@ -147,22 +151,25 @@ export const useEntitlementStore = defineStore('entitlement', {
       versionLockHorizon?: string | null;
       cancelScheduledAt?: string | null;
     }): Promise<void> {
+      const revision = useUserStore().sessionRevision;
       const { ultimateExpiresAt, versionLockHorizon, cancelScheduledAt } = payload;
       if (!ultimateExpiresAt && !versionLockHorizon) {
         return;
       }
       try {
-        this.view = await invoke<EntitlementView>('seed_entitlement', {
+        const seeded = await invoke<EntitlementView>('seed_entitlement', {
           ultimateExpiresAt: ultimateExpiresAt ?? null,
           versionLockHorizon: versionLockHorizon ?? null,
           cancelScheduledAt: cancelScheduledAt ?? null,
         });
+        if (useUserStore().sessionRevision === revision) this.view = seeded;
       } catch {
         // best effort — the refresh below still verifies
       }
     },
     // only a real server answer (fetchedAtMs) may surface as a confirmed plan
     async hydrate(): Promise<void> {
+      const revision = useUserStore().sessionRevision;
       if (!useUserStore().isLoggedIn) {
         this.view = null;
         return;
@@ -170,24 +177,39 @@ export const useEntitlementStore = defineStore('entitlement', {
       const cached = await invoke<EntitlementView>('get_entitlement', {
         tokenPresent: true,
       }).catch(() => null);
+      if (useUserStore().sessionRevision !== revision) return;
       if (cached?.fetchedAtMs != null) {
         this.view = cached;
       }
     },
     async refreshEntitlement(force = false): Promise<'ok' | 'lost'> {
       const userStore = useUserStore();
+      const revision = userStore.sessionRevision;
       if (!userStore.isLoggedIn) {
         await this.clearCachedEntitlement();
         return 'ok';
       }
       for (let attempt = 0; ; attempt += 1) {
+        if (userStore.sessionRevision !== revision) return 'ok';
+        const lease = userStore.refreshToken;
         try {
-          this.view = await invoke<EntitlementView>('refresh_entitlement', {
+          const view = await invoke<EntitlementView>('refresh_entitlement', {
             token: userStore.accessToken,
             refreshToken: userStore.refreshToken || null,
             force,
           });
-          if (this.view.sessionPhase === 'expired') {
+          if (userStore.sessionRevision !== revision) return 'ok';
+          if (view.refreshedSession) {
+            const rotated = view.refreshedSession;
+            userStore.applySessionRefresh(
+              rotated.previous_refresh_token,
+              rotated.access_token,
+              rotated.refresh_token,
+            );
+          }
+          if (view.sessionPhase === 'expired' && userStore.refreshToken !== lease) return 'ok';
+          this.view = view;
+          if (view.sessionPhase === 'expired') {
             // A dead lease the Rust side could not rotate — never recoverable
             // client-side; resolve the session to the logged-out look.
             await this.handleSessionLoss();
@@ -196,7 +218,9 @@ export const useEntitlementStore = defineStore('entitlement', {
           this.sessionRejections = 0;
           return 'ok';
         } catch (e) {
+          if (userStore.sessionRevision !== revision) return 'ok';
           if (isSessionRejected(e)) {
+            if (userStore.refreshToken !== lease) return 'ok';
             // dead lease — the next login starts clean, and a second
             // consecutive rejection resolves the whole session
             await this.resolveSessionRejection();
@@ -222,12 +246,12 @@ export const useEntitlementStore = defineStore('entitlement', {
       }
     },
     async clearCachedEntitlement(): Promise<void> {
+      this.view = null;
       try {
         await invoke<EntitlementView>('clear_entitlement');
       } catch {
         // best effort — the local view reset below always applies
       }
-      this.view = null;
     },
   },
 });
