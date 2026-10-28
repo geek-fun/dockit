@@ -698,6 +698,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.cheaperinference.com/v1',
     apiCompatibility: 'openai-compatible',
   },
+  runcrate: {
+    label: 'Runcrate',
+    authMode: 'api-key',
+    baseUrl: 'https://api.runcrate.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',

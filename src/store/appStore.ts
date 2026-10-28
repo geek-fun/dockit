@@ -33,6 +33,7 @@ export type ProviderKind =
   | 'atlascloud'
   | 'api-route'
   | 'cheaperinference'
+  | 'runcrate'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -202,6 +203,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['gpt-5.4-mini', 'claude-sonnet-5', 'gemini-3.1-pro'],
   },
   {
+    kind: 'runcrate',
+    apiCompatibility: 'openai-compatible',
+    label: 'Runcrate',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.runcrate.ai/v1',
+    enabled: false,
+    defaultModels: ['deepseek-ai/DeepSeek-V4.1-Flash', 'zai-org/GLM-5.3', 'moonshotai/Kimi-K2.6'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -317,6 +327,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   atlascloud: ['deepseek-ai/deepseek-v4-flash', 'moonshotai/kimi-k3', 'zai-org/glm-5.2'],
   'api-route': ['gpt-6.1-sol'],
   cheaperinference: ['gpt-5.4-mini', 'claude-sonnet-5', 'gemini-3.1-pro'],
+  runcrate: ['deepseek-ai/DeepSeek-V4.1-Flash', 'zai-org/GLM-5.3', 'moonshotai/Kimi-K2.6'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -429,6 +440,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'api-route';
     case ProviderEnum.CHEAPER_INFERENCE:
       return 'cheaperinference';
+    case ProviderEnum.RUNCRATE:
+      return 'runcrate';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:
