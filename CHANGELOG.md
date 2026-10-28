@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-10-28
+
+### Added
+
+- **One AI permission model** — built-in chat, Data Studio, and external MCP clients now share per-connection allow/deny decisions for read, create, update, delete, and structure/administration, with system defaults for whatever a connection inherits
+- **Recover from a blocked action without losing the conversation** — blocked, rejected, and interrupted tool calls now say what stopped them, with Review permissions and Retry request actions
+- **Cheaper Inference** is available as an AI provider (#532)
+
+### Changed
+
+- **Ask/Auto modes only control confirmation** — neither mode grants a permission that the system default, the connection, or the conversation denies
+- **Per-connection AI permissions** are an Ultimate feature, presented as access-level cards with explicit Use default options; the restriction is enforced in the backend, not just the UI
+- **Elasticsearch write checks now match what a request can touch** — indexing with a generated ID needs create, indexing with an explicit ID also needs update, and scripted or bulk operations require every permission involved
+
+### Fixed
+
+- **Sign-in and plan state survive restarts** — concurrent token rotations no longer replay a consumed token, which could sign the device out or drop Ultimate access after reopening the app
+- **Data Studio sources stay attached** — sources saved without their connection binding were treated as detached after a reload and blocked AI tool calls with "Connection is no longer attached"
+- **AI permissions and source bindings persist across restarts** instead of falling back to defaults
+- **Third-party provider presets are opt-in** — a fresh install no longer pre-adds nine unusable provider cards or contacts vendor domains for keys that were never configured (#533)
+- **DynamoDB PartiQL errors** stay at the top of the result pane, keep their formatting, wrap long diagnostics, scroll, and leave Close reachable (#531)
+
+### Security
+
+- **Upgrade DOMPurify** to address a critical advisory reported by the dependency audit
+
+### Documentation
+
+- **MCP Toplist badge** added to the READMEs (#530)
+
 ## [2.0.0] - 2026-10-18
 
 ### Added
