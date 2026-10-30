@@ -360,18 +360,18 @@ watch(importTargetIndex, newIdx => {
 }
 
 .step-card .step-header .step-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
 .step-card .step-badge {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
 .step-card .field-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -379,7 +379,7 @@ watch(importTargetIndex, newIdx => {
 }
 
 .step-card .field-hint {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-top: 4px;
   display: block;
@@ -397,7 +397,7 @@ watch(importTargetIndex, newIdx => {
 }
 
 .step-card .collection-indicator .indicator-text {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 </style>

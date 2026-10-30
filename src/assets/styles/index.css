@@ -24,7 +24,20 @@
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
     --ring: 144 52% 45%;
+    --warning: 38 92% 50%;
     --radius: 0.5rem;
+
+    /* Type scale (see DESIGN.md Typography). text-caption / text-body map to
+       --font-size-caption / --font-size-body via uno.config.ts; the other sizes
+       reuse the default utilities text-xs (12) / text-sm (14) / text-base (16) /
+       text-xl (20). Business components must use these variables or utilities
+       instead of bare px/rem font sizes. */
+    --font-size-caption: 11px;
+    --font-size-dense: 12px;
+    --font-size-body: 13px;
+    --font-size-form: 14px;
+    --font-size-title: 16px;
+    --font-size-page-title: 20px;
 
     /* HTTP / query method colors */
     --method-get: 213 94% 62%;
@@ -34,7 +47,7 @@
     --method-head: 0 0% 45%;
 
     /* Spacing */
-    --tool-bar-height: 40px;
+    --tool-bar-height: 36px;
   }
 
   /* Dark Mode - Modern design with better contrast */
@@ -58,6 +71,7 @@
     --border: 217 10% 28%;
     --input: 217 10% 25%;
     --ring: 144 52% 45%;
+    --warning: 38 92% 60%;
 
     /* HTTP / query method colors */
     --method-get: 213 94% 68%;
@@ -85,7 +99,7 @@
   body {
     @apply bg-background text-foreground;
     transition: 0.3s;
-    font-size: 14px;
+    font-size: var(--font-size-form);
   }
 
   button:not(:disabled),

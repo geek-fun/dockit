@@ -643,7 +643,7 @@ onBeforeUnmount(() => {
   border: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.5);
   color: hsl(var(--foreground));
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -666,7 +666,7 @@ onBeforeUnmount(() => {
 }
 
 .permission-trigger-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--foreground));
 }
 
@@ -707,7 +707,7 @@ onBeforeUnmount(() => {
 }
 
 .permission-menu-title {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
@@ -745,7 +745,7 @@ onBeforeUnmount(() => {
 
 .permission-menu-label {
   flex: 1;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
@@ -783,7 +783,7 @@ onBeforeUnmount(() => {
   border: 1px solid hsl(var(--border));
   background: hsl(var(--muted) / 0.5);
   color: hsl(var(--muted-foreground));
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -834,7 +834,7 @@ onBeforeUnmount(() => {
 }
 
 .add-source-menu-title {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
@@ -862,7 +862,7 @@ onBeforeUnmount(() => {
   border: 1px solid hsl(var(--border));
   border-radius: 6px;
   background: hsl(var(--background));
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--foreground));
   outline: none;
 }
@@ -927,7 +927,7 @@ onBeforeUnmount(() => {
 }
 
 .add-source-item-name {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -936,7 +936,7 @@ onBeforeUnmount(() => {
 }
 
 .add-source-item-meta {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
@@ -945,7 +945,7 @@ onBeforeUnmount(() => {
 
 .add-source-empty {
   padding: 16px 12px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -980,7 +980,7 @@ onBeforeUnmount(() => {
   border: 1px solid hsl(var(--border));
   background: transparent;
   color: hsl(var(--muted-foreground));
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.12s;
@@ -1007,7 +1007,7 @@ onBeforeUnmount(() => {
 }
 
 .add-source-count {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1023,7 +1023,7 @@ onBeforeUnmount(() => {
   border: none;
   background: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.15s;

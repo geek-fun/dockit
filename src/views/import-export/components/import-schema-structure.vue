@@ -427,12 +427,12 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .step-header .step-title-container .step-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
 .step-card .step-header .step-title-container .step-subtitle {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -443,7 +443,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .header-extra .step-badge {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
@@ -461,7 +461,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .empty-state-small .loading-text {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
 }
 
@@ -470,7 +470,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .info-section .section-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
@@ -529,7 +529,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .panel-label {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   white-space: nowrap;
@@ -541,7 +541,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .panel-value {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -580,7 +580,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .plan-radio-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--foreground));
   cursor: pointer;
 }
@@ -588,7 +588,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 .step-card .schema-info .plan-input {
   width: 60px;
   padding: 2px 6px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: hsl(var(--foreground));
   background: hsl(var(--background));
@@ -603,7 +603,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .schema-section .section-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
@@ -621,7 +621,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
   padding: 12px 16px;
   background: hsl(var(--card));
   border-bottom: 1px solid hsl(var(--border));
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
@@ -659,7 +659,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 .step-card .schema-info .schema-section .schema-table .col-field {
   flex: 2;
   font-family: monospace;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
 }
 
 .step-card .schema-info .schema-section .schema-table .col-source-type,
@@ -681,7 +681,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .schema-section .schema-hint {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-top: 8px;
   margin-bottom: 0;
@@ -692,7 +692,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .comments-section .section-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
@@ -700,7 +700,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .comments-section .comments-text {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   padding: 12px;
   background: hsl(var(--card));

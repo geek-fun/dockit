@@ -255,13 +255,13 @@ onUnmounted(() => {
 }
 
 .file-item-name {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   word-break: break-word;
   margin-bottom: 4px;
 }
 
 .file-item-meta {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: #888;
   margin-top: 2px;
 }

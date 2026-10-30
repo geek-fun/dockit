@@ -121,7 +121,7 @@ const tools = [
   padding: 2px 11px;
   border-radius: 999px;
   border: 1px solid hsl(var(--border));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: hsl(var(--muted-foreground));
@@ -132,7 +132,7 @@ const tools = [
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   color: hsl(var(--method-post));
 }
@@ -187,7 +187,7 @@ const tools = [
 }
 
 .p-label {
-  font-size: 9.5px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: hsl(var(--muted-foreground));
@@ -205,7 +205,7 @@ const tools = [
   border: 1px solid hsl(var(--border));
   border-radius: 7px;
   background-color: hsl(var(--background));
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
@@ -215,7 +215,7 @@ const tools = [
   padding: 5px 10px;
   border: 1px solid hsl(var(--border));
   border-radius: 7px;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--foreground));
   white-space: nowrap;
 }
@@ -224,7 +224,7 @@ const tools = [
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
 }
 
@@ -257,7 +257,7 @@ const tools = [
   border: 1px solid hsl(var(--border));
   border-radius: 999px;
   background-color: hsl(var(--background));
-  font-size: 9.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
@@ -269,7 +269,7 @@ const tools = [
   border: 1px solid hsl(var(--border));
   background-color: hsl(var(--muted) / 0.55);
   font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   line-height: 1.55;
   color: hsl(var(--foreground));
   overflow: hidden;
@@ -290,7 +290,7 @@ const tools = [
   border-radius: 6px;
   background-color: hsl(var(--muted) / 0.4);
   font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
 }
 
@@ -339,7 +339,7 @@ const tools = [
   border: 1px solid hsl(var(--primary) / 0.4);
   background-color: hsl(var(--background) / 0.75);
   backdrop-filter: blur(8px);
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--primary));
 }

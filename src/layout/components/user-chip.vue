@@ -279,7 +279,7 @@ const handleStartFree = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--foreground));
   background: hsl(var(--accent));
@@ -336,7 +336,7 @@ const handleStartFree = async () => {
 }
 
 .user-panel-name {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: hsl(var(--foreground));
   overflow: hidden;
@@ -345,7 +345,7 @@ const handleStartFree = async () => {
 }
 
 .user-panel-email {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -361,7 +361,7 @@ const handleStartFree = async () => {
 }
 
 .user-panel-note {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 

@@ -307,7 +307,7 @@ const handleLogin = async () => {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 14px;
+  font-size: var(--font-size-form);
 }
 
 .unlock-copy__icon {
@@ -316,7 +316,7 @@ const handleLogin = async () => {
 }
 
 .unlock-copy__sub {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
   opacity: 0.85;
   font-variant-numeric: tabular-nums;
@@ -450,19 +450,19 @@ const handleLogin = async () => {
 }
 
 .gate-card__title {
-  font-size: 19px;
+  font-size: var(--font-size-title);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: hsl(var(--foreground));
 }
 
 .gate-card--compact .gate-card__title {
-  font-size: 23px;
+  font-size: var(--font-size-page-title);
   letter-spacing: -0.03em;
 }
 
 .gate-card__sub {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
 }
 
@@ -486,7 +486,7 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--foreground));
 }
 
@@ -533,14 +533,14 @@ const handleLogin = async () => {
 }
 
 .gate-tile__text b {
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-weight: 650;
   color: hsl(var(--foreground));
 }
 
 .gate-tile__text i {
   font-style: normal;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
 }
 
@@ -552,7 +552,7 @@ const handleLogin = async () => {
 
 .prov-title {
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-weight: 650;
   color: hsl(var(--foreground));
 }
@@ -567,7 +567,7 @@ const handleLogin = async () => {
   width: 52px;
   flex-shrink: 0;
   padding-top: 3px;
-  font-size: 8.5px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -589,7 +589,7 @@ const handleLogin = async () => {
   border: 1px solid hsl(var(--border) / 0.8);
   background-color: hsl(var(--background) / 0.85);
   color: hsl(var(--foreground));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
 }
 
@@ -610,7 +610,7 @@ const handleLogin = async () => {
 
 .gate-card__trust-line {
   text-align: center;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 

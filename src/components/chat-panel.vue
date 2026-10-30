@@ -595,7 +595,7 @@ onBeforeUnmount(() => {
 
 .error-settings-btn {
   margin-left: auto;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   text-decoration: underline;
   background: none;
   border: none;
@@ -649,13 +649,13 @@ onBeforeUnmount(() => {
 }
 
 .loop-stopped-banner__message {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   line-height: 1.4;
 }
 
 .loop-stopped-banner__hint {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   line-height: 1.4;
 }
@@ -669,7 +669,7 @@ onBeforeUnmount(() => {
 
 .loop-stopped-banner__action {
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   border-radius: 6px;
   cursor: pointer;
@@ -718,7 +718,7 @@ onBeforeUnmount(() => {
   outline: none;
   background: transparent;
   color: hsl(var(--foreground));
-  font-size: 13px;
+  font-size: var(--font-size-body);
   resize: none;
   line-height: 1.5;
 }

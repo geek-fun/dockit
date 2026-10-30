@@ -40,7 +40,7 @@ const goToEditor = () => {
 }
 
 .history-empty-content .main-desc {
-  font-size: 18px;
+  font-size: var(--font-size-title);
   font-weight: 600;
   margin: 10px 0;
 }

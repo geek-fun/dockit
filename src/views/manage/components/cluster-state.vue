@@ -1521,7 +1521,7 @@ onMounted(async () => {
 }
 
 .metric-label {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1529,7 +1529,7 @@ onMounted(async () => {
 }
 
 .metric-value {
-  font-size: 20px;
+  font-size: var(--font-size-page-title);
   font-weight: 700;
   color: hsl(var(--foreground));
 }
@@ -1567,7 +1567,7 @@ onMounted(async () => {
 }
 
 .status-badge-text {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   text-transform: uppercase;
 }
@@ -1625,7 +1625,7 @@ onMounted(async () => {
 }
 
 .info-label {
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1633,7 +1633,7 @@ onMounted(async () => {
 }
 
 .info-value {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
@@ -1670,7 +1670,7 @@ onMounted(async () => {
 }
 
 .node-count {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1719,7 +1719,7 @@ onMounted(async () => {
 }
 
 .node-name-title {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: hsl(var(--foreground));
   overflow: hidden;
@@ -1740,7 +1740,7 @@ onMounted(async () => {
 }
 
 .stat-label {
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1748,7 +1748,7 @@ onMounted(async () => {
 }
 
 .stat-text {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   color: hsl(var(--foreground));
 }
@@ -1795,7 +1795,7 @@ onMounted(async () => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   color: hsl(var(--foreground));
 }
@@ -1810,7 +1810,7 @@ onMounted(async () => {
 }
 
 .gauge-label {
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1889,7 +1889,7 @@ onMounted(async () => {
 }
 
 .health-text {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   vertical-align: middle;
   text-transform: capitalize;
 }
@@ -1934,7 +1934,7 @@ onMounted(async () => {
   position: absolute;
   top: -5px;
   left: 6px;
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   padding: 0 5px;
   height: 10px;
@@ -1961,7 +1961,7 @@ onMounted(async () => {
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 4px !important;
-  font-size: 10px !important;
+  font-size: var(--font-size-caption) !important;
   height: 18px !important;
   padding: 0 4px !important;
   line-height: 1;
@@ -1993,7 +1993,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   margin-bottom: 2px;
 }
@@ -2019,7 +2019,7 @@ onMounted(async () => {
 }
 
 .shard-empty {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -2035,7 +2035,7 @@ onMounted(async () => {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  font-size: 15px;
+  font-size: var(--font-size-title);
   padding-right: 2.5rem;
 }
 
@@ -2047,7 +2047,7 @@ onMounted(async () => {
 }
 
 .shard-modal-badge {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2074,13 +2074,13 @@ onMounted(async () => {
 }
 
 .shard-modal-num {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
 
 .shard-modal-node {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-family: monospace;
 }
@@ -2101,7 +2101,7 @@ onMounted(async () => {
 }
 
 .shard-unassigned-reason-text {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: hsl(var(--destructive));
 }
@@ -2130,13 +2130,13 @@ onMounted(async () => {
 }
 
 .shard-explain-popover-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   color: hsl(var(--foreground));
 }
 
 .shard-can-allocate-badge {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
@@ -2154,7 +2154,7 @@ onMounted(async () => {
 }
 
 .shard-explain-popover-text {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   line-height: 1.4;
   margin-bottom: 8px;
@@ -2181,13 +2181,13 @@ onMounted(async () => {
 }
 
 .shard-decider-node-name {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-family: monospace;
   color: hsl(var(--foreground));
 }
 
 .shard-node-errors {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   line-height: 1.4;
   margin-top: 6px;
@@ -2195,7 +2195,7 @@ onMounted(async () => {
 }
 
 .shard-decider-badge {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   padding: 1px 4px;
   border-radius: 3px;

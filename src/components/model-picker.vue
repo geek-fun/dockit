@@ -269,14 +269,14 @@ const selectModel = (value: string) => {
 }
 
 .model-picker-title {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 700;
   letter-spacing: 0.03em;
 }
 
 .model-picker-subtitle {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   text-transform: uppercase;
   color: hsl(var(--muted-foreground) / 0.6);
 }
@@ -292,7 +292,7 @@ const selectModel = (value: string) => {
 
 .model-picker-heading {
   padding: 0 6px 6px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 700;
   color: hsl(var(--primary) / 0.8);
 }
@@ -348,7 +348,7 @@ const selectModel = (value: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--font-size-body);
 }
 
 .model-picker-provider,
@@ -357,13 +357,13 @@ const selectModel = (value: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
 .model-picker-empty {
   padding: 14px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 </style>

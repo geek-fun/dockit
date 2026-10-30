@@ -43,12 +43,12 @@ withDefaults(defineProps<{ size?: 'dot' | 'xs' | 'sm' }>(), { size: 'sm' });
 
 .pro-badge--xs {
   padding: 1px 7px;
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   text-transform: uppercase;
 }
 
 .pro-badge--sm {
   padding: 2px 9px;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
 }
 </style>

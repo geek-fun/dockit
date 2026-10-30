@@ -279,7 +279,7 @@ onUnmounted(() => {
 
 .tab-trigger {
   border-radius: 0;
-  padding: 8px 24px 8px 12px;
+  padding: 6px 16px 6px 10px;
 }
 
 .tab-trigger[data-state='active'] {
@@ -294,7 +294,7 @@ onUnmounted(() => {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--font-size-form);
   line-height: 1;
   padding: 2px 4px;
   color: inherit;

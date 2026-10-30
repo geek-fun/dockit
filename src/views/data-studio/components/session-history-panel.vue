@@ -119,7 +119,7 @@ const formatTime = (session: AgentSession): string => {
 }
 
 .history-title {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -130,8 +130,8 @@ const formatTime = (session: AgentSession): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   border: none;
   background: transparent;
@@ -155,7 +155,7 @@ const formatTime = (session: AgentSession): string => {
 }
 
 .empty-hint {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
   padding: 20px 0;
@@ -193,7 +193,7 @@ const formatTime = (session: AgentSession): string => {
 }
 
 .session-name {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -202,7 +202,7 @@ const formatTime = (session: AgentSession): string => {
 }
 
 .session-meta {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -210,8 +210,8 @@ const formatTime = (session: AgentSession): string => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 4px;
   border: none;
   background: transparent;

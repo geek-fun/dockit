@@ -60,13 +60,13 @@ withDefaults(defineProps<{ size?: 'sm' | 'lg' }>(), { size: 'lg' });
 .shimmer-btn--lg {
   height: 42px;
   padding: 0 26px;
-  font-size: 14px;
+  font-size: var(--font-size-form);
 }
 
 .shimmer-btn--sm {
   height: 34px;
   padding: 0 18px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
 }
 
 .shimmer-btn__label {

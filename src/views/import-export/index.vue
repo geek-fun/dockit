@@ -168,7 +168,7 @@ watch(
   justify-content: center;
   border-radius: 6px;
   padding: 0 8px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   transition: all 0.2s ease;
   color: hsl(var(--muted-foreground));

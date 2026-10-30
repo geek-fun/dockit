@@ -258,7 +258,7 @@ const indices = [
   padding: 2px 11px;
   border-radius: 999px;
   border: 1px solid hsl(var(--border));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: hsl(var(--muted-foreground));
@@ -269,7 +269,7 @@ const indices = [
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   color: hsl(var(--method-post));
 }
@@ -312,14 +312,14 @@ const indices = [
 }
 
 .p-metric-label {
-  font-size: 9.5px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.07em;
   color: hsl(var(--muted-foreground));
 }
 
 .p-metric-value {
-  font-size: 20px;
+  font-size: var(--font-size-page-title);
   font-weight: 700;
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
@@ -329,7 +329,7 @@ const indices = [
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   color: hsl(var(--method-post));
 }
@@ -352,7 +352,7 @@ const indices = [
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 9.5px;
+  font-size: var(--font-size-caption);
 }
 
 .p-info-row span {
@@ -380,13 +380,13 @@ const indices = [
 }
 
 .p-quad-item span {
-  font-size: 8.5px;
+  font-size: var(--font-size-caption);
   letter-spacing: 0.05em;
   color: hsl(var(--muted-foreground));
 }
 
 .p-quad-item b {
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-weight: 700;
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
@@ -427,7 +427,7 @@ const indices = [
   border: 1px solid hsl(var(--border) / 0.6);
   border-radius: 8px;
   overflow: hidden;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
 }
 
 .p-tr {
@@ -449,7 +449,7 @@ const indices = [
 .p-tr--head > span {
   background-color: hsl(var(--muted) / 0.6);
   font-weight: 700;
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   letter-spacing: 0.06em;
   color: hsl(var(--foreground));
 }
@@ -484,7 +484,7 @@ const indices = [
   border-radius: 10px;
   background-color: hsl(var(--card));
   padding: 8px 13px;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
 }
 
@@ -503,7 +503,7 @@ const indices = [
 }
 
 .p-nodes-title {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: hsl(var(--foreground));
@@ -511,7 +511,7 @@ const indices = [
 
 .p-nodes-count {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
   font-variant-numeric: tabular-nums;
 }
@@ -563,7 +563,7 @@ const indices = [
 }
 
 .p-node-name {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--foreground));
   overflow: hidden;
@@ -582,13 +582,13 @@ const indices = [
 }
 
 .p-node-stat span {
-  font-size: 8.5px;
+  font-size: var(--font-size-caption);
   letter-spacing: 0.05em;
   color: hsl(var(--muted-foreground));
 }
 
 .p-node-stat b {
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
@@ -638,7 +638,7 @@ const indices = [
 .p-gauge-value {
   position: absolute;
   top: 13px;
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -652,7 +652,7 @@ const indices = [
 }
 
 .p-gauge-label {
-  font-size: 8px;
+  font-size: var(--font-size-caption);
   letter-spacing: 0.07em;
   color: hsl(var(--muted-foreground));
 }
@@ -670,7 +670,7 @@ const indices = [
   border: 1px solid hsl(var(--primary) / 0.4);
   background-color: hsl(var(--background) / 0.75);
   backdrop-filter: blur(8px);
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--primary));
 }

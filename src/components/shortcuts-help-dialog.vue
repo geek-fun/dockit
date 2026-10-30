@@ -269,7 +269,7 @@ const closeDialog = () => {
 }
 
 .section-title {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: hsl(var(--foreground));
   margin: 0;
@@ -294,7 +294,7 @@ const closeDialog = () => {
 }
 
 .shortcut-action {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--foreground));
   flex: 1;
 }
@@ -313,7 +313,7 @@ kbd {
   min-width: 24px;
   height: 22px;
   padding: 2px 6px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 500;
   line-height: 1;
@@ -325,12 +325,12 @@ kbd {
 }
 
 .key-separator {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
 .platform-note {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-left: 4px;
 }
