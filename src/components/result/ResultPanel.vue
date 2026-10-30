@@ -656,7 +656,7 @@ watch(
   gap: 0.5rem;
   min-width: 0;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--font-size-form);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -671,7 +671,7 @@ watch(
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   color: hsl(var(--foreground));
-  font-size: 0.875rem;
+  font-size: var(--font-size-form);
   line-height: 1.5;
 }
 .result-error-content:focus-visible {
@@ -789,7 +789,7 @@ watch(
 }
 .column-data-type {
   margin-left: 6px;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 400;
   white-space: nowrap;
 }
@@ -805,7 +805,7 @@ watch(
   border-radius: 0.375rem;
   padding: 0.5rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
 }
 
 /* Slim scrollbars for the result table/tree — matches the JSON view's Monaco
@@ -857,7 +857,7 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 .pagination-right {

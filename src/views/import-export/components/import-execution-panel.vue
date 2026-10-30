@@ -336,7 +336,7 @@ const executeImport = async () => {
 }
 
 .execution-card .execution-header .execution-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
@@ -356,14 +356,14 @@ const executeImport = async () => {
 }
 
 .execution-card .validation-section .section-header .section-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
 }
 
 .execution-card .validation-section .section-header .validation-status {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
 }
 
@@ -394,12 +394,12 @@ const executeImport = async () => {
 }
 
 .execution-card .validation-section .stats-rows .stat-row .stat-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
 }
 
 .execution-card .validation-section .stats-rows .stat-row .stat-value {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
@@ -408,7 +408,7 @@ const executeImport = async () => {
 }
 
 .execution-card .strategy-section .section-title-small {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
@@ -452,7 +452,7 @@ const executeImport = async () => {
   .strategy-option
   .strategy-content
   .strategy-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
@@ -462,7 +462,7 @@ const executeImport = async () => {
   .strategy-option
   .strategy-content
   .strategy-desc {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -471,7 +471,7 @@ const executeImport = async () => {
 }
 
 .execution-card .progress-section .progress-text {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
@@ -492,7 +492,7 @@ const executeImport = async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
 }
 
 .execution-card .progress-section .statistics-box .stat-item .stat-label {
@@ -502,7 +502,7 @@ const executeImport = async () => {
 
 .execution-card .progress-section .statistics-box .stat-item .stat-value {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-size-form);
 }
 
 .execution-card .progress-section .statistics-box .stat-item .stat-value.success {
@@ -522,7 +522,7 @@ const executeImport = async () => {
 }
 
 .execution-card .import-action .import-note {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
@@ -534,7 +534,7 @@ const executeImport = async () => {
   justify-content: center;
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
@@ -568,7 +568,7 @@ const executeImport = async () => {
 }
 
 .parse-errors-list li {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   line-height: 1.5;
 }

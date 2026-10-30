@@ -11,7 +11,7 @@ const props = defineProps<
 </script>
 
 <template>
-  <DialogTitle :class="cn('text-lg font-semibold leading-none tracking-tight', props.class)">
+  <DialogTitle :class="cn('text-base font-semibold leading-none tracking-tight', props.class)">
     <slot />
   </DialogTitle>
 </template>

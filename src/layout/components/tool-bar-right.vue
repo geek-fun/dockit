@@ -17,7 +17,7 @@
           @keydown.enter="navClick(item)"
           @keydown.space.prevent="navClick(item)"
         >
-          <span :class="[item.iconClass, 'h-6 w-6']" />
+          <span :class="[item.iconClass, 'h-5 w-5']" />
           <span v-if="item.id === 'task-manager' && runningTaskCount > 0" class="task-badge">
             {{ runningTaskCount > 9 ? '9+' : runningTaskCount }}
           </span>
@@ -121,7 +121,7 @@ const smallNavList = ref([
   padding: 0 3px;
   background: #d03050;
   color: #fff;
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   border-radius: 7px;
   display: flex;

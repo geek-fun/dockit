@@ -977,7 +977,7 @@ defineExpose({
 }
 
 .status-text {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
 }
@@ -992,7 +992,7 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.8125rem;
+  font-size: var(--font-size-dense);
 }
 
 :deep(.row-selected) {
@@ -1041,11 +1041,11 @@ defineExpose({
   gap: 16px;
   padding: 6px 12px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-body);
 }
 
 .mongo-context-menu ul li .shortcut {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   opacity: 0.5;
   white-space: nowrap;
 }

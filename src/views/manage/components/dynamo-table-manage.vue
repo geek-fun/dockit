@@ -975,7 +975,7 @@ defineExpose({
 }
 
 .metric-label {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -983,13 +983,13 @@ defineExpose({
 }
 
 .metric-value {
-  font-size: 20px;
+  font-size: var(--font-size-page-title);
   font-weight: 700;
   color: hsl(var(--foreground));
 }
 
 .metric-value-small {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
@@ -1022,7 +1022,7 @@ defineExpose({
 }
 
 .status-text {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 4px;
@@ -1067,16 +1067,16 @@ defineExpose({
 }
 
 .ttl-value .status-enabled {
-  font-size: 14px;
+  font-size: var(--font-size-form);
 }
 
 .ttl-value .status-disabled {
-  font-size: 14px;
+  font-size: var(--font-size-form);
 }
 
 .ttl-attribute {
   font-family: monospace;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
 }
 
@@ -1105,7 +1105,7 @@ defineExpose({
 }
 
 .time-range {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1132,7 +1132,7 @@ defineExpose({
 }
 
 .chart-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   text-transform: uppercase;
   color: hsl(var(--muted-foreground));
@@ -1147,7 +1147,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -1231,7 +1231,7 @@ defineExpose({
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 700;
   color: hsl(var(--foreground));
 }
@@ -1243,13 +1243,13 @@ defineExpose({
 }
 
 .utilization-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
 
 .utilization-detail {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
 }
 
@@ -1264,13 +1264,13 @@ defineExpose({
 }
 
 .throttled-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   color: hsl(var(--muted-foreground));
 }
 
 .throttled-value {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 700;
   color: hsl(var(--primary));
   background: hsl(var(--primary) / 0.1);
@@ -1371,7 +1371,7 @@ defineExpose({
 }
 
 .setting-item-label {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1409,7 +1409,7 @@ defineExpose({
 
 .setting-item-badge {
   display: inline-block;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   padding: 2px 9px;
   border-radius: 4px;
@@ -1427,7 +1427,7 @@ defineExpose({
 }
 
 .setting-item-value {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -1450,7 +1450,7 @@ defineExpose({
 }
 
 .setting-item-sub {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 

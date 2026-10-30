@@ -849,7 +849,7 @@ watch(searchText, () => {
 }
 
 .column-data-type {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 400;
   color: hsl(var(--muted-foreground));
   white-space: nowrap;

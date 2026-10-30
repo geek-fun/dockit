@@ -18,7 +18,7 @@
             @keydown.enter="navClick(item)"
             @keydown.space.prevent="navClick(item)"
           >
-            <span :class="[item.iconClass, 'h-6 w-6']" />
+            <span :class="[item.iconClass, 'h-5 w-5']" />
             <ProBadge v-if="showProDot(item)" size="dot" class="icon-pro-dot" />
           </div>
         </the-aside-icon>
@@ -41,7 +41,7 @@
             @keydown.enter="navClick(item)"
             @keydown.space.prevent="navClick(item)"
           >
-            <span :class="[item.iconClass, 'h-6 w-6']" />
+            <span :class="[item.iconClass, 'h-5 w-5']" />
           </div>
         </the-aside-icon>
       </div>
@@ -162,7 +162,7 @@ const navClick = (item: RouteItem) => {
 
 <style scoped>
 .left-aside {
-  --aside-width: 60px;
+  --aside-width: 56px;
   width: var(--aside-width);
   box-sizing: border-box;
   display: flex;
@@ -177,8 +177,8 @@ const navClick = (item: RouteItem) => {
 
 .icon-item {
   position: relative;
-  height: 40px;
-  margin: 10px 0;
+  height: 36px;
+  margin: 8px 0;
   display: flex;
   box-sizing: border-box;
   justify-content: center;
@@ -208,7 +208,7 @@ const navClick = (item: RouteItem) => {
   top: 0;
   bottom: 0;
   left: 0;
-  width: 5px;
+  width: 3px;
   background-color: hsl(var(--border));
 }
 

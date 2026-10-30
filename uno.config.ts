@@ -77,6 +77,12 @@ export default defineConfig({
       md: 'calc(var(--radius) - 2px)',
       sm: 'calc(var(--radius) - 4px)',
     },
+    text: {
+      // Semantic type scale (see DESIGN.md Typography). preset-wind4 stores
+      // font sizes under theme.text; 12/14/16/20px already exist as xs/sm/base/xl.
+      caption: { fontSize: '11px', lineHeight: '16px' },
+      body: { fontSize: '13px', lineHeight: '20px' },
+    },
     containers: {
       center: true,
       padding: '2rem',

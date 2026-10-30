@@ -177,7 +177,7 @@ pre code[class*='language-'] {
 }
 
 .code-block-lang {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
   color: hsl(var(--muted-foreground) / 0.65);
@@ -219,7 +219,7 @@ pre:hover .code-block-actions {
   background: hsl(var(--popover));
   color: hsl(var(--popover-foreground));
   border: 1px solid hsl(var(--border));
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   white-space: nowrap;
   padding: 3px 7px;
   border-radius: 4px;
@@ -239,7 +239,7 @@ code.hljs.code-block-content {
   display: block;
   padding: 12px 16px;
   overflow-x: auto;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   line-height: 1.6;
   background: none;
   border: none;

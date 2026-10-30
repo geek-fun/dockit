@@ -59,7 +59,7 @@ const emit = defineEmits<{
   margin-left: 0.5rem;
   font-weight: 400;
   color: hsl(var(--muted-foreground));
-  font-size: 0.875rem;
+  font-size: var(--font-size-form);
 }
 
 .docs-browser-embedded {

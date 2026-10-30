@@ -11,7 +11,7 @@ const props = defineProps<
 </script>
 
 <template>
-  <AlertDialogTitle :class="cn('text-lg font-semibold', props.class)">
+  <AlertDialogTitle :class="cn('text-base font-semibold', props.class)">
     <slot />
   </AlertDialogTitle>
 </template>

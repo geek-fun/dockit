@@ -974,8 +974,8 @@ const handleEditorSwitch = async (
 <style scoped>
 .tool-bar-container {
   width: 100%;
-  height: 35px;
-  line-height: 40px;
+  height: 36px;
+  line-height: 36px;
   display: flex;
   align-items: center;
   margin: 0;
@@ -1005,7 +1005,7 @@ const handleEditorSwitch = async (
 }
 
 .switch-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   min-width: 50px;
 }
 
@@ -1017,7 +1017,7 @@ const handleEditorSwitch = async (
 :deep(.connection-select) {
   margin: 0;
   padding: 0 12px;
-  height: 35px;
+  height: 28px;
   width: 220px;
   flex-shrink: 0;
   border: none;
@@ -1036,7 +1036,7 @@ const handleEditorSwitch = async (
 :deep(.index-select) {
   margin: 0;
   padding: 0 12px;
-  height: 35px;
+  height: 28px;
   width: 220px;
   flex-shrink: 0;
   border: none;

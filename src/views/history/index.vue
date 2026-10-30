@@ -467,7 +467,7 @@ const handleClearAll = () => {
 }
 
 .history-list-title {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
@@ -540,13 +540,13 @@ const handleClearAll = () => {
 }
 
 .method-badge {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   padding: 0 5px;
   font-weight: 600;
 }
 
 .history-item-time {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   flex-shrink: 0;
@@ -565,7 +565,7 @@ const handleClearAll = () => {
 }
 
 .history-item-path {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--foreground));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -575,7 +575,7 @@ const handleClearAll = () => {
 }
 
 .history-item-connection {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-top: 3px;
   margin-left: 19px;
@@ -595,7 +595,7 @@ const handleClearAll = () => {
 }
 
 .search-empty-text {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -616,7 +616,7 @@ const handleClearAll = () => {
 }
 
 .details-title {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 600;
   color: hsl(var(--foreground));
 }
@@ -646,14 +646,14 @@ const handleClearAll = () => {
 }
 
 .meta-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--muted-foreground));
   min-width: 80px;
 }
 
 .meta-value {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--foreground));
   font-family: monospace;
 }
@@ -669,7 +669,7 @@ const handleClearAll = () => {
   border: 1px solid hsl(var(--border));
   border-radius: 6px;
   padding: 12px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-family: monospace;
   white-space: pre-wrap;
   word-break: break-all;
