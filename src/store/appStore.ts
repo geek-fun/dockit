@@ -34,6 +34,7 @@ export type ProviderKind =
   | 'api-route'
   | 'cheaperinference'
   | 'runcrate'
+  | 'cloudgpu'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -212,6 +213,24 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['deepseek-ai/DeepSeek-V4.1-Flash', 'zai-org/GLM-5.3', 'moonshotai/Kimi-K2.6'],
   },
   {
+    kind: 'cloudgpu',
+    apiCompatibility: 'openai-compatible',
+    label: 'CloudGPU',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://cloudgpu.app/v1',
+    enabled: false,
+    defaultModels: [
+      'deepseek-v4.1-flash',
+      'deepseek-v4-pro',
+      'kimi-k3',
+      'kimi-k2.7-code',
+      'glm-5.2',
+      'minimax-m3',
+      'qwen3-coder-480b',
+      'qwen3.5-397b',
+    ],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -328,6 +347,16 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   'api-route': ['gpt-6.1-sol'],
   cheaperinference: ['gpt-5.4-mini', 'claude-sonnet-5', 'gemini-3.1-pro'],
   runcrate: ['deepseek-ai/DeepSeek-V4.1-Flash', 'zai-org/GLM-5.3', 'moonshotai/Kimi-K2.6'],
+  cloudgpu: [
+    'deepseek-v4.1-flash',
+    'deepseek-v4-pro',
+    'kimi-k3',
+    'kimi-k2.7-code',
+    'glm-5.2',
+    'minimax-m3',
+    'qwen3-coder-480b',
+    'qwen3.5-397b',
+  ],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -442,6 +471,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'cheaperinference';
     case ProviderEnum.RUNCRATE:
       return 'runcrate';
+    case ProviderEnum.CLOUDGPU:
+      return 'cloudgpu';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:
