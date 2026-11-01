@@ -704,6 +704,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.runcrate.ai/v1',
     apiCompatibility: 'openai-compatible',
   },
+  cloudgpu: {
+    label: 'CloudGPU',
+    authMode: 'api-key',
+    baseUrl: 'https://cloudgpu.app/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
