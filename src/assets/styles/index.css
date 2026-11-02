@@ -25,6 +25,7 @@
     --input: 0 0% 89.8%;
     --ring: 144 52% 45%;
     --warning: 38 92% 50%;
+    --warning-text: 38 92% 28%;
     --radius: 0.5rem;
 
     /* Type scale (see DESIGN.md Typography). text-caption / text-body map to
@@ -72,6 +73,7 @@
     --input: 217 10% 25%;
     --ring: 144 52% 45%;
     --warning: 38 92% 60%;
+    --warning-text: 38 92% 60%;
 
     /* HTTP / query method colors */
     --method-get: 213 94% 68%;

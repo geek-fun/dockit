@@ -55,6 +55,10 @@ export default defineConfig({
         DEFAULT: 'hsl(var(--destructive))',
         foreground: 'hsl(var(--destructive-foreground))',
       },
+      warning: {
+        DEFAULT: 'hsl(var(--warning))',
+        text: 'hsl(var(--warning-text))',
+      },
       muted: {
         DEFAULT: 'hsl(var(--muted))',
         foreground: 'hsl(var(--muted-foreground))',

@@ -82,7 +82,7 @@ All defined in [src/assets/styles/index.css](../src/assets/styles/index.css):
 - `--primary` / `--primary-foreground` - Brand primary (#36ad6a)
 - `--secondary` / `--secondary-foreground` - Secondary actions
 - `--destructive` / `--destructive-foreground` - Danger (#cd2158)
-- `--warning` - Warning color (amber), defined in both light and dark modes
+- `--warning` / `--warning-text` - Amber warning tint and readable warning text, defined in both light and dark modes (`warning` / `warning-text` utilities). Use the text token on neutral or subdued warning surfaces.
 - `--muted` / `--muted-foreground` - Subtle text/backgrounds
 - `--accent` / `--accent-foreground` - Hover states
 - `--border` - Borders and dividers

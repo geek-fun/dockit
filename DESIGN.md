@@ -88,6 +88,8 @@ Use roughly 1.4–1.6 for ordinary text; code follows editor settings. Fixed-hei
 
 Preserve the existing functional colors: HTTP method colors, boolean / key / constraint cues, transfer step colors, and vendor logo colors. New hardcoded colors are not allowed — add a token with light / dark definitions in `index.css` instead (see `--warning` as the pattern).
 
+Warnings use `--warning` for the amber tint and `--warning-text` (`text-warning-text`) for readable text on neutral or subdued surfaces. Connecting warnings use the text token over a 12% warning tint; the pair must meet 4.5:1 contrast in both themes.
+
 ## Do's and Don'ts
 
 ### Do

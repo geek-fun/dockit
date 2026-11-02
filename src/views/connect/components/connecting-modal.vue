@@ -188,7 +188,7 @@ defineExpose({
   width: 100%;
   border-radius: 6px;
   background: hsl(var(--warning) / 0.12);
-  color: hsl(var(--warning));
+  color: hsl(var(--warning-text));
   font-size: var(--font-size-body);
   text-align: center;
 }
