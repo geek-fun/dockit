@@ -471,7 +471,12 @@ import { cloneDeep } from 'lodash';
 import { storeToRefs } from 'pinia';
 import { useLang } from '@/lang';
 import { useDialogService, useMessageService } from '@/composables';
-import { type ProviderConfig, type ProviderKind, useAppStore } from '@/store';
+import {
+  type ProviderConfig,
+  type ProviderKind,
+  llmConnectionCheckProvider,
+  useAppStore,
+} from '@/store';
 import { chatBotApi } from '@/datasources';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -967,7 +972,7 @@ const testDraftProvider = async () => {
       : (draftApiKey ?? '');
 
   const result = await chatBotApi.validateConfig({
-    provider: draft.apiCompatibility ?? 'openai-compatible',
+    provider: llmConnectionCheckProvider(draft),
     apiKey: resolvedApiKey,
     model: '',
     httpProxy: draft.proxy?.trim() || undefined,

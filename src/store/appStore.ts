@@ -624,6 +624,12 @@ const resolveRecommendedModelId = (
   );
 };
 
+// CloudGPU publishes its model catalog without checking the bearer token, so the
+// shared models probe cannot tell a valid key from a rejected one.
+export const llmConnectionCheckProvider = (
+  provider: Pick<ProviderConfig, 'kind' | 'apiCompatibility'>,
+): string => (provider.kind === 'cloudgpu' ? 'cloudgpu' : provider.apiCompatibility);
+
 const reconcileModelRoutes = (settings: LlmSettings): LlmSettings['models'] => ({
   sidebarAssistant: normalizeFeatureRoute(
     settings.models.sidebarAssistant,
@@ -883,7 +889,7 @@ export const useAppStore = defineStore('app', {
       const modelLabel = provider.discoveredModels[0]?.label ?? '';
 
       const result = await chatBotApi.validateConfig({
-        provider: provider.apiCompatibility,
+        provider: llmConnectionCheckProvider(provider),
         apiKey: provider.apiKey ?? '',
         model: modelLabel,
         httpProxy: provider.proxy || undefined,
@@ -903,7 +909,7 @@ export const useAppStore = defineStore('app', {
       if (!provider || !provider.enabled) return false;
 
       return validateLlmConfig({
-        provider: provider.apiCompatibility,
+        provider: llmConnectionCheckProvider(provider),
         apiKey: provider.apiKey ?? '',
         model: model.label,
         httpProxy: provider.proxy || undefined,
