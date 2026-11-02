@@ -255,8 +255,10 @@ pub async fn validate_llm_config(
         &app.state::<crate::entitlement::EntitlementState>(),
         "AI",
     )?;
-    lib::harness::validate_llm_config(provider, api_key, model, http_proxy, proxy_mode, base_url)
-        .await
+    crate::agent::cloudgpu_auth::validate_llm_config(
+        provider, api_key, model, http_proxy, proxy_mode, base_url,
+    )
+    .await
 }
 
 #[tauri::command]
