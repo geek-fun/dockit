@@ -280,6 +280,7 @@ onUnmounted(() => {
 .tab-trigger {
   border-radius: 0;
   padding: 6px 16px 6px 10px;
+  font-size: var(--font-size-body);
 }
 
 .tab-trigger[data-state='active'] {
