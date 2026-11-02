@@ -1478,19 +1478,19 @@ defineExpose({
 }
 
 .metric-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: var(--text-secondary);
   font-weight: 500;
 }
 
 .metric-value {
-  font-size: 1.5rem;
+  font-size: var(--font-size-page-title);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .metric-value-small {
-  font-size: 1rem;
+  font-size: var(--font-size-title);
   font-weight: 500;
   color: var(--text-primary);
 }
@@ -1562,7 +1562,7 @@ defineExpose({
 
 .sort-indicator {
   margin-left: 0.25rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
 }
 
 .collection-row:hover {

@@ -355,18 +355,18 @@ watch(selectedIndex, newIdx => {
 }
 
 .step-card .step-header .step-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
 .step-card .step-badge {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
 .step-card .step-header .selection-summary {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 400;
   padding: 2px 8px;
@@ -383,15 +383,15 @@ watch(selectedIndex, newIdx => {
   border-radius: 6px;
   background: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: var(--font-size-body);
 }
 
 .step-card .connecting-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
 }
 
 .step-card .field-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-bottom: 8px;
   text-transform: uppercase;

@@ -169,7 +169,7 @@ defineExpose({
 }
 
 .connecting-text {
-  font-size: 18px;
+  font-size: var(--font-size-title);
   font-weight: 500;
   color: hsl(var(--foreground));
   margin-bottom: 12px;
@@ -177,7 +177,7 @@ defineExpose({
 }
 
 .connecting-subtext {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -188,8 +188,8 @@ defineExpose({
   width: 100%;
   border-radius: 6px;
   background: hsl(var(--warning) / 0.12);
-  color: hsl(var(--warning));
-  font-size: 13px;
+  color: hsl(var(--warning-text));
+  font-size: var(--font-size-body);
   text-align: center;
 }
 

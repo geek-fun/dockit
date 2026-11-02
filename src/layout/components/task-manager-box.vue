@@ -166,12 +166,12 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .header-title {
-  font-size: 18px;
+  font-size: var(--font-size-title);
   font-weight: bold;
 }
 
 .clear-btn {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   background: none;
   border: none;
@@ -211,7 +211,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .empty-text {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   text-align: center;
 }
@@ -245,7 +245,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .task-title {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -276,7 +276,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .status-badge {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 10px;
@@ -303,7 +303,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .task-direction {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
@@ -317,7 +317,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .progress-label {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   display: flex;
   justify-content: space-between;
@@ -335,7 +335,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .stat {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
 }
 
@@ -352,7 +352,7 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .task-error {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: #d03050;
   background: rgba(208, 48, 80, 0.06);
   border: 1px solid rgba(208, 48, 80, 0.2);
@@ -368,12 +368,12 @@ const goToImportExport = (task: BackgroundTask) => {
 }
 
 .task-time {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
 .goto-btn {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--primary));
   background: none;
   border: none;

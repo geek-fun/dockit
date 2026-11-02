@@ -263,17 +263,17 @@ defineExpose({
 }
 
 .metric-label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: var(--text-muted);
 }
 
 .metric-value {
-  font-size: 1.25rem;
+  font-size: var(--font-size-page-title);
   font-weight: 600;
 }
 
 .metric-value-small {
-  font-size: 1rem;
+  font-size: var(--font-size-title);
   font-weight: 500;
 }
 
@@ -290,12 +290,12 @@ defineExpose({
 }
 
 .info-label {
-  font-size: 0.625rem;
+  font-size: var(--font-size-caption);
   color: var(--text-muted);
 }
 
 .info-value {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
 }
 
 .replica-section,
@@ -318,7 +318,7 @@ defineExpose({
 
 .replica-status,
 .shard-count {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: var(--text-muted);
 }
 
@@ -366,13 +366,13 @@ defineExpose({
 }
 
 .member-name {
-  font-size: 0.875rem;
+  font-size: var(--font-size-form);
   font-weight: 500;
   flex: 1;
 }
 
 .member-state {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
 }
@@ -400,26 +400,26 @@ defineExpose({
 }
 
 .stat-label {
-  font-size: 0.625rem;
+  font-size: var(--font-size-caption);
   color: var(--text-muted);
 }
 
 .stat-value {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
 }
 
 .shard-id {
-  font-size: 0.875rem;
+  font-size: var(--font-size-form);
   font-weight: 500;
 }
 
 .shard-host {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: var(--text-muted);
 }
 
 .shard-state {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
 }
 
 .skeleton {

@@ -208,7 +208,7 @@ watch(open, isOpen => {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   cursor: pointer;
 }
 
@@ -226,7 +226,7 @@ watch(open, isOpen => {
   justify-content: center;
   gap: 0.4rem;
   min-height: 4rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
   padding: 0.5rem;
@@ -238,7 +238,7 @@ watch(open, isOpen => {
   gap: 0.4rem;
   padding: 0.25rem 0.35rem;
   border-radius: 0.25rem;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   cursor: pointer;
 }
 

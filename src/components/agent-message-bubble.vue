@@ -599,7 +599,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   max-width: 85%;
   padding: 10px 14px;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: var(--font-size-form);
   line-height: 1.5;
 }
 
@@ -664,7 +664,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 }
 
 .iteration-label {
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -703,7 +703,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 
 /* ── Activity label ── */
 .activity-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   overflow: hidden;
@@ -729,7 +729,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 
 /* ── Duration badge ── */
 .duration-badge {
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   font-weight: 500;
   color: hsl(var(--muted-foreground) / 0.55);
   background: hsl(var(--muted));
@@ -748,7 +748,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 
 /* ── Tool name badge ── */
 .tool-name-badge {
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
   color: hsl(var(--foreground) / 0.75);
   background: hsl(var(--muted));
@@ -764,7 +764,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 
 /* ── Tool verb label (secondary) ── */
 .tool-verb-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground) / 0.7);
 }
 
@@ -793,7 +793,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 
 /* ── Inline result preview ── */
 .result-preview {
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground) / 0.55);
   white-space: nowrap;
   overflow: hidden;
@@ -814,7 +814,7 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
 .tool-result-pre {
   margin: 0;
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-all;
@@ -850,7 +850,7 @@ details[open] .activity-chevron {
 .activity-body {
   margin: 0 0 4px 42px;
   padding: 6px 10px;
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   line-height: 1.6;
   color: hsl(var(--muted-foreground));
   background: hsl(var(--muted) / 0.5);
@@ -887,7 +887,7 @@ details[open] .activity-chevron {
 
 .activity-body.tool-body {
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
 }
 
 .muted-body {
@@ -925,7 +925,7 @@ details[open] .activity-chevron {
 
 .activity-inline-content {
   padding: 4px 0 4px 20px;
-  font-size: 13.5px;
+  font-size: var(--font-size-body);
   line-height: 1.55;
   color: hsl(var(--foreground));
 }
@@ -947,7 +947,7 @@ details[open] .activity-chevron {
 }
 
 .markdown-body :deep(pre code) {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   background: none;
   padding: 0;
   border: none;
@@ -958,7 +958,7 @@ details[open] .activity-chevron {
   border-collapse: collapse;
   width: 100%;
   margin: 8px 0;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
 }
 
 .markdown-body :deep(th),
@@ -994,33 +994,33 @@ details[open] .activity-chevron {
 }
 
 .markdown-body :deep(h1) {
-  font-size: 22px;
+  font-size: var(--font-size-page-title);
   margin-top: 24px;
   margin-bottom: 12px;
   border-bottom: 1px solid hsl(var(--border));
   padding-bottom: 6px;
 }
 .markdown-body :deep(h2) {
-  font-size: 18px;
+  font-size: var(--font-size-title);
   margin-top: 20px;
   margin-bottom: 10px;
   border-bottom: 1px solid hsl(var(--border));
   padding-bottom: 4px;
 }
 .markdown-body :deep(h3) {
-  font-size: 16px;
+  font-size: var(--font-size-form);
   margin-top: 18px;
 }
 .markdown-body :deep(h4) {
-  font-size: 15px;
+  font-size: var(--font-size-body);
   margin-top: 16px;
 }
 .markdown-body :deep(h5) {
-  font-size: 14px;
+  font-size: var(--font-size-dense);
   margin-top: 14px;
 }
 .markdown-body :deep(h6) {
-  font-size: 13px;
+  font-size: var(--font-size-caption);
   margin-top: 14px;
   color: hsl(var(--muted-foreground));
 }
@@ -1118,7 +1118,7 @@ details[open] .activity-chevron {
   border: 1px solid hsl(var(--border) / 0.5);
   border-radius: 8px;
   max-width: fit-content;
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -1139,7 +1139,7 @@ details[open] .activity-chevron {
   align-items: center;
   gap: 4px;
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--foreground) / 0.75);
   padding: 1px 8px;
   background: hsl(var(--background));
@@ -1168,7 +1168,7 @@ details[open] .activity-chevron {
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground) / 0.8);
   padding: 0;
   margin-left: 4px;
@@ -1189,7 +1189,7 @@ details[open] .activity-chevron {
   padding: 8px 12px;
   background: hsl(var(--muted) / 0.4);
   border-radius: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   line-height: 1.55;
   color: hsl(var(--foreground) / 0.85);
   max-height: 240px;
@@ -1245,7 +1245,7 @@ details[open] .activity-chevron {
   border-radius: 6px;
   background: hsl(var(--destructive) / 0.06);
   color: color-mix(in srgb, hsl(var(--destructive)) 65%, hsl(var(--foreground)));
-  font-size: 13px;
+  font-size: var(--font-size-body);
   overflow-wrap: anywhere;
 }
 

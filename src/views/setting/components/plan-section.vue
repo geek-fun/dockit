@@ -224,14 +224,14 @@ const handleStartFree = async () => {
   align-items: center;
   gap: 6px;
   padding: 9px 14px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--foreground));
   border-top: 1px solid hsl(var(--border) / 0.7);
 }
 
 .compare-head {
   border-top: none;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--muted-foreground));
 }
@@ -253,7 +253,7 @@ const handleStartFree = async () => {
   border-radius: 999px;
   background-color: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
-  font-size: 9px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   white-space: nowrap;
 }

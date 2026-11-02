@@ -160,7 +160,7 @@ const stateLabel = computed(() => {
   padding: 4px 8px;
   background: hsl(var(--muted));
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
 }
 
 .target-source-label {
@@ -174,7 +174,7 @@ const stateLabel = computed(() => {
 }
 
 .risk-badge {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   padding: 2px 8px;
   border-radius: 999px;
   font-weight: 500;
@@ -199,7 +199,7 @@ const stateLabel = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   padding: 2px 8px;
   border-radius: 999px;
   font-weight: 500;
@@ -230,7 +230,7 @@ const stateLabel = computed(() => {
   padding: 8px;
   background: hsl(var(--muted));
   border-radius: 6px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   line-height: 1.4;
   overflow-x: auto;
   max-height: 200px;

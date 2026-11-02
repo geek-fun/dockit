@@ -146,7 +146,7 @@ const handleOpenChange = (open: boolean) => {
 }
 
 .slot-usage {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   margin-bottom: 12px;
 }
@@ -198,26 +198,26 @@ const handleOpenChange = (open: boolean) => {
 
 .device-name {
   font-weight: 500;
-  font-size: 14px;
+  font-size: var(--font-size-form);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .current-tag {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 400;
 }
 
 .device-info {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-top: 2px;
 }
 
 .replace-error {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--destructive));
   margin-top: 8px;
 }

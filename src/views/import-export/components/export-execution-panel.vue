@@ -346,7 +346,7 @@ const executeExport = async () => {
 }
 
 .execution-card .execution-header .execution-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
@@ -366,14 +366,14 @@ const executeExport = async () => {
 }
 
 .execution-card .validation-section .section-header .section-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
 }
 
 .execution-card .validation-section .section-header .validation-status {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
 }
 
@@ -404,12 +404,12 @@ const executeExport = async () => {
 }
 
 .execution-card .validation-section .stats-rows .stat-row .stat-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
 }
 
 .execution-card .validation-section .stats-rows .stat-row .stat-value {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
@@ -421,7 +421,7 @@ const executeExport = async () => {
 }
 
 .execution-card .file-handling-section .section-title-small {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
@@ -445,12 +445,12 @@ const executeExport = async () => {
 }
 
 .execution-card .file-handling-section .option-item .option-content .option-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
 .execution-card .file-handling-section .option-item .option-content .option-desc {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -461,7 +461,7 @@ const executeExport = async () => {
 }
 
 .execution-card .file-handling-section .option-item.toggle-item .option-label {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 
@@ -470,7 +470,7 @@ const executeExport = async () => {
 }
 
 .execution-card .progress-section .progress-text {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
@@ -481,7 +481,7 @@ const executeExport = async () => {
 }
 
 .execution-card .export-action .export-note {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
@@ -493,7 +493,7 @@ const executeExport = async () => {
   justify-content: center;
   padding: 8px 16px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
 }
 

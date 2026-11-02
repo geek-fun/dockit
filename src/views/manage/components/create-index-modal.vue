@@ -748,7 +748,7 @@ const handleSubmit = async () => {
   transform: translateY(-50%);
   background: hsl(var(--background));
   padding-right: 12px;
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 500;
   color: hsl(var(--muted-foreground));
 }

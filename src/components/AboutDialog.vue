@@ -89,20 +89,20 @@ defineExpose({
 }
 
 .app-name {
-  font-size: 20px;
+  font-size: var(--font-size-page-title);
   font-weight: 600;
   margin: 0 0 4px 0;
   color: hsl(var(--foreground));
 }
 
 .app-version {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   margin: 0;
 }
 
 .app-description {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--muted-foreground));
   margin-bottom: 16px;
   line-height: 1.5;
@@ -121,7 +121,7 @@ defineExpose({
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: hsl(var(--primary));
   text-decoration: none;
   transition: opacity 0.2s;

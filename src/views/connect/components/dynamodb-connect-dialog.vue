@@ -1635,7 +1635,7 @@ defineExpose({ showMedal });
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 </style>

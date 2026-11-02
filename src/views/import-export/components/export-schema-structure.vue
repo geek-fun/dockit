@@ -181,12 +181,12 @@ watch(
 }
 
 .step-card .step-header .step-title-container .step-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
 .step-card .step-header .step-title-container .step-subtitle {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -197,7 +197,7 @@ watch(
 }
 
 .step-card .header-extra .step-badge {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
@@ -210,7 +210,7 @@ watch(
   display: flex;
   padding: 12px 0;
   border-bottom: 1px solid hsl(var(--border));
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
@@ -244,7 +244,7 @@ watch(
 .step-card .schema-table .col-sample {
   flex: 2;
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: var(--font-size-body);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

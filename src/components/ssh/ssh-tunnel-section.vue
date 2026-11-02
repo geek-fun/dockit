@@ -54,7 +54,7 @@
       <span class="system-proxy-index">0</span>
       <span class="i-carbon-network-public h-3.5 w-3.5 shrink-0" />
       <span class="text-xs font-medium">{{ $t('connection.ssh.systemProxy') }}</span>
-      <code class="text-[10px] bg-muted px-1 rounded ml-1 truncate">{{ systemProxyUrl }}</code>
+      <code class="text-caption bg-muted px-1 rounded ml-1 truncate">{{ systemProxyUrl }}</code>
       <Button
         variant="ghost"
         size="icon"
@@ -394,7 +394,7 @@ async function onTestConnection() {
   border-radius: 4px;
   background: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -424,7 +424,7 @@ async function onTestConnection() {
   border-radius: 4px;
   background: hsl(var(--primary) / 0.1);
   color: hsl(var(--primary));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -449,7 +449,7 @@ async function onTestConnection() {
 }
 
 .ssh-profile-row-meta {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   padding-left: 22px;
 }

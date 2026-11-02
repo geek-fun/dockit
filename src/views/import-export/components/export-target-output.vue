@@ -186,18 +186,18 @@ watch(fileType, newType => {
 }
 
 .step-card .step-header .step-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
 .step-card .step-badge {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
 .step-card .field-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -210,7 +210,7 @@ watch(fileType, newType => {
   top: 50%;
   transform: translateY(-50%);
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: var(--font-size-body);
   pointer-events: none;
 }
 
@@ -256,7 +256,7 @@ watch(fileType, newType => {
 
 .step-card .destination-path-row .folder-selector-btn .folder-path-content {
   padding: 0 12px;
-  font-size: 14px;
+  font-size: var(--font-size-form);
   color: hsl(var(--foreground));
   white-space: nowrap;
   overflow: hidden;
@@ -270,7 +270,7 @@ watch(fileType, newType => {
 
 .step-card .destination-path-row .path-separator {
   color: hsl(var(--muted-foreground));
-  font-size: 14px;
+  font-size: var(--font-size-form);
 }
 
 .step-card .destination-path-row .extra-path-input {
@@ -294,13 +294,13 @@ watch(fileType, newType => {
 }
 
 .step-card .metadata-toggle-label {
-  font-size: 14px;
+  font-size: var(--font-size-form);
   font-weight: 500;
   color: hsl(var(--foreground));
 }
 
 .step-card .metadata-toggle-hint {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -326,7 +326,7 @@ watch(fileType, newType => {
 }
 
 .step-card .output-file-name {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-family: ui-monospace, monospace;
   color: hsl(var(--foreground));
   word-break: break-all;

@@ -189,13 +189,13 @@ onMounted(() => {
 
 .version-title {
   font-weight: 700;
-  font-size: 16px;
+  font-size: var(--font-size-title);
   color: hsl(var(--foreground));
   margin-bottom: 4px;
 }
 
 .version-message {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   color: #8b94a1;
 }
 
@@ -242,7 +242,7 @@ onMounted(() => {
   border: none;
   background: transparent;
   color: hsl(var(--muted-foreground));
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 500;
   transition: color 0.2s;
 }
@@ -308,13 +308,13 @@ onMounted(() => {
 }
 
 .version-progress-label {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
 .version-progress-percent {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: #27ae60;
 }

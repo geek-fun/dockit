@@ -127,7 +127,7 @@ import { ProgressiveBlur } from '../effects';
   padding: 2px 11px;
   border-radius: 999px;
   border: 1px solid hsl(var(--border));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: hsl(var(--muted-foreground));
@@ -140,7 +140,7 @@ import { ProgressiveBlur } from '../effects';
   border-radius: 6px;
   border: 1px solid hsl(var(--primary) / 0.35);
   color: hsl(var(--primary));
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
 }
 
@@ -163,7 +163,7 @@ import { ProgressiveBlur } from '../effects';
   border-radius: 12px 12px 4px 12px;
   background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   animation: p-user-flow 12s linear both;
 }
 
@@ -191,7 +191,7 @@ import { ProgressiveBlur } from '../effects';
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: hsl(var(--muted-foreground));
@@ -221,7 +221,7 @@ import { ProgressiveBlur } from '../effects';
 }
 
 .p-row-label {
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
 }
 
@@ -257,7 +257,7 @@ import { ProgressiveBlur } from '../effects';
   border-radius: 999px;
   background-color: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
-  font-size: 9.5px;
+  font-size: var(--font-size-caption);
   font-variant-numeric: tabular-nums;
   animation: p-visible-2 12s linear both;
 }
@@ -268,7 +268,7 @@ import { ProgressiveBlur } from '../effects';
   border: 1px solid hsl(var(--border));
   background-color: hsl(var(--muted) / 0.5);
   font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--foreground));
 }
 
@@ -293,7 +293,7 @@ import { ProgressiveBlur } from '../effects';
   border-radius: 999px;
   background-color: hsl(var(--method-post) / 0.12);
   color: hsl(var(--method-post));
-  font-size: 9.5px;
+  font-size: var(--font-size-caption);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   animation: p-visible-2 12s linear both;
@@ -310,7 +310,7 @@ import { ProgressiveBlur } from '../effects';
 
 .p-answer-text {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--foreground));
 }
 
@@ -321,7 +321,7 @@ import { ProgressiveBlur } from '../effects';
   border: 1px solid hsl(var(--border));
   background-color: hsl(var(--muted) / 0.55);
   font-family: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
-  font-size: 10.5px;
+  font-size: var(--font-size-caption);
   line-height: 1.55;
   color: hsl(var(--foreground));
   overflow: hidden;
@@ -332,7 +332,7 @@ import { ProgressiveBlur } from '../effects';
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
 }
 
 .p-tr {
@@ -376,7 +376,7 @@ import { ProgressiveBlur } from '../effects';
   border: 1px solid hsl(var(--primary) / 0.4);
   background-color: hsl(var(--background) / 0.75);
   backdrop-filter: blur(8px);
-  font-size: 11.5px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   color: hsl(var(--primary));
 }

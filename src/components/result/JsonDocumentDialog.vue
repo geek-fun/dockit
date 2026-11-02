@@ -167,7 +167,7 @@ defineExpose({ setLoading, setError });
 
 <style scoped>
 .dialog-hint {
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   line-height: 1.4;
   color: hsl(var(--muted-foreground));
   margin-bottom: 8px;

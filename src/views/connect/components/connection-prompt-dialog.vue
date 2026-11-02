@@ -94,7 +94,7 @@ defineExpose({ show });
   border: 1px solid hsl(var(--input));
   background-color: hsl(var(--background));
   padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  font-size: var(--font-size-form);
   line-height: 1.25rem;
   resize: vertical;
 }

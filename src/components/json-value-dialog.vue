@@ -74,7 +74,7 @@ const handleCopy = async () => {
   margin: 0;
   padding: 0.75rem 1rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;

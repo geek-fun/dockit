@@ -55,6 +55,10 @@ export default defineConfig({
         DEFAULT: 'hsl(var(--destructive))',
         foreground: 'hsl(var(--destructive-foreground))',
       },
+      warning: {
+        DEFAULT: 'hsl(var(--warning))',
+        text: 'hsl(var(--warning-text))',
+      },
       muted: {
         DEFAULT: 'hsl(var(--muted))',
         foreground: 'hsl(var(--muted-foreground))',
@@ -76,6 +80,12 @@ export default defineConfig({
       lg: 'var(--radius)',
       md: 'calc(var(--radius) - 2px)',
       sm: 'calc(var(--radius) - 4px)',
+    },
+    text: {
+      // Semantic type scale (see DESIGN.md Typography). preset-wind4 stores
+      // font sizes under theme.text; 12/14/16/20px already exist as xs/sm/base/xl.
+      caption: { fontSize: '11px', lineHeight: '16px' },
+      body: { fontSize: '13px', lineHeight: '20px' },
     },
     containers: {
       center: true,

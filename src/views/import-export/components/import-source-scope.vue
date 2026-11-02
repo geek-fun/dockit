@@ -342,12 +342,12 @@ const clearMetadataFile = () => {
 }
 
 .step-card .step-header .step-title {
-  font-size: 16px;
+  font-size: var(--font-size-title);
   font-weight: 600;
 }
 
 .step-card .step-badge {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
@@ -384,7 +384,7 @@ const clearMetadataFile = () => {
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-size-form);
   transition: all 0.3s;
 }
 
@@ -416,7 +416,7 @@ const clearMetadataFile = () => {
 
 .step-card .import-steps .step-progress .step-node .step-label {
   margin-top: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   text-transform: uppercase;
   color: hsl(var(--foreground));
@@ -424,7 +424,7 @@ const clearMetadataFile = () => {
 
 .step-card .import-steps .step-progress .step-node .step-file {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: var(--font-size-caption);
   color: hsl(var(--muted-foreground));
   max-width: 100px;
   overflow: hidden;
@@ -464,7 +464,7 @@ const clearMetadataFile = () => {
 
 .step-card .import-steps .selected-files .file-item .file-path {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -482,7 +482,7 @@ const clearMetadataFile = () => {
 
 .step-card .import-steps .validation-errors .error-list li {
   margin: 4px 0;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
 }
 
 .config-panel {
@@ -500,7 +500,7 @@ const clearMetadataFile = () => {
 }
 
 .config-panel .panel-title {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
@@ -527,7 +527,7 @@ const clearMetadataFile = () => {
   padding: 8px 12px;
   background: rgba(0, 0, 0, 0.02);
   border-bottom: 1px solid hsl(var(--border));
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
@@ -552,7 +552,7 @@ const clearMetadataFile = () => {
 .schema-override-table .col-field {
   flex: 2;
   font-family: monospace;
-  font-size: 12px;
+  font-size: var(--font-size-dense);
 }
 
 .schema-override-table .col-inferred {
@@ -568,7 +568,7 @@ const clearMetadataFile = () => {
   align-items: center;
   padding: 2px 6px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 500;
   background: hsl(var(--secondary));
   color: hsl(var(--secondary-foreground));

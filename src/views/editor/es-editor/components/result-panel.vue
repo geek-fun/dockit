@@ -594,7 +594,7 @@ const errMessage = (err: unknown): string =>
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
+  font-size: var(--font-size-dense);
   white-space: pre-wrap;
 }
 </style>

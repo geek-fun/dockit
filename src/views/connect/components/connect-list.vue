@@ -70,7 +70,7 @@
         >
           <div class="card-top">
             <div class="card-icon-wrapper profile-icon">
-              <Key class="h-5 w-5" />
+              <Key class="h-4 w-4" />
             </div>
             <div class="ssh-badge-icon" title="SSH Profile">
               <span class="i-carbon-locked h-3.5 w-3.5 text-green-500" />
@@ -101,7 +101,7 @@
                     class="h-7 w-7"
                     @click="manageSshProfile(profile)"
                   >
-                    <Pencil class="h-3.5 w-3.5" />
+                    <Pencil class="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -118,7 +118,7 @@
                     class="h-7 w-7 text-destructive"
                     @click="removeSshProfile(profile.id)"
                   >
-                    <Trash2 class="h-3.5 w-3.5" />
+                    <Trash2 class="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
@@ -142,7 +142,7 @@
         >
           <div class="card-top">
             <div class="card-icon-wrapper">
-              <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
+              <component :is="getDatabaseIcon(connection.type)" class="h-4 w-4" />
             </div>
             <div v-if="hasSsh(connection)" class="ssh-badge-icon" title="SSH Tunnel">
               <span class="i-carbon-locked h-3.5 w-3.5 text-green-500" />
@@ -875,7 +875,7 @@ const handleFabAction = (action: FloatingMenuAction) => {
 }
 
 .connections-title {
-  font-size: 13px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   color: hsl(var(--foreground));
   white-space: nowrap;
@@ -889,7 +889,7 @@ const handleFabAction = (action: FloatingMenuAction) => {
   height: 20px;
   padding: 0 6px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   background: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
@@ -955,7 +955,7 @@ const handleFabAction = (action: FloatingMenuAction) => {
 
 .sort-section-label {
   padding: 6px 8px 4px;
-  font-size: 11px;
+  font-size: var(--font-size-dense);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1033,11 +1033,11 @@ const handleFabAction = (action: FloatingMenuAction) => {
 
 .connection-card {
   width: 240px;
-  min-height: 180px;
+  min-height: 140px;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 8px;
   border: 1px solid hsl(var(--border));
   background: hsl(var(--card));
   cursor: pointer;
@@ -1055,13 +1055,13 @@ const handleFabAction = (action: FloatingMenuAction) => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .card-icon-wrapper {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   background: hsl(var(--muted));
   display: flex;
   align-items: center;
@@ -1070,11 +1070,11 @@ const handleFabAction = (action: FloatingMenuAction) => {
 
 .card-info {
   min-height: 0;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .card-name {
-  font-size: 14px;
+  font-size: var(--font-size-body);
   font-weight: 600;
   line-height: 1.3;
   overflow: hidden;
@@ -1085,7 +1085,7 @@ const handleFabAction = (action: FloatingMenuAction) => {
 }
 
 .card-detail {
-  font-size: 12px;
+  font-size: var(--font-size-dense);
   color: hsl(var(--muted-foreground));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1102,8 +1102,8 @@ const handleFabAction = (action: FloatingMenuAction) => {
 }
 
 .card-badge {
-  font-size: 11px;
-  padding: 1px 8px;
+  font-size: var(--font-size-caption);
+  padding: 1px 6px;
   font-weight: 500;
 }
 
