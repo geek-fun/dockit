@@ -35,6 +35,7 @@ export type ProviderKind =
   | 'cheaperinference'
   | 'runcrate'
   | 'cloudgpu'
+  | 'cheapaimodel'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -231,6 +232,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     ],
   },
   {
+    kind: 'cheapaimodel',
+    apiCompatibility: 'openai-compatible',
+    label: 'cheapaimodel',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.cheapaimodel.ai/v1',
+    enabled: false,
+    defaultModels: ['deepseek-v4-1-flash', 'glm-5.3-flash', 'kimi-k3'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -357,6 +367,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
     'qwen3-coder-480b',
     'qwen3.5-397b',
   ],
+  cheapaimodel: ['deepseek-v4-1-flash', 'glm-5.3-flash', 'kimi-k3'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -473,6 +484,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'runcrate';
     case ProviderEnum.CLOUDGPU:
       return 'cloudgpu';
+    case ProviderEnum.CHEAPAIMODEL:
+      return 'cheapaimodel';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:

@@ -715,6 +715,12 @@ const providerPresets: Record<
     baseUrl: 'https://cloudgpu.app/v1',
     apiCompatibility: 'openai-compatible',
   },
+  cheapaimodel: {
+    label: 'cheapaimodel',
+    authMode: 'api-key',
+    baseUrl: 'https://api.cheapaimodel.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
