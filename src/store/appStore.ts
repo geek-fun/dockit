@@ -36,6 +36,7 @@ export type ProviderKind =
   | 'runcrate'
   | 'cloudgpu'
   | 'cheapaimodel'
+  | 'standardcompute'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -241,6 +242,17 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['deepseek-v4-1-flash', 'glm-5.3-flash', 'kimi-k3'],
   },
   {
+    kind: 'standardcompute',
+    apiCompatibility: 'openai-compatible',
+    label: 'Standard Compute',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.stdcmpt.com/v1',
+    enabled: false,
+    // `StandardCompute` is a routed model: each request goes to the cheapest
+    // enabled model that can handle it, with automatic fallback.
+    defaultModels: ['StandardCompute'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -368,6 +380,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
     'qwen3.5-397b',
   ],
   cheapaimodel: ['deepseek-v4-1-flash', 'glm-5.3-flash', 'kimi-k3'],
+  standardcompute: ['StandardCompute'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -486,6 +499,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'cloudgpu';
     case ProviderEnum.CHEAPAIMODEL:
       return 'cheapaimodel';
+    case ProviderEnum.STANDARD_COMPUTE:
+      return 'standardcompute';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:

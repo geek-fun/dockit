@@ -721,6 +721,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.cheapaimodel.ai/v1',
     apiCompatibility: 'openai-compatible',
   },
+  standardcompute: {
+    label: 'Standard Compute',
+    authMode: 'api-key',
+    baseUrl: 'https://api.stdcmpt.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
