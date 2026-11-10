@@ -37,6 +37,7 @@ export type ProviderKind =
   | 'cloudgpu'
   | 'cheapaimodel'
   | 'standardcompute'
+  | 'uberllm'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -253,6 +254,19 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['StandardCompute'],
   },
   {
+    kind: 'uberllm',
+    apiCompatibility: 'openai-compatible',
+    label: 'UberLLM',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.uberllm.dev/v1',
+    enabled: false,
+    defaultModels: [
+      'deepseek/deepseek-v4-flash',
+      'openai/gpt-5.4-mini',
+      'anthropic/claude-sonnet-5',
+    ],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -381,6 +395,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   ],
   cheapaimodel: ['deepseek-v4-1-flash', 'glm-5.3-flash', 'kimi-k3'],
   standardcompute: ['StandardCompute'],
+  uberllm: ['deepseek/deepseek-v4-flash', 'openai/gpt-5.4-mini', 'anthropic/claude-sonnet-5'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -501,6 +516,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'cheapaimodel';
     case ProviderEnum.STANDARD_COMPUTE:
       return 'standardcompute';
+    case ProviderEnum.UBERLLM:
+      return 'uberllm';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:

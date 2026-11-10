@@ -727,6 +727,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.stdcmpt.com/v1',
     apiCompatibility: 'openai-compatible',
   },
+  uberllm: {
+    label: 'UberLLM',
+    authMode: 'api-key',
+    baseUrl: 'https://api.uberllm.dev/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
