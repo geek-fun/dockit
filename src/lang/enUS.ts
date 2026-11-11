@@ -107,6 +107,7 @@ export const enUS = {
     language: 'Language',
     languageDesc: 'Select your preferred language',
     zhCN: '简体中文',
+    zhTW: '繁體中文',
     enUS: 'English',
     about: 'About Us',
     aboutUs: {

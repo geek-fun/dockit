@@ -120,6 +120,7 @@ const themeTypes = [
 const langTypes = [
   { type: LanguageType.AUTO, name: 'setting.auto' },
   { type: LanguageType.ZH_CN, name: 'setting.zhCN' },
+  { type: LanguageType.ZH_TW, name: 'setting.zhTW' },
   { type: LanguageType.EN_US, name: 'setting.enUS' },
 ];
 
@@ -132,7 +133,9 @@ const langTypeChange = (value: string) => {
   if (Object.values(LanguageType).includes(value as LanguageType)) {
     languageType.value = value as LanguageType;
     lang.global.locale.value =
-      languageType.value === LanguageType.ZH_CN ? LanguageType.ZH_CN : LanguageType.EN_US;
+      languageType.value === LanguageType.ZH_CN || languageType.value === LanguageType.ZH_TW
+        ? languageType.value
+        : LanguageType.EN_US;
   }
 };
 </script>

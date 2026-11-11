@@ -105,6 +105,7 @@ export const zhCN = {
     language: '系统语言',
     languageDesc: '选择您偏好的系统语言',
     zhCN: '简体中文',
+    zhTW: '繁體中文',
     enUS: 'English',
     about: '关于软件',
     aboutUs: {

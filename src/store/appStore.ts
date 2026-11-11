@@ -21,6 +21,7 @@ export enum ThemeType {
 export enum LanguageType {
   AUTO = 'auto',
   ZH_CN = 'zhCN',
+  ZH_TW = 'zhTW',
   EN_US = 'enUS',
 }
 
