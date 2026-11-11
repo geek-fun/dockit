@@ -114,8 +114,7 @@ export const zhTW = {
       description:
         'DocKit 是新一代跨平台的 NoSQL/NewSQL 圖形化用戶端。無論使用 Mac、Windows 或 Linux，隨時都能探索您的資料。',
       features: '功能特色',
-      feature1:
-        '功能完整的編輯器，採用 VSCode 的核心 monaco-editor，為開發者提供熟悉的編輯環境。',
+      feature1: '功能完整的編輯器，採用 VSCode 的核心 monaco-editor，為開發者提供熟悉的編輯環境。',
       feature2: '將連線設定保存在桌面應用程式中，不再依賴網頁儀表板工具。',
       feature3: '檔案持久化，可將程式碼以檔案形式儲存在您的電腦上，永不遺失。',
       feature4: '支援 Elasticsearch、OpenSearch 等多種引擎，並持續擴充中。',
@@ -226,7 +225,8 @@ export const zhTW = {
         contextWindowPlaceholder: '自動偵測',
         contextWindowDescription: '此供應商最多可使用的 Token 數，最小值為 1024。',
         removeProviderNotice: '要移除此供應商嗎？這將清除所有憑證與模型設定。',
-        customAnthropicDescription: '與 Anthropic 相容的端點。使用 API 金鑰驗證與 /v1/messages 格式。',
+        customAnthropicDescription:
+          '與 Anthropic 相容的端點。使用 API 金鑰驗證與 /v1/messages 格式。',
         message: {
           saved: '供應商已儲存。',
           removed: '供應商已移除。',
@@ -286,7 +286,8 @@ export const zhTW = {
         dataStudioDescription: '選擇用於結構感知分析與工具驅動工作流程的模型。',
         useRecommended: '使用建議模型',
         useRecommendedDesc: 'DocKit 會從您已啟用的供應商中，自動挑選最合適的可用模型。',
-        dataStudioRecommendedDesc: 'DocKit 會依所選的 Data Studio 工作型態，挑選最合適的已啟用模型。',
+        dataStudioRecommendedDesc:
+          'DocKit 會依所選的 Data Studio 工作型態，挑選最合適的已啟用模型。',
         model: '已選擇的模型',
         selectModel: '選擇模型',
         filterModel: '搜尋模型...',
@@ -333,7 +334,8 @@ export const zhTW = {
       statusLoadFailed: '無法載入 MCP Bridge 狀態',
       connectionsLoadFailed: '無法載入連線',
       connectionAccess: '連線存取',
-      connectionAccessDesc: '啟用後，僅允許列出的連線。可個別設定每個連線的操作（讀取/寫入/刪除）。',
+      connectionAccessDesc:
+        '啟用後，僅允許列出的連線。可個別設定每個連線的操作（讀取/寫入/刪除）。',
       connectionName: '連線',
       connectionType: '類型',
       allowedActions: '允許的操作',
@@ -506,7 +508,8 @@ export const zhTW = {
         type: '類型',
         orderLabel: '順序',
         priorityLabel: '優先權',
-        precedenceDesc: '當多個範本符合時，由 {{field}} 決定範本的優先順序。數值越高，優先順序越高。',
+        precedenceDesc:
+          '當多個範本符合時，由 {{field}} 決定範本的優先順序。數值越高，優先順序越高。',
         masterTimeout: 'master_timeout',
         componentTemplateUnsupported: '元件範本需要 Elasticsearch 7.8 以上版本或 OpenSearch。',
         templateRequired: '請輸入範本名稱',
@@ -591,8 +594,7 @@ export const zhTW = {
       // CloudWatch metrics
       cloudwatchNotAvailable:
         '無法使用 CloudWatch 指標。請啟用 CloudWatch Contributor Insights，或確認您的 IAM 憑證具有 cloudwatch:GetMetricData 權限。',
-      localMetricsNotAvailable:
-        'DynamoDB Local 不支援 CloudWatch 指標，本機連線無法取得指標資料。',
+      localMetricsNotAvailable: 'DynamoDB Local 不支援 CloudWatch 指標，本機連線無法取得指標資料。',
       // Modal translations
       deleteIndexConfirm: '確定要刪除此索引嗎？',
       deleteIndexSuccess: '索引已成功刪除',
@@ -659,8 +661,7 @@ export const zhTW = {
       tableName: '資料表名稱',
       globalSecondaryIndexes: '全域次要索引',
       billingOnDemandDesc: '依實際用量付費，無需規劃容量。最適合不可預測或起伏大的工作負載。',
-      billingProvisionedDesc:
-        '預留固定數量的每秒讀取/寫入容量單位。最適合可預測且穩定的工作負載。',
+      billingProvisionedDesc: '預留固定數量的每秒讀取/寫入容量單位。最適合可預測且穩定的工作負載。',
       tags: '標籤',
       tagsDescription: '標籤是用來整理與追蹤 AWS 資源的鍵值組。',
       tagKey: '索引鍵',
@@ -724,8 +725,7 @@ export const zhTW = {
       enablePitr: '啟用時間點復原',
       pitrLocalNotSupported: 'DynamoDB Local 不支援時間點復原。',
       pitrWarning: 'PITR 可復原到過去 35 天內的任何一秒。需另行支付 AWS 費用。',
-      tableClassInfo:
-        '變更資料表類別可能需要數小時。Standard-IA 可降低不常存取資料的儲存成本。',
+      tableClassInfo: '變更資料表類別可能需要數小時。Standard-IA 可降低不常存取資料的儲存成本。',
       tableSettingsTitle: '資料表設定',
       stepBasic: '基本資訊',
       stepCapacity: '容量',
@@ -1963,7 +1963,8 @@ export const zhTW = {
         connectionLabel: '連線：{name}',
         requiredAction: '需要：{action}',
         reviewPermissions: '檢視權限',
-        reviewHelp: '儲存權限變更並不會執行先前被封鎖的操作。準備好後請回到對話，選擇「重試請求」。',
+        reviewHelp:
+          '儲存權限變更並不會執行先前被封鎖的操作。準備好後請回到對話，選擇「重試請求」。',
         reviewConnectionHelp:
           '變更僅適用於此連線，系統預設值維持不變。請儲存後回到對話以重試請求。',
         connectionUnavailable: '無法識別已儲存的連線。請先在對話中重新附加該連線，再檢視其權限。',
