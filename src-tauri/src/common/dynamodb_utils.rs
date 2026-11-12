@@ -1,6 +1,6 @@
 use aws_sdk_dynamodb::types::AttributeValue;
 use base64::{engine::general_purpose, Engine as _};
-use serde_json::{json, Value};
+use serde_json::{json, value::RawValue, Value};
 use std::collections::HashMap;
 
 /// Digits that carry the value's precision, ignoring sign, decimal point,
@@ -129,6 +129,12 @@ pub fn convert_json_to_attr_value(
     value: &serde_json::Value,
     attr_type: &str,
 ) -> Result<AttributeValue, String> {
+    if let Some(text) = value
+        .as_str()
+        .filter(|_| matches!(attr_type, "L" | "M" | "NS"))
+    {
+        return convert_structured_text(text, attr_type);
+    }
     match attr_type {
         "S" => value
             .as_str()
@@ -236,6 +242,77 @@ pub fn convert_json_to_attr_value(
             ))
         }
         _ => Err(format!("unsupported attribute type: {attr_type}")),
+    }
+}
+
+fn convert_structured_text(text: &str, attr_type: &str) -> Result<AttributeValue, String> {
+    let raw: &RawValue = serde_json::from_str(text)
+        .map_err(|e| format!("invalid JSON for type {attr_type}: {e}"))?;
+    match (attr_type, raw.get().as_bytes().first()) {
+        ("L", Some(b'[')) | ("M", Some(b'{')) => infer_attr_value_from_raw_json(raw, 0),
+        ("NS", Some(b'[')) => {
+            let items: Vec<&RawValue> =
+                serde_json::from_str(raw.get()).map_err(|e| e.to_string())?;
+            if items.is_empty() {
+                return Err("DynamoDB does not support empty sets (type NS)".to_string());
+            }
+            items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    let text = item.get();
+                    let number = if text.starts_with('"') {
+                        serde_json::from_str::<Value>(text)
+                            .ok()
+                            .and_then(|value| json_number_to_string(&value))
+                    } else {
+                        raw_number_to_string(text)
+                    };
+                    number.ok_or_else(|| format!("item {index} of NS must be a number"))
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map(AttributeValue::Ns)
+        }
+        ("M", _) => Err("expected a JSON object for type M".to_string()),
+        _ => Err(format!("expected a JSON array for type {attr_type}")),
+    }
+}
+
+fn raw_number_to_string(text: &str) -> Option<String> {
+    // Check the range of the parser without using its rounded value.
+    text.parse::<f64>()
+        .ok()
+        .filter(|value| value.is_finite())
+        .map(|_| text.to_string())
+}
+
+fn infer_attr_value_from_raw_json(raw: &RawValue, depth: usize) -> Result<AttributeValue, String> {
+    if depth > 32 {
+        return Err("DynamoDB supports up to 32 levels of nested attributes".to_string());
+    }
+    let text = raw.get();
+    match text.as_bytes().first() {
+        Some(b'{') => serde_json::from_str::<HashMap<String, &RawValue>>(text)
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|(key, value)| Ok((key, infer_attr_value_from_raw_json(value, depth + 1)?)))
+            .collect::<Result<HashMap<_, _>, _>>()
+            .map(AttributeValue::M),
+        Some(b'[') => serde_json::from_str::<Vec<&RawValue>>(text)
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .map(|value| infer_attr_value_from_raw_json(value, depth + 1))
+            .collect::<Result<Vec<_>, _>>()
+            .map(AttributeValue::L),
+        Some(b'-' | b'0'..=b'9') => raw_number_to_string(text)
+            .map(AttributeValue::N)
+            .ok_or_else(|| "expected a finite JSON number".to_string()),
+        _ => serde_json::from_str::<Value>(text)
+            .map_err(|e| e.to_string())
+            .and_then(|value| {
+                infer_attr_value_from_json(&value)
+                    .ok_or_else(|| "unsupported JSON value".to_string())
+            }),
     }
 }
 

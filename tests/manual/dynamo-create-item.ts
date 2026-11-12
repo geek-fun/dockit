@@ -48,7 +48,24 @@ mockIPC(async (command, args) => {
                 { attributeName: 'sk', attributeType: 'N' },
                 { attributeName: 'gsi', attributeType: 'S' },
               ],
-        indices: [],
+        indices:
+          tableName === 'qa_num'
+            ? []
+            : [
+                {
+                  name: 'by_gsi',
+                  type: 'GSI',
+                  keySchema: [{ attributeName: 'gsi', keyType: 'HASH' }],
+                },
+                {
+                  name: 'by_pk_and_gsi',
+                  type: 'LSI',
+                  keySchema: [
+                    { attributeName: 'pk', keyType: 'HASH' },
+                    { attributeName: 'gsi', keyType: 'RANGE' },
+                  ],
+                },
+              ],
         status: 'ACTIVE',
         itemCount: 0,
       },

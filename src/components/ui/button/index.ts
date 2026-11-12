@@ -3,11 +3,12 @@ import { cva, type VariantProps } from 'class-variance-authority';
 export { default as Button } from './Button.vue';
 
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        action: 'bg-primary-action text-primary-action-foreground hover:bg-primary-action/90',
         destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
         outline:
           'border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground',

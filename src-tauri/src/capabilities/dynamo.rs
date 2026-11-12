@@ -3552,6 +3552,52 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_create_item_preserves_structured_number_literals_in_put_item() {
+        use wiremock::matchers::{header, method};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(header("x-amz-target", "DynamoDB_20120810.PutItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let decimal = "0.12345678901234567890123456789012345678";
+        let integer = "12345678901234567890123456789012345678";
+        let result = agent_create_item_handler(&server)
+            .handle(
+                &json!({
+                    "table_name": "users",
+                    "attributes": [
+                        {"key": "id", "type": "S", "value": "row"},
+                        {"key": "rates", "type": "NS", "value": format!("[{decimal}, \"{integer}\"]")},
+                        {"key": "values", "type": "L", "value": format!("[{integer}, \"{decimal}\"]")},
+                        {"key": "details", "type": "M", "value": format!("{{\"nested\":[{decimal},1e-130]}}")},
+                    ],
+                }),
+                Some(&json!({"id": "conn"})),
+            )
+            .await
+            .expect("create succeeds");
+        assert_eq!(
+            serde_json::from_str::<Value>(&result).unwrap()["status"],
+            200
+        );
+
+        let requests = server.received_requests().await.expect("requests");
+        let body: Value = serde_json::from_slice(&requests[0].body).expect("JSON body");
+        let item = &body["Item"];
+        assert_eq!(item["rates"]["NS"], json!([decimal, integer]));
+        assert_eq!(item["values"]["L"], json!([{"N": integer}, {"S": decimal}]));
+        assert_eq!(
+            item["details"]["M"]["nested"]["L"],
+            json!([{"N": decimal}, {"N": "1e-130"}]),
+        );
+    }
+
+    #[tokio::test]
     async fn test_agent_create_item_reports_attribute_without_type() {
         let server = wiremock::MockServer::start().await;
         let result = agent_create_item_handler(&server)
