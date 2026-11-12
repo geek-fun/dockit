@@ -78,6 +78,7 @@ declare module 'vue' {
     DropdownMenuSubTrigger: typeof import('./src/components/ui/dropdown-menu/DropdownMenuSubTrigger.vue')['default']
     DropdownMenuTrigger: typeof import('./src/components/ui/dropdown-menu/DropdownMenuTrigger.vue')['default']
     Empty: typeof import('./src/components/ui/empty/Empty.vue')['default']
+    FeedbackOverlay: typeof import('./src/components/ui/feedback-overlay/FeedbackOverlay.vue')['default']
     Form: typeof import('./src/components/ui/form/Form.vue')['default']
     FormItem: typeof import('./src/components/ui/form/FormItem.vue')['default']
     Grid: typeof import('./src/components/ui/grid/Grid.vue')['default']

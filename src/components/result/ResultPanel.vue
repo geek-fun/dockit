@@ -187,196 +187,203 @@
         </div>
       </div>
 
-      <div v-if="loading && data.length === 0" class="result-loading">
-        <Spinner class="mx-auto" />
-      </div>
-
-      <div v-else-if="data.length === 0 && !loading" class="result-empty">
-        <slot name="empty">
-          <Empty :description="emptyText" />
-        </slot>
-      </div>
-
-      <template v-else>
-        <div
-          v-if="internalView === 'table'"
-          class="table-scroll-area macos-scrollable"
-          @wheel="handleTableWheel"
-        >
-          <div v-if="loading && loadingOverlay" class="result-loading-overlay">
-            <Spinner />
-          </div>
-          <div class="table-container">
-            <Table>
-              <TableHeader class="sticky-header">
-                <TableRow>
-                  <TableHead
-                    v-for="(col, colIndex) in displayColumns"
-                    :key="col.key"
-                    :class="[
-                      col.className,
-                      {
-                        'col-sticky-left': col.sticky === 'left',
-                        'col-sticky-right': col.sticky === 'right',
-                      },
-                    ]"
-                    :style="{
-                      ...colStyle(col),
-                      ...stickyLeftStyle(col, colIndex),
-                    }"
-                  >
-                    <slot name="columnHeader" :column="col">
-                      <span class="header-nowrap">
-                        {{ col.title }}
-                        <span
-                          v-if="col.dataType"
-                          class="column-data-type"
-                          :class="dataTypeClass(col.dataType)"
-                        >
-                          {{ col.dataType }}
-                        </span>
-                      </span>
-                    </slot>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-if="loading" class="result-loading-row">
-                  <TableCell :colspan="displayColumns.length" class="text-center py-8">
-                    <Spinner class="mx-auto" />
-                  </TableCell>
-                </TableRow>
-                <TableRow
-                  v-for="(row, rowIndex) in displayData"
-                  v-else
-                  :key="getRowKey(row, rowIndex)"
-                  :class="rowClassName?.(row, rowIndex)"
-                  @click="$emit('row-click', row, rowIndex)"
-                >
-                  <TableCell
-                    v-for="(col, colIndex) in displayColumns"
-                    :key="col.key"
-                    :class="[
-                      col.className,
-                      {
-                        'col-sticky-left': col.sticky === 'left',
-                        'col-sticky-right': col.sticky === 'right',
-                      },
-                    ]"
-                    :style="{
-                      textAlign: col.align || 'left',
-                      ...stickyLeftStyle(col, colIndex),
-                    }"
-                  >
-                    <div
-                      :class="col.ellipsis === false ? undefined : 'cell-truncate'"
-                      :title="formatCellValue(row[col.key])"
-                    >
-                      <slot name="cell" :column="col" :row="row">
-                        {{ formatCellValue(row[col.key]) }}
-                      </slot>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-
-        <div v-if="internalView === 'tree'" class="tree-scroll-area macos-scrollable">
-          <TreeNode
-            v-for="(item, index) in treeData"
-            :key="index"
-            :value="item"
-            :label="String(index)"
-            :depth="0"
-          />
-        </div>
-
-        <JsonView v-if="internalView === 'json'" :value="props.rawValue ?? displayData" />
-
-        <div v-if="showPagination && !loading" class="result-pagination">
-          <span v-if="metaSummary" class="meta-summary" :title="metaSummary">
-            {{ metaSummary }}
-          </span>
-          <div class="pagination-right">
-            <span class="text-xs text-muted-foreground whitespace-nowrap">
-              <template v-if="props.fetchedCount !== undefined && total !== props.fetchedCount">
-                {{ props.fetchedCount }} of {{ total }} documents
-              </template>
-              <template v-else>{{ total ?? displayData.length }} documents</template>
-            </span>
-
-            <div class="pagination-divider" />
-
-            <Select
-              :model-value="String(pageSize)"
-              :disabled="paginationDisabled"
-              @update:model-value="handlePageSizeChange"
+      <div class="result-body">
+        <div class="result-content" :aria-busy="loading" :inert="loading">
+          <template v-if="data.length > 0 && (!loading || keepResultsWhileLoading)">
+            <div
+              v-if="internalView === 'table'"
+              class="table-scroll-area macos-scrollable"
+              @wheel="handleTableWheel"
             >
-              <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
-                  {{ size }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-            <div class="flex items-center gap-1">
-              <Button
-                v-if="isCursor"
-                variant="ghost"
-                size="icon"
-                class="h-7 w-7"
-                :disabled="paginationDisabled || !canGoPrev"
-                @click="handleFirstPage"
-              >
-                <span class="i-carbon-skip-back h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-7 w-7"
-                :disabled="paginationDisabled || !canGoPrev"
-                @click="handlePrevPage"
-              >
-                <span class="i-carbon-chevron-left h-3.5 w-3.5" />
-              </Button>
+              <div class="table-container">
+                <Table>
+                  <TableHeader class="sticky-header">
+                    <TableRow>
+                      <TableHead
+                        v-for="(col, colIndex) in displayColumns"
+                        :key="col.key"
+                        :class="[
+                          col.className,
+                          {
+                            'col-sticky-left': col.sticky === 'left',
+                            'col-sticky-right': col.sticky === 'right',
+                          },
+                        ]"
+                        :style="{
+                          ...colStyle(col),
+                          ...stickyLeftStyle(col, colIndex),
+                        }"
+                      >
+                        <slot name="columnHeader" :column="col">
+                          <span class="header-nowrap">
+                            {{ col.title }}
+                            <span
+                              v-if="col.dataType"
+                              class="column-data-type"
+                              :class="dataTypeClass(col.dataType)"
+                            >
+                              {{ col.dataType }}
+                            </span>
+                          </span>
+                        </slot>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow
+                      v-for="(row, rowIndex) in displayData"
+                      :key="getRowKey(row, rowIndex)"
+                      :class="rowClassName?.(row, rowIndex)"
+                      @click="$emit('row-click', row, rowIndex)"
+                    >
+                      <TableCell
+                        v-for="(col, colIndex) in displayColumns"
+                        :key="col.key"
+                        :class="[
+                          col.className,
+                          {
+                            'col-sticky-left': col.sticky === 'left',
+                            'col-sticky-right': col.sticky === 'right',
+                          },
+                        ]"
+                        :style="{
+                          textAlign: col.align || 'left',
+                          ...stickyLeftStyle(col, colIndex),
+                        }"
+                      >
+                        <div
+                          :class="col.ellipsis === false ? undefined : 'cell-truncate'"
+                          :title="formatCellValue(row[col.key])"
+                        >
+                          <slot name="cell" :column="col" :row="row">
+                            {{ formatCellValue(row[col.key]) }}
+                          </slot>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
             </div>
 
-            <span class="text-xs text-muted-foreground whitespace-nowrap">
-              Page {{ page }}
-              <template v-if="hasPages">/{{ totalPages }}</template>
-            </span>
-
-            <div class="flex items-center gap-1">
-              <template v-if="hasPages">
-                <Button
-                  v-for="n in visiblePages"
-                  :key="n"
-                  :variant="n === page ? 'outline' : 'ghost'"
-                  size="sm"
-                  class="h-7 min-w-[28px] text-xs px-1"
-                  :class="{ 'border-primary text-primary': n === page }"
-                  :disabled="paginationDisabled"
-                  @click="handleGoToPage(n)"
-                >
-                  {{ n }}
-                </Button>
-              </template>
-              <Button
-                variant="ghost"
-                size="icon"
-                class="h-7 w-7"
-                :disabled="paginationDisabled || !canGoNext"
-                @click="handleNextPage"
-              >
-                <span class="i-carbon-chevron-right h-3.5 w-3.5" />
-              </Button>
+            <div v-if="internalView === 'tree'" class="tree-scroll-area macos-scrollable">
+              <TreeNode
+                v-for="(item, index) in treeData"
+                :key="index"
+                :value="item"
+                :label="String(index)"
+                :depth="0"
+              />
             </div>
+
+            <JsonView v-if="internalView === 'json'" :value="props.rawValue ?? displayData" />
+          </template>
+          <div v-else-if="!loading" class="result-empty">
+            <slot name="empty">
+              <Empty :description="emptyText" />
+            </slot>
           </div>
         </div>
-      </template>
+        <FeedbackOverlay
+          :message="
+            loading
+              ? $t(
+                  showPagination && paginationMode !== 'client' && data.length
+                    ? 'editor.result.loadingPage'
+                    : 'editor.result.loadingResults',
+                )
+              : undefined
+          "
+        />
+      </div>
+
+      <div
+        v-if="showPagination && (data.length > 0 || canGoPrev || canGoNext)"
+        class="result-pagination"
+      >
+        <span v-if="metaSummary" class="meta-summary" :title="metaSummary">
+          {{ metaSummary }}
+        </span>
+        <div class="pagination-right">
+          <span class="text-xs text-muted-foreground whitespace-nowrap">
+            <template v-if="props.fetchedCount !== undefined && total !== props.fetchedCount">
+              {{ props.fetchedCount }} of {{ total }} documents
+            </template>
+            <template v-else>{{ total ?? displayData.length }} documents</template>
+          </span>
+
+          <div class="pagination-divider" />
+
+          <Select
+            :model-value="String(pageSize)"
+            :disabled="paginationDisabled"
+            @update:model-value="handlePageSizeChange"
+          >
+            <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
+                {{ size }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div class="flex items-center gap-1">
+            <Button
+              v-if="isCursor"
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="paginationDisabled || !canGoPrev"
+              :aria-label="$t('editor.result.firstPage')"
+              @click="handleFirstPage"
+            >
+              <span class="i-carbon-skip-back h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="paginationDisabled || !canGoPrev"
+              :aria-label="$t('editor.result.previousPage')"
+              @click="handlePrevPage"
+            >
+              <span class="i-carbon-chevron-left h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+          </div>
+
+          <span class="text-xs text-muted-foreground whitespace-nowrap">
+            Page {{ page }}
+            <template v-if="hasPages">/{{ totalPages }}</template>
+          </span>
+
+          <div class="flex items-center gap-1">
+            <template v-if="hasPages">
+              <Button
+                v-for="n in visiblePages"
+                :key="n"
+                :variant="n === page ? 'outline' : 'ghost'"
+                size="sm"
+                class="h-7 min-w-[28px] text-xs px-1"
+                :class="{ 'border-primary text-primary': n === page }"
+                :disabled="paginationDisabled"
+                @click="handleGoToPage(n)"
+              >
+                {{ n }}
+              </Button>
+            </template>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="paginationDisabled || !canGoNext"
+              :aria-label="$t('editor.result.nextPage')"
+              @click="handleNextPage"
+            >
+              <span class="i-carbon-chevron-right h-3.5 w-3.5" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -393,7 +400,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Spinner } from '@/components/ui/spinner';
+import { FeedbackOverlay } from '@/components/ui/feedback-overlay';
 import { Empty } from '@/components/ui/empty';
 import {
   Select,
@@ -499,10 +506,11 @@ const isCursor = computed(() => paginationMode.value === 'cursor');
 // Client-mode slicing cannot affect the raw-response JSON view, so its controls
 // are disabled there; cursor/offset modes re-fetch from the server and stay live.
 const paginationDisabled = computed(
-  () => paginationMode.value === 'client' && internalView.value === 'json',
+  () => props.loading || (paginationMode.value === 'client' && internalView.value === 'json'),
 );
 const hasPages = computed(() => visiblePages.value.length > 0);
 const showPagination = computed(() => props.pagination !== undefined);
+const keepResultsWhileLoading = computed(() => props.loadingOverlay || showPagination.value);
 const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [...PAGE_SIZE_OPTIONS]);
 
 const { copyResult, exportResult } = useResultExport();
@@ -523,11 +531,12 @@ const derivedColumns = computed<ColumnDef[]>(() => {
 const displayColumns = computed<ColumnDef[]>(() => derivedColumns.value);
 
 const displayData = computed(() => {
-  if (paginationMode.value === 'client' && props.pagination) {
-    const start = (page.value - 1) * pageSize.value;
-    return props.data.slice(start, start + pageSize.value);
-  }
-  return props.data;
+  const start =
+    props.pagination?.rowOffset ??
+    (paginationMode.value === 'client' && props.pagination
+      ? (page.value - 1) * pageSize.value
+      : undefined);
+  return start === undefined ? props.data : props.data.slice(start, start + pageSize.value);
 });
 
 const treeData = computed(() => displayData.value);
@@ -578,6 +587,7 @@ const switchView = (view: ViewMode) => {
 };
 
 const handlePageSizeChange = (value: string) => {
+  if (paginationDisabled.value) return;
   const size = Number(value);
   const newPage = setPageSize(size);
   emit('update:page-size', size);
@@ -599,20 +609,24 @@ const handleTableWheel = (event: WheelEvent) => {
 };
 
 const handleGoToPage = (n: number) => {
+  if (paginationDisabled.value) return;
   goToPage(n);
   emit('update:page', n);
 };
 const handlePrevPage = () => {
+  if (paginationDisabled.value || !canGoPrev.value) return;
   const n = prevPage();
   emit('prev-page');
   emit('update:page', n);
 };
 const handleNextPage = () => {
+  if (paginationDisabled.value || !canGoNext.value) return;
   const n = nextPage();
   emit('next-page');
   emit('update:page', n);
 };
 const handleFirstPage = () => {
+  if (paginationDisabled.value || !canGoPrev.value) return;
   firstPage();
   emit('first-page');
   emit('update:page', 1);
@@ -681,7 +695,20 @@ watch(
 .result-error-message {
   margin: 0;
 }
-.result-loading,
+.result-body,
+.result-content {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.result-body {
+  position: relative;
+  isolation: isolate;
+}
+
 .result-empty {
   display: flex;
   align-items: center;
@@ -727,17 +754,6 @@ watch(
   position: relative;
 }
 
-.result-loading-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: hsl(var(--background) / 0.65);
-  backdrop-filter: blur(1px);
-}
-
 .table-container :deep(.col-sticky-left) {
   position: sticky;
   left: 0;
@@ -776,9 +792,6 @@ watch(
   overflow: visible;
   overflow-x: visible;
   overflow-y: visible;
-}
-.result-loading-row :deep(td) {
-  text-align: center;
 }
 .cell-truncate {
   display: block;

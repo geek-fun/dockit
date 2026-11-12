@@ -1,6 +1,6 @@
 <template>
   <Card class="create-item-container flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-    <CardContent class="flex min-h-0 flex-1 flex-col p-3">
+    <CardContent class="flex min-h-0 flex-1 flex-col p-3" :aria-busy="saving" :inert="writeBlocked">
       <div v-if="schemaLoading" class="flex flex-col gap-3">
         <p role="status" class="text-sm text-muted-foreground">
           {{ $t('editor.dynamo.loadingTableSchema') }}
@@ -320,6 +320,7 @@
     <CardFooter class="card-footer shrink-0">
       <p
         role="status"
+        :aria-live="showCreateSuccess ? 'off' : 'polite'"
         aria-atomic="true"
         class="write-status min-w-0 break-words text-sm"
         :class="
@@ -333,11 +334,23 @@
         {{ status?.text }}
       </p>
       <div class="ml-auto flex items-center gap-2">
-        <Button type="button" variant="outline" :disabled="!table || saving" @click="handleReset">
+        <Button
+          type="button"
+          variant="outline"
+          :disabled="!table || writeBlocked"
+          @click="handleReset"
+        >
           <span class="i-carbon-reset mr-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
           {{ $t('dialogOps.reset') }}
         </Button>
-        <Button type="submit" variant="action" :form="formId" :disabled="!table || saving">
+        <Button
+          type="submit"
+          variant="action"
+          :form="formId"
+          :disabled="!table"
+          :aria-disabled="writeBlocked || undefined"
+          :class="{ 'opacity-50': writeBlocked }"
+        >
           <span
             v-if="!saving"
             class="i-carbon-checkmark mr-1.5 h-4 w-4 shrink-0"
@@ -347,11 +360,12 @@
         </Button>
       </div>
     </CardFooter>
+    <FeedbackOverlay :message="createFeedbackMessage" :success="showCreateSuccess" />
   </Card>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import {
   DatabaseType,
@@ -361,9 +375,11 @@ import {
   type DynamoDBConnection,
 } from '@/store';
 import type { DynamoAttributeItem } from '@/datasources';
+import { SUCCESS_MESSAGE_DELAY } from '@/common';
 import { useLang } from '@/lang';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { FeedbackOverlay } from '@/components/ui/feedback-overlay';
 import { FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -428,7 +444,15 @@ const addButtonId = `${formId}-add`;
 const submitted = ref(false);
 const touchedKeys = ref({ partitionKey: false, sortKey: false });
 const saving = ref(false);
+const showCreateSuccess = ref(false);
 const status = ref<Status>();
+const writeBlocked = computed(() => saving.value || showCreateSuccess.value);
+const createFeedbackMessage = computed(() => {
+  if (saving.value) return lang.t('editor.dynamo.creatingItem');
+  return showCreateSuccess.value ? status.value?.text : undefined;
+});
+let successTimer: ReturnType<typeof setTimeout> | undefined;
+let disposed = false;
 const structuredRow = ref<DynamoAttributeItem>();
 const structuredTrigger = ref<HTMLElement>();
 const validation = computed(() => validateDynamoItemForm(draft.value, table.value));
@@ -547,6 +571,8 @@ const applyStructuredValue = (value: string) => {
   if (structuredRow.value) structuredRow.value.value = value;
 };
 const clearFeedback = () => {
+  clearTimeout(successTimer);
+  showCreateSuccess.value = false;
   submitted.value = false;
   touchedKeys.value = { partitionKey: false, sortKey: false };
   structuredRow.value = undefined;
@@ -554,11 +580,15 @@ const clearFeedback = () => {
   if (attributeList.value) attributeList.value.scrollTop = 0;
 };
 watch(table, clearFeedback, { flush: 'sync' });
+onBeforeUnmount(() => {
+  disposed = true;
+  clearTimeout(successTimer);
+});
 
 const handleSubmit = async () => {
   const target = table.value;
   const active = connection.value;
-  if (!target?.partitionKey || !active || saving.value) return;
+  if (!target?.partitionKey || !active || writeBlocked.value) return;
   submitted.value = true;
   status.value = undefined;
   if (!validation.value.valid) {
@@ -575,13 +605,19 @@ const handleSubmit = async () => {
       buildDynamoItemAttributes(draft.value, target),
       { skipExisting: true, partitionKey: target.partitionKey.name },
     );
-    if (table.value === target) {
+    if (!disposed && table.value === target) {
       status.value = result.skipped
         ? { tone: 'warning', text: lang.t('editor.dynamo.itemAlreadyExists') }
         : { tone: 'success', text: lang.t('editor.dynamo.createItemSuccess') };
+      if (!result.skipped) {
+        showCreateSuccess.value = true;
+        successTimer = setTimeout(() => {
+          showCreateSuccess.value = false;
+        }, SUCCESS_MESSAGE_DELAY);
+      }
     }
   } catch (error) {
-    if (table.value === target) {
+    if (!disposed && table.value === target) {
       status.value = {
         tone: 'error',
         text: lang.t('editor.dynamo.createItemFailed', { reason: describeSchemaError(error) }),
@@ -600,6 +636,8 @@ const handleReset = () => {
 
 <style scoped>
 .create-item-container {
+  position: relative;
+  isolation: isolate;
   container-type: inline-size;
 }
 

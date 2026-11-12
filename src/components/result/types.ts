@@ -10,6 +10,8 @@ export type PaginationConfig = {
   page?: number;
   pageSize?: number;
   pageSizeOptions?: number[];
+  /** Row offset within the current server batch when its rows span multiple UI pages. */
+  rowOffset?: number;
   hasNext?: boolean;
   total?: number;
 };

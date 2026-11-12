@@ -38,14 +38,12 @@
         :data="partiqlData.data"
         :total="partiqlData.count"
         :loading="loadingRef"
-        :pagination="{
-          mode: 'cursor',
-          hasNext: !!partiqlData.nextToken,
-        }"
+        :pagination="pagination"
         :closable="true"
         @next-page="handleNextPage"
         @prev-page="handlePrevPage"
         @first-page="handleFirstPage"
+        @update:page-size="handlePageSizeChange"
         @close="handleCloseResultPanel"
       >
         <template #cell="{ column, row }">
@@ -163,7 +161,14 @@ import {
 import { Empty } from '@/components/ui/empty';
 import EditItem from './edit-item.vue';
 import DeleteConfirmModal from './delete-confirm-modal.vue';
-import { buildDynamoKeys, flattenDynamoColumns, formatDynamoCell, type DynamoKey } from '../utils';
+import { usePartiqlPagination } from '../composables';
+import {
+  buildDynamoKeys,
+  describeSchemaError,
+  flattenDynamoColumns,
+  formatDynamoCell,
+  type DynamoKey,
+} from '../utils';
 
 const lang = useLang();
 const message = useMessageService();
@@ -187,8 +192,7 @@ const { dynamoData } = storeToRefs(dbDataStore);
 
 const historyStore = useHistoryStore();
 const partiqlData = computed(() => dynamoData.value.partiqlData);
-// Remounts the panel on every fresh execution so the page label resets to 1
-// (DynamoDB has no total, cursor navigation is tracked by the token stack).
+// Remount the result panel when a new statement is executed.
 const partiqlPanelKey = computed(
   () => `${partiqlData.value.lastExecutedStatement ?? ''}#${partiqlRunId.value}`,
 );
@@ -198,6 +202,17 @@ let cleanupKeyboardShortcuts: (() => void) | null = null;
 const editorRef = ref<HTMLElement>();
 const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
+const {
+  pagination,
+  nextPage: handleNextPage,
+  previousPage: handlePrevPage,
+  firstPage: handleFirstPage,
+  setPageSize: handlePageSizeChange,
+  reset: resetPagination,
+} = usePartiqlPagination(partiqlData, loadingRef, async token => {
+  const statement = partiqlData.value.lastExecutedStatement;
+  return statement ? executePartiqlStatement(statement, token, 'replace') : false;
+});
 
 useEditorInsertCode(() => editor);
 
@@ -323,28 +338,27 @@ const insertRawQueryText = (queryText: string) => {
  * Execute PartiQL statement with state management
  * Encapsulates the common logic for executing statements and managing state
  */
-const pageStartTokens = ref<Array<string | null>>([null]);
 const partiqlRunId = ref(0);
 
 const executePartiqlStatement = async (
   statement: string,
   nextToken?: string | null,
   mode: 'append' | 'replace' = 'append',
-  trackHistory = true,
-) => {
+): Promise<boolean> => {
   if (!activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
       closable: true,
       keepAliveOnHover: true,
     });
-    return;
+    return false;
   }
 
   // Set editor size to show results panel; a fresh execution also restarts
   // cursor navigation at page 1.
-  if (!nextToken) {
+  const isFreshQuery = mode !== 'replace' && !nextToken;
+  if (isFreshQuery) {
     editorSize.value = 0.5;
-    pageStartTokens.value = [null];
+    resetPagination();
     partiqlRunId.value += 1;
   }
 
@@ -363,7 +377,7 @@ const executePartiqlStatement = async (
     message.error(lang.t('dialogOps.noActiveTable'));
     loadingRef.value = false;
     loadingBar.finish();
-    return;
+    return false;
   }
 
   try {
@@ -374,7 +388,7 @@ const executePartiqlStatement = async (
       { nextToken, mode },
     );
 
-    if (!nextToken && trackHistory) {
+    if (isFreshQuery) {
       historyStore.addEntry({
         databaseType: DatabaseType.DYNAMODB,
         method: 'PartiQL',
@@ -386,14 +400,18 @@ const executePartiqlStatement = async (
     }
 
     loadingBar.finish();
+    return true;
   } catch (err) {
     loadingBar.error();
-    const error = err as CustomError;
-    const errorMsg = error.details || error.message || String(err);
-    message.error(`Error: ${errorMsg}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
+    const reason = describeSchemaError(err);
+    message.error(
+      mode === 'replace' ? lang.t('editor.result.loadPageFailed', { reason }) : `Error: ${reason}`,
+      {
+        closable: true,
+        keepAliveOnHover: true,
+      },
+    );
+    return false;
   } finally {
     loadingRef.value = false;
   }
@@ -423,6 +441,7 @@ const refreshStatementDecorations = () => {
  * Execute a PartiQL statement at a specific line number
  */
 const executeStatementAtLine = async (lineNumber: number) => {
+  if (loadingRef.value) return;
   if (!editor || !activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
       closable: true,
@@ -571,6 +590,7 @@ const getStatementToExecute = (): { statement: string; found: boolean } => {
 };
 
 const executeQuery = async () => {
+  if (loadingRef.value) return;
   if (!editor || !activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
       closable: true,
@@ -593,41 +613,9 @@ const executeQuery = async () => {
   await executePartiqlStatement(statement);
 };
 
-const handleNextPage = async () => {
-  if (
-    !editor ||
-    !activeConnection.value ||
-    !partiqlData.value.nextToken ||
-    !partiqlData.value.lastExecutedStatement
-  )
-    return;
-
-  const token = partiqlData.value.nextToken;
-  pageStartTokens.value = [...pageStartTokens.value, token];
-  await executePartiqlStatement(partiqlData.value.lastExecutedStatement, token, 'replace');
-};
-
-// DynamoDB cursors only move forward, so going back re-executes the statement
-// from the token that started the target page (null = page 1, a fresh run).
-const handlePrevPage = async () => {
-  if (pageStartTokens.value.length < 2 || !partiqlData.value.lastExecutedStatement) return;
-  const target = pageStartTokens.value[pageStartTokens.value.length - 2];
-  pageStartTokens.value = pageStartTokens.value.slice(0, -1);
-  await executePartiqlStatement(
-    partiqlData.value.lastExecutedStatement,
-    target,
-    'replace',
-    target === null,
-  );
-};
-
-const handleFirstPage = async () => {
-  if (!partiqlData.value.lastExecutedStatement) return;
-  await executePartiqlStatement(partiqlData.value.lastExecutedStatement, null, 'replace', false);
-};
-
 const handleCloseResultPanel = () => {
   editorSize.value = 1;
+  resetPagination();
   dbDataStore.resetPartiqlData();
 };
 

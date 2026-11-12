@@ -169,8 +169,8 @@
           hasNext: !!dynamoData.queryData.lastEvaluatedKeys[queryPagination.page],
         }"
         :closable="true"
-        @update:page="changePage"
-        @update:page-size="changePageSize"
+        @update:page="page => loadQueryPage(() => changePage(page))"
+        @update:page-size="size => loadQueryPage(() => changePageSize(size))"
         @close="handleCloseResultPanel"
       >
         <template #cell="{ column, row }">
@@ -287,7 +287,13 @@ import { ResultPanel } from '@/components/result';
 import { inferColumnTypes } from '@/components/result/columnTypes';
 import type { ColumnDef } from '@/components/result';
 import { Empty } from '@/components/ui/empty';
-import { buildDynamoKeys, flattenDynamoColumns, formatDynamoCell, type DynamoKey } from '../utils';
+import {
+  buildDynamoKeys,
+  describeSchemaError,
+  flattenDynamoColumns,
+  formatDynamoCell,
+  type DynamoKey,
+} from '../utils';
 
 const lang = useLang();
 
@@ -460,6 +466,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
   if (event?.preventDefault) {
     event.preventDefault();
   }
+  if (loadingRef.value.queryResult) return;
 
   if (!activeConnection.value || !selectedIndexOrTable.value) {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
@@ -520,6 +527,22 @@ const queryToDynamo = async (event?: MouseEvent) => {
       keepAliveOnHover: true,
       duration: 3600,
     });
+  } finally {
+    loadingRef.value.queryResult = false;
+  }
+};
+
+const loadQueryPage = async (request: () => Promise<void>) => {
+  if (loadingRef.value.queryResult) return;
+  loadingRef.value.queryResult = true;
+  try {
+    await request();
+  } catch (error) {
+    message.error(
+      lang.t('editor.result.loadPageFailed', {
+        reason: describeSchemaError(error),
+      }),
+    );
   } finally {
     loadingRef.value.queryResult = false;
   }

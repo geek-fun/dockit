@@ -43,21 +43,8 @@ export const usePagination = (config: Ref<PaginationConfig | undefined>) => {
     return n;
   };
 
-  const nextPage = () => {
-    if (canGoNext.value) {
-      localPage.value++;
-      return localPage.value;
-    }
-    return page.value;
-  };
-
-  const prevPage = () => {
-    if (canGoPrev.value) {
-      localPage.value--;
-      return localPage.value;
-    }
-    return page.value;
-  };
+  const nextPage = () => (canGoNext.value ? goToPage(page.value + 1) : page.value);
+  const prevPage = () => (canGoPrev.value ? goToPage(page.value - 1) : page.value);
 
   const firstPage = () => {
     localPage.value = 1;

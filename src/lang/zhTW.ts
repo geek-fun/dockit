@@ -1187,6 +1187,14 @@ export const zhTW = {
     unsupportedFile: 'DocKit 僅支援 .search、.partiql 與 .mongo 檔案',
     showContextMenu: '顯示右鍵選單',
     sampleQueries: '範例查詢',
+    result: {
+      loadingResults: '正在載入結果…',
+      loadingPage: '正在載入頁面…',
+      loadPageFailed: '無法載入此頁。{reason}',
+      firstPage: '第一頁',
+      previousPage: '上一頁',
+      nextPage: '下一頁',
+    },
     es: {
       query: '查詢',
       browse: '瀏覽',
