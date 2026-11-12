@@ -1179,6 +1179,14 @@ export const zhCN = {
     unsupportedFile: 'DocKit仅支持 .search、.partiql 和 .mongo 文件',
     showContextMenu: '显示上下文菜单',
     sampleQueries: '示例查询',
+    result: {
+      loadingResults: '正在加载结果…',
+      loadingPage: '正在加载页面…',
+      loadPageFailed: '无法加载此页。{reason}',
+      firstPage: '第一页',
+      previousPage: '上一页',
+      nextPage: '下一页',
+    },
     es: {
       query: '查询',
       browse: '浏览',

@@ -43,6 +43,43 @@ it('keeps per-item type metadata alongside Query UI result rows', async () => {
   expect(store.dynamoData.queryData.attributeTypes?.[1].tags).toBe('L');
 });
 
+it('keeps the current Query UI page during a failed navigation and retries with the same cursor', async () => {
+  const cursor = { id: { N: '1' } };
+  queryTable
+    .mockResolvedValueOnce({ items: [{ id: 1 }], count: 1, last_evaluated_key: cursor })
+    .mockRejectedValueOnce(new Error('temporarily unavailable'))
+    .mockResolvedValueOnce({ items: [{ id: 2 }], count: 1 });
+  const store = useDbDataStore();
+  await store.getDynamoData(connection, { tableName: 'qa', index: 'Table - qa' });
+
+  const pending = store.changePage(2);
+  expect(store.dynamoData.queryData.pagination.page).toBe(1);
+  expect(store.dynamoData.queryData.data).toEqual([{ id: 1 }]);
+  await expect(pending).rejects.toThrow('temporarily unavailable');
+  expect(store.dynamoData.queryData.pagination.page).toBe(1);
+  expect(store.dynamoData.queryData.lastEvaluatedKeys[1]).toEqual(cursor);
+
+  await store.changePage(2);
+  expect(queryTable).toHaveBeenLastCalledWith(
+    connection,
+    expect.objectContaining({ exclusiveStartKey: cursor }),
+  );
+  expect(store.dynamoData.queryData.pagination.page).toBe(2);
+  expect(store.dynamoData.queryData.data).toEqual([{ id: 2 }]);
+});
+
+it('keeps the current Query UI page and size when a page-size request fails', async () => {
+  queryTable
+    .mockResolvedValueOnce({ items: [{ id: 1 }], count: 1 })
+    .mockRejectedValueOnce(new Error('temporarily unavailable'));
+  const store = useDbDataStore();
+  await store.getDynamoData(connection, { tableName: 'qa', index: 'Table - qa' });
+  await expect(store.changePageSize(50)).rejects.toThrow('temporarily unavailable');
+  expect(queryTable).toHaveBeenLastCalledWith(connection, expect.objectContaining({ limit: 50 }));
+  expect(store.dynamoData.queryData.pagination.pageSize).toBe(25);
+  expect(store.dynamoData.queryData.data).toEqual([{ id: 1 }]);
+});
+
 it('appends PartiQL type metadata in row order and clears it for a fresh query', async () => {
   const execute = dynamoApi.executeStatement as jest.Mock;
   execute.mockResolvedValueOnce({
@@ -114,13 +151,33 @@ it('replaces rather than appends rows and metadata during next-page navigation',
   });
   const store = useDbDataStore();
   await store.executePartiqlStatement(connection, 'qa', 'SELECT * FROM qa');
-  await store.executePartiqlStatement(connection, 'qa', 'SELECT * FROM qa', {
+  const pending = store.executePartiqlStatement(connection, 'qa', 'SELECT * FROM qa', {
     nextToken: 'next',
     mode: 'replace',
   });
+  expect(store.dynamoData.partiqlData.data).toEqual([{ id: 1 }]);
+  await pending;
   expect(store.dynamoData.partiqlData.data).toEqual([{ id: 2 }]);
   expect(store.dynamoData.partiqlData.attributeTypes).toEqual([{ id: 'N' }]);
   expect(store.dynamoData.partiqlData.count).toBe(1);
+});
+
+it('retains the PartiQL result and next token when cursor navigation fails', async () => {
+  const execute = dynamoApi.executeStatement as jest.Mock;
+  execute
+    .mockResolvedValueOnce({ items: [{ id: 1 }], count: 1, next_token: 'next' })
+    .mockRejectedValueOnce(new Error('temporarily unavailable'));
+  const store = useDbDataStore();
+  await store.executePartiqlStatement(connection, 'qa', 'SELECT * FROM qa');
+  await expect(
+    store.executePartiqlStatement(connection, 'qa', 'SELECT * FROM qa', {
+      nextToken: 'next',
+      mode: 'replace',
+    }),
+  ).rejects.toThrow('temporarily unavailable');
+  expect(store.dynamoData.partiqlData.data).toEqual([{ id: 1 }]);
+  expect(store.dynamoData.partiqlData.nextToken).toBe('next');
+  expect(store.dynamoData.partiqlData.errorMessage).toBeNull();
 });
 
 it('clears Query UI type metadata when a subsequent response omits it', async () => {

@@ -132,7 +132,11 @@ export const useDbDataStore = defineStore('dbDataStore', {
   },
 
   actions: {
-    async getDynamoData(connection: DynamoDBConnection, queryInput: DynamoInput): Promise<void> {
+    async getDynamoData(
+      connection: DynamoDBConnection,
+      queryInput: DynamoInput,
+      requestedPage?: { page: number; pageSize: number },
+    ): Promise<void> {
       this.dynamoData.connection = connection;
 
       const { getDynamoIndexOrTableOption, queryTable } = useConnectionStore();
@@ -166,11 +170,15 @@ export const useDbDataStore = defineStore('dbDataStore', {
         };
       }
 
-      const limit = this.dynamoData.queryData.pagination.pageSize;
-      const exclusiveStartKey =
-        this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page - 1];
-
-      const data = await queryTable(connection, { ...queryParams, limit, exclusiveStartKey });
+      const queryData = this.dynamoData.queryData;
+      const { page, pageSize } = requestedPage ?? queryData.pagination;
+      const cursors = pageSize === queryData.pagination.pageSize ? queryData.lastEvaluatedKeys : [];
+      const data = await queryTable(connection, {
+        ...queryParams,
+        limit: pageSize,
+        exclusiveStartKey: cursors[page - 1],
+      });
+      if (queryData !== this.dynamoData.queryData) return;
 
       const columnsSet = new Set<string>();
       data.items.forEach(item => {
@@ -210,40 +218,36 @@ export const useDbDataStore = defineStore('dbDataStore', {
         .map(column => ({ title: column, key: column, ellipsis: { tooltip: true } }));
       columns.unshift(primaryColumn);
 
-      this.dynamoData.queryData.columns = columns;
-      this.dynamoData.queryData.data = columnsData;
-      this.dynamoData.queryData.attributeTypes = data.attribute_types;
-
-      if (data.last_evaluated_key) {
-        this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page] =
-          data.last_evaluated_key;
-        this.dynamoData.queryData.pagination.pageCount =
-          this.dynamoData.queryData.lastEvaluatedKeys.length;
-      }
-      this.dynamoData.queryData.queryInput = queryInput;
-      this.dynamoData.queryData.showResultPanel = true;
+      const nextCursors = cursors.slice(0, page);
+      if (data.last_evaluated_key) nextCursors[page] = data.last_evaluated_key;
+      queryData.columns = columns;
+      queryData.data = columnsData;
+      queryData.attributeTypes = data.attribute_types;
+      queryData.lastEvaluatedKeys = nextCursors;
+      queryData.pagination = {
+        ...queryData.pagination,
+        page,
+        pageSize,
+        pageCount: Math.max(1, nextCursors.length),
+      };
+      queryData.queryInput = queryInput;
+      queryData.showResultPanel = true;
     },
 
     async changePage(page: number) {
-      if (this.dynamoData.queryData.pagination.page !== page) {
-        this.dynamoData.queryData.pagination.page = page;
-        await this.getDynamoData(
-          this.dynamoData.connection,
-          this.dynamoData.queryData.queryInput as DynamoInput,
-        );
+      const { pagination, queryInput } = this.dynamoData.queryData;
+      if (queryInput && pagination.page !== page) {
+        await this.getDynamoData(this.dynamoData.connection, queryInput, {
+          page,
+          pageSize: pagination.pageSize,
+        });
       }
     },
 
     async changePageSize(pageSize: number) {
-      if (this.dynamoData.queryData.pagination.pageSize !== pageSize) {
-        this.dynamoData.queryData.pagination.pageSize = pageSize;
-        this.dynamoData.queryData.pagination.page = 1;
-        this.dynamoData.queryData.pagination.pageCount = 1;
-        this.dynamoData.queryData.lastEvaluatedKeys = [];
-        await this.getDynamoData(
-          this.dynamoData.connection,
-          this.dynamoData.queryData.queryInput as DynamoInput,
-        );
+      const { pagination, queryInput } = this.dynamoData.queryData;
+      if (queryInput && pagination.pageSize !== pageSize) {
+        await this.getDynamoData(this.dynamoData.connection, queryInput, { page: 1, pageSize });
       }
     },
 
@@ -318,12 +322,12 @@ export const useDbDataStore = defineStore('dbDataStore', {
       statement: string,
       options?: { nextToken?: string | null; mode?: 'append' | 'replace' },
     ): Promise<void> {
-      // Append is the default (Load More). 'replace' discards the current
-      // page and shows only the next page (cursor next-page navigation).
-      const isLoadingMore = !!options?.nextToken && options?.mode !== 'replace';
+      const isPageChange = options?.mode === 'replace';
+      const isLoadingMore = !!options?.nextToken && !isPageChange;
+      const current = this.dynamoData.partiqlData;
 
       // Reset state for new execution (not for pagination)
-      if (!isLoadingMore) {
+      if (!isLoadingMore && !isPageChange) {
         this.dynamoData.partiqlData.errorMessage = null;
         this.dynamoData.partiqlData.columns = [];
         this.dynamoData.partiqlData.data = [];
@@ -339,6 +343,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
           statement,
           nextToken: options?.nextToken,
         });
+        if (current !== this.dynamoData.partiqlData) return;
 
         // Build columns structure with partition key and sort key info
         const columnsSet = new Set<string>();
@@ -442,9 +447,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
         // Clear any previous error on success
         this.dynamoData.partiqlData.errorMessage = null;
       } catch (error: any) {
-        // Set error state automatically
-        const errorMsg = error.details || error.message || String(error);
-        this.dynamoData.partiqlData.errorMessage = errorMsg;
+        if (current === this.dynamoData.partiqlData && !isPageChange) {
+          current.errorMessage = error.details || error.message || String(error);
+        }
         throw error; // Re-throw for UI error handling
       }
     },

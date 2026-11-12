@@ -1222,6 +1222,14 @@ export const enUS = {
     unsupportedFile: 'DocKit only supports .search, .partiql and .mongo files',
     showContextMenu: 'Show Context Menu',
     sampleQueries: 'Sample Queries',
+    result: {
+      loadingResults: 'Loading results…',
+      loadingPage: 'Loading page…',
+      loadPageFailed: 'Unable to load the page. {reason}',
+      firstPage: 'First page',
+      previousPage: 'Previous page',
+      nextPage: 'Next page',
+    },
     es: {
       query: 'Query',
       browse: 'Browse',
