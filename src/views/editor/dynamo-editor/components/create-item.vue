@@ -1,359 +1,370 @@
 <template>
-  <Card class="create-item-container flex flex-col overflow-hidden" :aria-busy="schemaLoading">
-    <CardHeader class="flex flex-row items-center justify-between pb-2">
-      <CardTitle>{{ $t('editor.dynamo.addAttributesTitle') }}</CardTitle>
-    </CardHeader>
-    <CardContent class="form-container">
-      <div v-if="schemaLoading" class="flex flex-col h-full gap-3">
-        <p role="status" aria-live="polite" class="text-sm text-muted-foreground">
+  <Card class="create-item-container flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+    <CardContent class="flex min-h-0 flex-1 flex-col p-3">
+      <div v-if="schemaLoading" class="flex flex-col gap-3">
+        <p role="status" class="text-sm text-muted-foreground">
           {{ $t('editor.dynamo.loadingTableSchema') }}
         </p>
-        <div aria-hidden="true" class="border border-border rounded-lg p-3 shrink-0">
-          <div class="text-sm font-medium text-muted-foreground mb-3">Primary Key</div>
-          <div class="grid grid-cols-2 gap-3">
-            <div v-for="key in 2" :key="key" class="flex flex-col gap-2">
-              <div class="skeleton h-3 w-2/5" />
-              <div class="skeleton h-8 w-full" />
-            </div>
-          </div>
-        </div>
-        <div
-          aria-hidden="true"
-          class="border border-border rounded-lg p-3 flex-1 min-h-0 flex flex-col gap-3"
-        >
-          <div class="text-sm font-medium text-muted-foreground">Additional Attributes</div>
-          <div v-for="row in 3" :key="row" class="skeleton-attribute-row">
-            <div class="skeleton h-8" />
-            <div class="skeleton h-8" />
-            <div class="skeleton h-8" />
-            <div class="skeleton h-8" />
+        <div v-if="showSchemaSkeleton" aria-hidden="true" class="primary-key-grid">
+          <div v-for="key in 2" :key="key" class="flex flex-col gap-2">
+            <div class="skeleton h-3 w-2/5" />
+            <div class="skeleton h-8 w-full" />
           </div>
         </div>
       </div>
-      <Form v-else class="flex flex-col h-full gap-3" @submit.prevent>
-        <!-- Top box: Partition Key + Sort Key (fixed) -->
-        <div class="border border-border rounded-lg p-3 shrink-0">
-          <div class="text-sm font-medium text-muted-foreground mb-2">Primary Key</div>
-          <div v-if="schemaError" role="alert" class="text-sm text-destructive">
-            <p>{{ $t('editor.dynamo.tableSchemaFailed') }} {{ schemaErrorDetails }}</p>
-            <Button variant="outline" class="mt-2" @click="retry">
-              {{ $t('editor.dynamo.retryTableSchema') }}
-            </Button>
-          </div>
-          <div
-            v-else-if="!table"
-            role="status"
-            class="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-600 dark:text-amber-400"
-          >
-            <span class="i-carbon-warning-alt h-4 w-4 shrink-0" aria-hidden="true" />
-            {{ $t('editor.dynamo.selectTableFirst') }}
-          </div>
-          <Grid v-else :cols="24" :x-gap="12">
-            <GridItem :span="10">
-              <FormItem
-                v-if="selectedTable.partitionKeyLabel"
-                :label="selectedTable.partitionKeyLabel"
-                :required="true"
-                :error="errors.partitionKey"
-              >
-                <Input
-                  v-model="dynamoRecordForm.partitionKey"
-                  :inputmode="partitionKeyValueType === 'N' ? 'decimal' : 'text'"
-                  :placeholder="$t('editor.dynamo.enterPartitionKey')"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
-                  @blur="touchedKeys.partitionKey = true"
-                />
-              </FormItem>
-            </GridItem>
-
-            <GridItem :span="12">
-              <FormItem
-                v-if="selectedTable.sortKeyLabel"
-                :label="selectedTable.sortKeyLabel"
-                :required="true"
-                :error="errors.sortKey"
-              >
-                <Input
-                  v-model="dynamoRecordForm.sortKey"
-                  :inputmode="sortKeyValueType === 'N' ? 'decimal' : 'text'"
-                  :placeholder="$t('editor.dynamo.enterSortKey')"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
-                  @blur="touchedKeys.sortKey = true"
-                />
-              </FormItem>
-            </GridItem>
-          </Grid>
-        </div>
-
-        <!-- Key Attributes box -->
-        <div
-          v-if="dynamoRecordForm.keyAttributes.length > 0"
-          class="border border-border rounded-lg p-3 shrink-0 flex flex-col"
-          style="max-height: 35%"
-        >
-          <div class="text-sm font-medium text-muted-foreground mb-2 shrink-0">Key Attributes</div>
-          <ScrollArea class="flex-1 min-h-0">
-            <Grid
-              v-for="(item, index) in dynamoRecordForm.keyAttributes"
-              :key="index"
-              :cols="24"
-              :x-gap="12"
-            >
-              <GridItem :span="8">
-                <FormItem>
-                  <Input
-                    v-model="item.key"
-                    :placeholder="$t('editor.dynamo.inputAttrName')"
-                    disabled
-                  />
-                </FormItem>
-              </GridItem>
-              <GridItem :span="4">
-                <FormItem>
-                  <Select v-model="item.type" disabled>
-                    <SelectTrigger>
-                      <SelectValue :placeholder="$t('editor.dynamo.type')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        v-for="option in attributeType"
-                        :key="option.value"
-                        :value="option.value"
-                      >
-                        {{ option.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              </GridItem>
-              <GridItem :span="10">
-                <FormItem :error="valueError(validation.keyAttributes[index]?.value, item.type)">
-                  <div v-if="item.type === 'B'" class="flex w-full items-center gap-1">
-                    <Input
-                      v-model="item.value as string"
-                      :placeholder="$t('editor.dynamo.inputAttrValue')"
-                      class="flex-1"
-                      autocomplete="off"
-                      autocorrect="off"
-                      autocapitalize="off"
-                      spellcheck="false"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6 shrink-0"
-                      :title="$t('editor.dynamo.loadBinaryFile')"
-                      @click="loadBinaryValue(item)"
-                    >
-                      <span class="i-carbon-upload h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Input
-                    v-else-if="item.type === 'N'"
-                    v-model="item.value as string"
-                    inputmode="decimal"
-                    :placeholder="$t('editor.dynamo.inputAttrValue')"
-                  />
-                  <Input v-else-if="item.type === 'NULL'" model-value="null" disabled />
-                  <Switch
-                    v-else-if="item.type === 'BOOL'"
-                    :checked="item.value as boolean"
-                    @update:checked="val => (item.value = val)"
-                  />
-                  <Input
-                    v-else
-                    v-model="item.value as string"
-                    :placeholder="$t('editor.dynamo.inputAttrValue')"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false"
-                  />
-                </FormItem>
-              </GridItem>
-              <GridItem :span="2" class="flex items-end mb-px">
-                <Button variant="ghost" size="icon" @click="removeKeyAttributeItem(index)">
-                  <span class="i-carbon-trash-can h-4 w-4" />
-                </Button>
-              </GridItem>
-            </Grid>
-          </ScrollArea>
-        </div>
-
-        <!-- Additional Attributes box -->
-        <div class="border border-border rounded-lg p-3 flex-1 min-h-0 flex flex-col">
-          <div class="flex items-center justify-between mb-2 shrink-0">
-            <div class="text-sm font-medium text-muted-foreground">Additional Attributes</div>
-            <Button variant="ghost" size="icon" class="h-6 w-6" @click="addAttributeItem">
-              <span class="i-carbon-add h-4 w-4" />
-            </Button>
-          </div>
-          <ScrollArea class="flex-1 min-h-0">
-            <Grid
-              v-for="(item, index) in dynamoRecordForm.attributes"
-              :key="index"
-              :cols="24"
-              :x-gap="12"
-            >
-              <GridItem :span="8">
-                <FormItem :error="getAttributeError(index, 'key')">
-                  <Input
-                    v-model="item.key"
-                    :placeholder="$t('editor.dynamo.inputAttrName')"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false"
-                  />
-                </FormItem>
-              </GridItem>
-              <GridItem :span="4">
-                <FormItem :error="getAttributeError(index, 'type')">
-                  <Select
-                    :model-value="item.type"
-                    @update:model-value="val => onAttributeTypeChange(item, val as string)"
-                  >
-                    <SelectTrigger>
-                      <SelectValue :placeholder="$t('editor.dynamo.type')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        v-for="option in attributeType"
-                        :key="option.value"
-                        :value="option.value"
-                      >
-                        {{ option.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              </GridItem>
-              <GridItem :span="10">
-                <FormItem :error="getAttributeError(index, 'value')">
-                  <div v-if="item.type === 'B'" class="flex w-full items-center gap-1">
-                    <Input
-                      v-model="item.value as string"
-                      :placeholder="$t('editor.dynamo.inputAttrValue')"
-                      class="flex-1"
-                      autocomplete="off"
-                      autocorrect="off"
-                      autocapitalize="off"
-                      spellcheck="false"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      class="h-6 w-6 shrink-0"
-                      :title="$t('editor.dynamo.loadBinaryFile')"
-                      @click="loadBinaryValue(item)"
-                    >
-                      <span class="i-carbon-upload h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Input
-                    v-else-if="isStructuredType(item.type)"
-                    :model-value="(item.value as string) ?? ''"
-                    readonly
-                    class="cursor-pointer"
-                    :placeholder="typeValueTemplate(item.type)"
-                    @click="openStructuredEditor(index)"
-                  />
-                  <Input
-                    v-else-if="item.type === 'N'"
-                    v-model="item.value as string"
-                    inputmode="decimal"
-                    :placeholder="$t('editor.dynamo.inputAttrValue')"
-                  />
-                  <Input v-else-if="item.type === 'NULL'" model-value="null" disabled />
-                  <Switch
-                    v-else-if="item.type === 'BOOL'"
-                    :checked="item.value as boolean"
-                    @update:checked="val => (item.value = val)"
-                  />
-                  <Input
-                    v-else
-                    v-model="item.value as string"
-                    :placeholder="$t('editor.dynamo.inputAttrValue')"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false"
-                  />
-                </FormItem>
-              </GridItem>
-              <GridItem :span="2" class="flex items-end mb-px">
-                <Button variant="ghost" size="icon" @click="removeAttributeItem(index)">
-                  <span class="i-carbon-trash-can h-4 w-4" />
-                </Button>
-              </GridItem>
-            </Grid>
-          </ScrollArea>
-        </div>
-      </Form>
-      <StructuredValueDialog
-        :open="structuredEditor.open"
-        :attribute-type="structuredEditorType"
-        :value="structuredEditorValue"
-        @update:open="structuredEditor.open = $event"
-        @apply="handleStructuredApply"
-      />
-    </CardContent>
-    <CardFooter class="card-footer shrink-0">
-      <Button
-        variant="outline"
-        :disabled="schemaLoading || loadingRef.createItem"
-        @click="handleReset"
+      <div v-else-if="schemaError" role="alert" class="text-sm text-destructive-text">
+        <p class="break-words">
+          {{ $t('editor.dynamo.tableSchemaFailed') }} {{ describeSchemaError(schemaError) }}
+        </p>
+        <Button type="button" variant="outline" class="mt-2" @click="retry">
+          {{ $t('editor.dynamo.retryTableSchema') }}
+        </Button>
+      </div>
+      <p
+        v-else-if="!table"
+        role="status"
+        class="flex items-center gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm font-medium text-warning-text"
       >
-        {{ $t('dialogOps.reset') }}
-      </Button>
-      <Button :disabled="createDisabled" @click="handleSubmit">
-        <Loader2 v-if="loadingRef.createItem" class="mr-2 h-4 w-4 animate-spin" />
-        {{ $t('dialogOps.create') }}
-      </Button>
+        <span class="i-carbon-warning-alt h-4 w-4 shrink-0" aria-hidden="true" />
+        {{ $t('editor.dynamo.selectTableFirst') }}
+      </p>
+
+      <form
+        v-else
+        :id="formId"
+        ref="formElement"
+        class="flex min-h-0 flex-1 flex-col gap-2"
+        novalidate
+        @submit.prevent="handleSubmit"
+      >
+        <section
+          :aria-labelledby="`${formId}-primary`"
+          class="shrink-0 space-y-1 rounded-md border border-border bg-muted/30 p-2"
+        >
+          <h3 :id="`${formId}-primary`" class="flex items-center gap-1.5 text-sm font-medium">
+            <span class="i-lucide-key-round h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {{ $t('editor.dynamo.primaryKey') }}
+          </h3>
+          <div class="primary-key-grid">
+            <FormItem
+              v-for="key in primaryKeys"
+              :key="key.field"
+              :control-id="`${formId}-${key.field}`"
+              :label="key.label"
+              label-class="flex-wrap"
+              required
+              :error="key.error"
+            >
+              <template #label>
+                <span class="sr-only">{{ key.label }}</span>
+                <span
+                  aria-hidden="true"
+                  class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1"
+                >
+                  <span class="break-all font-mono font-semibold text-foreground">
+                    {{ key.name }}
+                  </span>
+                  <span class="text-xs text-muted-foreground">{{ key.role }}</span>
+                  <span class="schema-tag schema-type-tag text-caption font-medium">
+                    {{ key.type }}
+                  </span>
+                </span>
+              </template>
+              <template #default="{ control }">
+                <Input
+                  v-bind="control"
+                  v-model="draft[key.field]"
+                  :inputmode="key.type === 'N' ? 'decimal' : 'text'"
+                  :placeholder="key.placeholder"
+                  @blur="touchedKeys[key.field] = true"
+                />
+              </template>
+            </FormItem>
+          </div>
+        </section>
+
+        <section
+          :aria-labelledby="`${formId}-attributes`"
+          class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-border"
+        >
+          <div
+            class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-2 py-1"
+          >
+            <h3 :id="`${formId}-attributes`" class="text-sm font-medium">
+              {{ $t('editor.dynamo.itemAttributes') }}
+            </h3>
+            <Button
+              :id="addButtonId"
+              type="button"
+              variant="outline"
+              size="sm"
+              @click="addAttribute"
+            >
+              <span class="i-carbon-add mr-1 h-4 w-4" aria-hidden="true" />
+              {{ $t('editor.dynamo.addAttribute') }}
+            </Button>
+          </div>
+
+          <div
+            ref="attributeList"
+            class="attribute-list flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2"
+          >
+            <div
+              v-for="({ item, indexNames, error }, index) in indexKeyRows"
+              :key="item.key"
+              class="index-key-row relative rounded-md bg-muted/50 p-2"
+            >
+              <div class="index-key-metadata min-w-0 space-y-1">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="min-w-0 break-all font-mono text-sm font-semibold text-foreground">
+                    {{ item.key }}
+                  </span>
+                  <span class="schema-tag schema-type-tag text-caption font-medium">
+                    {{ $t(`editor.dynamo.attributeTypes.${item.type}`) }} ({{ item.type }})
+                  </span>
+                </div>
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <span class="i-lucide-list-tree h-3 w-3 shrink-0" aria-hidden="true" />
+                    {{ $t('editor.dynamo.indexKey') }}
+                  </span>
+                  <ul v-if="indexNames.length" class="flex min-w-0 flex-wrap gap-1" role="list">
+                    <li
+                      v-for="name in indexNames"
+                      :key="name"
+                      class="schema-tag schema-index-tag font-mono text-caption font-medium"
+                    >
+                      {{ name }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <FormItem
+                v-slot="{ control }"
+                class="index-key-value min-w-0"
+                :control-id="fieldId('keyAttributes', index, 'value')"
+                :label="$t('editor.dynamo.optionalAttributeValue')"
+                :error="error"
+              >
+                <div class="relative">
+                  <Input
+                    v-bind="control"
+                    :model-value="(item.value as string) ?? ''"
+                    :class="{ 'pr-9': item.type === 'B' }"
+                    :inputmode="item.type === 'N' ? 'decimal' : 'text'"
+                    :placeholder="$t('editor.dynamo.inputAttrValue')"
+                    :aria-label="
+                      $t('editor.dynamo.namedOptionalAttributeValue', { name: item.key })
+                    "
+                    @update:model-value="
+                      value => (item.value = value === '' ? null : String(value))
+                    "
+                  />
+                  <Button
+                    v-if="item.type === 'B'"
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    class="absolute right-1 top-1"
+                    :aria-label="$t('editor.dynamo.loadNamedBinaryFile', { name: item.key })"
+                    @click="loadBinaryValue(item)"
+                  >
+                    <span class="i-carbon-upload h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </FormItem>
+              <Button
+                :id="fieldId('keyAttributes', index, 'remove')"
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                class="index-key-remove text-muted-foreground"
+                :aria-label="$t('editor.dynamo.removeNamedAttribute', { name: item.key })"
+                :title="$t('editor.dynamo.removeNamedAttribute', { name: item.key })"
+                @click="removeAttribute('keyAttributes', index)"
+              >
+                <span class="i-carbon-trash-can h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+
+            <div v-for="(item, index) in draft.attributes" :key="index" class="attribute-row">
+              <FormItem
+                v-slot="{ control }"
+                :control-id="fieldId('attributes', index, 'name')"
+                :label="$t('editor.dynamo.attributeName')"
+                required
+                :error="attributeErrors[index]?.name"
+              >
+                <Input v-bind="control" v-model="item.key" />
+              </FormItem>
+              <FormItem
+                v-slot="{ control }"
+                :control-id="fieldId('attributes', index, 'type')"
+                :label="$t('editor.dynamo.attributeType')"
+                required
+                :error="attributeErrors[index]?.type"
+              >
+                <Select
+                  :model-value="item.type"
+                  @update:model-value="type => changeType(item, String(type))"
+                >
+                  <SelectTrigger v-bind="control">
+                    <SelectValue
+                      :class="{ 'schema-type-text': item.type }"
+                      :placeholder="$t('editor.dynamo.type')"
+                    />
+                  </SelectTrigger>
+                  <SelectContent
+                    class="max-h-[min(24rem,var(--radix-select-content-available-height))]"
+                    :collision-padding="8"
+                  >
+                    <SelectItem v-for="type in attributeTypes" :key="type" :value="type">
+                      {{ $t(`editor.dynamo.attributeTypes.${type}`) }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+              <FormItem
+                v-slot="{ control }"
+                class="attribute-value"
+                :control-id="fieldId('attributes', index, 'value')"
+                :label="$t('editor.dynamo.attributeValue')"
+                :error="attributeErrors[index]?.value"
+              >
+                <Button
+                  v-if="isStructuredType(item.type)"
+                  v-bind="control"
+                  type="button"
+                  variant="outline"
+                  class="w-full min-w-0 justify-start"
+                  aria-haspopup="dialog"
+                  :aria-label="
+                    $t('editor.dynamo.editNamedAttribute', { name: attributeName(item, index) })
+                  "
+                  @click="openStructuredEditor(item, $event)"
+                >
+                  <span class="i-carbon-code mr-2 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span class="truncate">
+                    {{ item.value ?? $t('editor.dynamo.editStructuredValue') }}
+                  </span>
+                </Button>
+                <Switch
+                  v-else-if="item.type === 'BOOL'"
+                  v-bind="control"
+                  :checked="item.value as boolean"
+                  @update:checked="value => (item.value = value)"
+                />
+                <div v-else class="flex items-center gap-1">
+                  <Input
+                    v-bind="control"
+                    :model-value="item.type === 'NULL' ? 'null' : ((item.value as string) ?? '')"
+                    :disabled="!item.type || item.type === 'NULL'"
+                    :inputmode="item.type === 'N' ? 'decimal' : 'text'"
+                    :placeholder="
+                      item.type
+                        ? $t('editor.dynamo.inputAttrValue')
+                        : $t('editor.dynamo.selectTypeFirst')
+                    "
+                    class="min-w-0"
+                    @update:model-value="value => (item.value = String(value))"
+                  />
+                  <Button
+                    v-if="item.type === 'B'"
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    class="shrink-0"
+                    :title="$t('editor.dynamo.loadBinaryFile')"
+                    :aria-label="
+                      $t('editor.dynamo.loadNamedBinaryFile', { name: attributeName(item, index) })
+                    "
+                    @click="loadBinaryValue(item)"
+                  >
+                    <span class="i-carbon-upload h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </FormItem>
+              <Button
+                :id="fieldId('attributes', index, 'remove')"
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                class="attribute-remove text-muted-foreground"
+                :aria-label="
+                  $t('editor.dynamo.removeNamedAttribute', { name: attributeName(item, index) })
+                "
+                :title="
+                  $t('editor.dynamo.removeNamedAttribute', { name: attributeName(item, index) })
+                "
+                @click="removeAttribute('attributes', index)"
+              >
+                <span class="i-carbon-trash-can h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </section>
+      </form>
+    </CardContent>
+
+    <StructuredValueDialog
+      :open="!!structuredRow"
+      :attribute-type="structuredRow?.type ?? 'L'"
+      :value="(structuredRow?.value as string | null) ?? null"
+      :return-focus="structuredTrigger"
+      @update:open="closeStructuredEditor"
+      @apply="applyStructuredValue"
+    />
+
+    <CardFooter class="card-footer shrink-0">
+      <p
+        role="status"
+        aria-atomic="true"
+        class="write-status min-w-0 break-words text-sm"
+        :class="
+          status?.tone === 'error'
+            ? 'text-destructive-text'
+            : status?.tone === 'warning'
+              ? 'text-warning-text'
+              : 'text-foreground'
+        "
+      >
+        {{ status?.text }}
+      </p>
+      <div class="ml-auto flex items-center gap-2">
+        <Button type="button" variant="outline" :disabled="!table || saving" @click="handleReset">
+          <span class="i-carbon-reset mr-1.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          {{ $t('dialogOps.reset') }}
+        </Button>
+        <Button type="submit" variant="action" :form="formId" :disabled="!table || saving">
+          <span
+            v-if="!saving"
+            class="i-carbon-checkmark mr-1.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          {{ saving ? $t('editor.dynamo.creatingItem') : $t('dialogOps.create') }}
+        </Button>
+      </div>
     </CardFooter>
   </Card>
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { Loader2 } from 'lucide-vue-next';
-import { useMessageService } from '@/composables';
 import {
-  DynamoDBConnection,
   DatabaseType,
+  findTable,
   useConnectionStore,
   useTabStore,
-  findTable,
-} from '../../../../store';
-import { CustomError, withLoadingDelay } from '../../../../common';
-import { useLang } from '../../../../lang';
-
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Form, FormItem } from '@/components/ui/form';
+  type DynamoDBConnection,
+} from '@/store';
+import type { DynamoAttributeItem } from '@/datasources';
+import { useLang } from '@/lang';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
-import StructuredValueDialog from './structured-value-dialog.vue';
-import {
-  isStructuredType,
-  pickBinaryFileAsBase64,
-  resolveTableKeyLabels,
-  typeValueTemplate,
-  defaultAttributeValue,
-  validateDynamoItemForm,
-  buildDynamoItemAttributes,
-  describeSchemaError,
-  type AttributeValueIssue,
-} from '../utils';
-import { useDynamoItemForm } from '../composables';
-import { Button } from '@/components/ui/button';
-import { Grid, GridItem } from '@/components/ui/grid';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -361,47 +372,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import StructuredValueDialog from './structured-value-dialog.vue';
+import { useDynamoItemForm } from '../composables';
+import {
+  isStructuredType,
+  pickBinaryFileAsBase64,
+  defaultAttributeValue,
+  validateDynamoItemForm,
+  buildDynamoItemAttributes,
+  describeSchemaError,
+  type AttributeValueIssue,
+} from '../utils';
 
+type AttributeGroup = 'attributes' | 'keyAttributes';
+type KeyField = 'partitionKey' | 'sortKey';
+type Status = { text: string; tone: 'success' | 'warning' | 'error' };
+
+const attributeTypes = ['S', 'N', 'BOOL', 'B', 'NULL', 'L', 'M', 'SS', 'NS', 'BS'];
+const lang = useLang();
 const connectionStore = useConnectionStore();
-
-const { fetchIndices, createItem } = connectionStore;
-
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
-
-const loadingRef = ref({ createItem: false });
-
-const attributeType = ref([
-  { label: 'String', value: 'S' },
-  { label: 'Number', value: 'N' },
-  { label: 'Boolean', value: 'BOOL' },
-  { label: 'Binary', value: 'B' },
-  { label: 'Null', value: 'NULL' },
-  { label: 'List', value: 'L' },
-  { label: 'Map', value: 'M' },
-  { label: 'String Set', value: 'SS' },
-  { label: 'Number Set', value: 'NS' },
-  { label: 'Binary Set', value: 'BS' },
-]);
-
-const message = useMessageService();
-const lang = useLang();
+const connection = computed(() =>
+  activeConnection.value?.type === DatabaseType.DYNAMODB
+    ? (activeConnection.value as DynamoDBConnection)
+    : undefined,
+);
 
 const {
   table,
-  form: dynamoRecordForm,
+  form: draft,
   schemaLoading,
+  showSchemaSkeleton,
   schemaError,
   reset,
   retry,
 } = useDynamoItemForm(
-  () =>
-    activeConnection.value?.type === DatabaseType.DYNAMODB
-      ? (activeConnection.value as DynamoDBConnection)
-      : undefined,
+  () => connection.value,
   () => tabStore.activePanel?.activeTable,
   async (connection, name) => {
-    await withLoadingDelay(fetchIndices(connection, name));
+    await connectionStore.fetchIndices(connection, name);
     const stored = connectionStore.connections.find(
       con => con.id === connection.id,
     ) as DynamoDBConnection;
@@ -409,9 +419,18 @@ const {
   },
 );
 
-const validation = computed(() => validateDynamoItemForm(dynamoRecordForm.value, table.value));
-const partitionKeyValueType = computed(() => table.value?.partitionKey?.valueType ?? 'S');
-const sortKeyValueType = computed(() => table.value?.sortKey?.valueType ?? 'S');
+const formId = useId();
+const formElement = ref<HTMLFormElement>();
+const attributeList = ref<HTMLElement>();
+const addButtonId = `${formId}-add`;
+const submitted = ref(false);
+const touchedKeys = ref({ partitionKey: false, sortKey: false });
+const saving = ref(false);
+const status = ref<Status>();
+const structuredRow = ref<DynamoAttributeItem>();
+const structuredTrigger = ref<HTMLElement>();
+const validation = computed(() => validateDynamoItemForm(draft.value, table.value));
+
 const valueError = (issue: AttributeValueIssue | null | undefined, type: string) => {
   if (!issue) return undefined;
   if (issue.kind === 'required') return lang.t('editor.dynamo.attributeValueRequired');
@@ -422,224 +441,297 @@ const valueError = (issue: AttributeValueIssue | null | undefined, type: string)
   if (type === 'B') return lang.t('editor.dynamo.invalidBase64');
   return lang.t('editor.dynamo.jsonInvalidShape', { type });
 };
-const submitted = ref(false);
-// Key errors appear once the field has been left (or Create was pressed) so a
-// pristine form stays quiet while a wrong key type is reported immediately.
-const touchedKeys = ref({ partitionKey: false, sortKey: false });
-const errors = computed(() => {
-  const visible = submitted.value;
-  return {
-    partitionKey:
-      visible || touchedKeys.value.partitionKey
-        ? valueError(validation.value.partitionKey, partitionKeyValueType.value)
-        : undefined,
-    sortKey:
-      visible || touchedKeys.value.sortKey
-        ? valueError(validation.value.sortKey, sortKeyValueType.value)
-        : undefined,
-    attributes: validation.value.attributes.map((attr, index) => ({
-      key:
-        visible && attr.key
+
+const primaryKeys = computed(() =>
+  (['partitionKey', 'sortKey'] as const).flatMap((field: KeyField) => {
+    const key = table.value?.[field];
+    if (!key?.name) return [];
+    const role = lang.t(`editor.dynamo.${field}`);
+    return [
+      {
+        field,
+        name: key.name,
+        role,
+        label: `${key.name} (${role}, ${key.valueType})`,
+        type: key.valueType,
+        placeholder: lang.t(
+          field === 'partitionKey'
+            ? 'editor.dynamo.enterPartitionKey'
+            : 'editor.dynamo.enterSortKey',
+        ),
+        error:
+          submitted.value || touchedKeys.value[field]
+            ? valueError(validation.value[field], key.valueType)
+            : undefined,
+      },
+    ];
+  }),
+);
+
+const indexKeyRows = computed(() =>
+  draft.value.keyAttributes.map((item, index) => ({
+    item,
+    indexNames: (table.value?.indices ?? [])
+      .filter(secondaryIndex =>
+        secondaryIndex.keySchema.some(key => key.attributeName === item.key),
+      )
+      .map(secondaryIndex => secondaryIndex.name),
+    error: valueError(validation.value.keyAttributes[index]?.value, item.type),
+  })),
+);
+
+const attributeErrors = computed(() =>
+  submitted.value
+    ? validation.value.attributes.map((error, index) => ({
+        name: error.key
           ? lang.t(
-              attr.key === 'duplicate'
+              error.key === 'duplicate'
                 ? 'editor.dynamo.duplicateAttribute'
                 : 'editor.dynamo.attributeNameRequired',
             )
           : undefined,
-      type: visible && attr.type ? lang.t('editor.dynamo.attributeTypeRequired') : undefined,
-      value: visible
-        ? valueError(attr.value, dynamoRecordForm.value.attributes[index].type)
-        : undefined,
-    })),
-  };
-});
-const schemaErrorDetails = computed(() => describeSchemaError(schemaError.value));
+        type: error.type ? lang.t('editor.dynamo.attributeTypeRequired') : undefined,
+        value: valueError(error.value, draft.value.attributes[index].type),
+      }))
+    : [],
+);
 
-const addAttributeItem = () => {
-  dynamoRecordForm.value.attributes = [
-    ...dynamoRecordForm.value.attributes,
-    { key: '', value: null, type: '' },
-  ];
+const fieldId = (group: AttributeGroup, index: number, field: string) =>
+  `${formId}-${group}-${index}-${field}`;
+const attributeName = (item: DynamoAttributeItem, index: number) =>
+  item.key || lang.t('editor.dynamo.unnamedAttribute', { number: index + 1 });
+
+const addAttribute = async () => {
+  const index = draft.value.attributes.length;
+  draft.value.attributes = [...draft.value.attributes, { key: '', value: null, type: '' }];
+  await nextTick();
+  document.getElementById(fieldId('attributes', index, 'name'))?.focus();
 };
 
-const removeAttributeItem = (index: number) => {
-  structuredEditor.value = { open: false, index: -1 };
-  dynamoRecordForm.value.attributes = dynamoRecordForm.value.attributes.filter(
-    (_, i) => i !== index,
-  );
+const removeAttribute = async (group: AttributeGroup, index: number) => {
+  draft.value[group] = draft.value[group].filter((_, row) => row !== index);
+  await nextTick();
+  const nextIndex = Math.min(index, draft.value[group].length - 1);
+  const focusId = nextIndex >= 0 ? fieldId(group, nextIndex, 'remove') : addButtonId;
+  document.getElementById(focusId)?.focus();
 };
 
-const removeKeyAttributeItem = (index: number) => {
-  dynamoRecordForm.value.keyAttributes = dynamoRecordForm.value.keyAttributes.filter(
-    (_, i) => i !== index,
-  );
-};
-
-const getAttributeError = (index: number, field: 'key' | 'type' | 'value') => {
-  return errors.value.attributes[index]?.[field];
-};
-
-const onAttributeTypeChange = (
-  item: { type: string; value: string | number | boolean | null },
-  type: string,
-) => {
+const changeType = (item: DynamoAttributeItem, type: string) => {
+  if (item.type === type) return;
   item.type = type;
   item.value = defaultAttributeValue(type);
 };
 
-const loadBinaryValue = async (item: { value: string | number | boolean | null }) => {
+const loadBinaryValue = async (item: DynamoAttributeItem) => {
+  const currentDraft = draft.value;
   try {
-    const base64 = await pickBinaryFileAsBase64();
-    if (base64 !== null) item.value = base64;
+    const value = await pickBinaryFileAsBase64();
+    if (value !== null && item.type === 'B') item.value = value;
   } catch (error) {
-    message.error(String(error));
+    if (draft.value === currentDraft) {
+      status.value = { tone: 'error', text: describeSchemaError(error) };
+    }
   }
 };
 
-const structuredEditor = ref<{ open: boolean; index: number }>({ open: false, index: -1 });
-const structuredEditorType = computed(
-  () => dynamoRecordForm.value.attributes[structuredEditor.value.index]?.type ?? 'L',
-);
-const structuredEditorValue = computed(
-  () => (dynamoRecordForm.value.attributes[structuredEditor.value.index]?.value as string) ?? null,
-);
-
-const openStructuredEditor = (index: number) => {
-  structuredEditor.value = { open: true, index };
+const openStructuredEditor = (item: DynamoAttributeItem, event: MouseEvent) => {
+  structuredTrigger.value = event.currentTarget as HTMLElement;
+  structuredRow.value = item;
 };
-
-const handleStructuredApply = (value: string) => {
-  const target = dynamoRecordForm.value.attributes[structuredEditor.value.index];
-  if (target) target.value = value;
+const closeStructuredEditor = (open: boolean) => {
+  if (!open) structuredRow.value = undefined;
 };
+const applyStructuredValue = (value: string) => {
+  if (structuredRow.value) structuredRow.value.value = value;
+};
+const clearFeedback = () => {
+  submitted.value = false;
+  touchedKeys.value = { partitionKey: false, sortKey: false };
+  structuredRow.value = undefined;
+  status.value = undefined;
+  if (attributeList.value) attributeList.value.scrollTop = 0;
+};
+watch(table, clearFeedback, { flush: 'sync' });
 
-const selectedTable = computed(() => resolveTableKeyLabels(table.value));
-const createDisabled = computed(
-  () => schemaLoading.value || !!schemaError.value || !table.value || loadingRef.value.createItem,
-);
-
-watch(
-  table,
-  () => {
-    submitted.value = false;
-    touchedKeys.value = { partitionKey: false, sortKey: false };
-    structuredEditor.value = { open: false, index: -1 };
-  },
-  { flush: 'sync' },
-);
-
-const handleSubmit = async (event: MouseEvent) => {
-  event.preventDefault();
-  if (!activeConnection.value) {
-    message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
-    return;
-  }
-  if (loadingRef.value.createItem) return;
+const handleSubmit = async () => {
+  const target = table.value;
+  const active = connection.value;
+  if (!target?.partitionKey || !active || saving.value) return;
   submitted.value = true;
-  if (!table.value || !validation.value.valid) {
-    message.error(lang.t('connection.validationFailed'));
+  status.value = undefined;
+  if (!validation.value.valid) {
+    await nextTick();
+    formElement.value?.querySelector<HTMLElement>('[aria-invalid="true"]:not(:disabled)')?.focus();
     return;
   }
 
+  saving.value = true;
   try {
-    loadingRef.value.createItem = true;
-    const tableName = tabStore.activePanel?.activeTable;
-    if (!tableName) {
-      message.error(lang.t('dialogOps.noActiveTable'));
-      return;
-    }
-    const partitionKey = table.value.partitionKey!;
-    const attributes = buildDynamoItemAttributes(dynamoRecordForm.value, table.value);
-
-    // Guard against silently overwriting an existing item: the Rust side adds
-    // an attribute_not_exists(pk) condition when skipExisting is set, so a
-    // duplicate key leaves the existing record intact.
-    const result = await createItem(
-      activeConnection.value as DynamoDBConnection,
-      tableName,
-      attributes,
-      {
-        skipExisting: true,
-        partitionKey: partitionKey.name,
-      },
+    const result = await connectionStore.createItem(
+      active,
+      target.name,
+      buildDynamoItemAttributes(draft.value, target),
+      { skipExisting: true, partitionKey: target.partitionKey.name },
     );
-    if (result.skipped) {
-      message.warning(lang.t('editor.dynamo.itemAlreadyExists'));
-    } else {
-      message.success(lang.t('editor.dynamo.createItemSuccess'));
+    if (table.value === target) {
+      status.value = result.skipped
+        ? { tone: 'warning', text: lang.t('editor.dynamo.itemAlreadyExists') }
+        : { tone: 'success', text: lang.t('editor.dynamo.createItemSuccess') };
     }
   } catch (error) {
-    const { status, details } = error as CustomError;
-    message.error(`status: ${status}, details: ${details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
+    if (table.value === target) {
+      status.value = {
+        tone: 'error',
+        text: lang.t('editor.dynamo.createItemFailed', { reason: describeSchemaError(error) }),
+      };
+    }
   } finally {
-    loadingRef.value.createItem = false;
+    saving.value = false;
   }
 };
 
 const handleReset = () => {
-  submitted.value = false;
-  touchedKeys.value = { partitionKey: false, sortKey: false };
-  structuredEditor.value = { open: false, index: -1 };
+  clearFeedback();
   reset();
 };
 </script>
 
 <style scoped>
 .create-item-container {
-  width: 100%;
-  flex: 1;
-  min-height: 0;
+  container-type: inline-size;
 }
 
-.form-container {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+.attribute-list {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-block: 0.5rem;
+}
+
+.attribute-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.attribute-list::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.65);
+  border: 2px solid hsl(var(--card));
+  border-radius: 0.25rem;
+}
+
+.primary-key-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: 0.5rem;
+}
+
+.schema-tag {
+  max-width: 100%;
+  border-radius: 0.25rem;
+  padding-inline: 0.375rem;
+  overflow-wrap: anywhere;
+}
+
+.schema-type-tag,
+.schema-type-text {
+  color: hsl(var(--schema-type-foreground));
+}
+
+.schema-type-tag {
+  background: hsl(var(--schema-type));
+  border: 1px solid hsl(var(--primary) / 0.45);
+}
+
+.schema-index-tag {
+  background: hsl(var(--schema-index));
+  color: hsl(var(--schema-index-foreground));
+}
+
+.index-key-row {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: start;
+  padding-inline-end: 2rem;
+}
+
+.index-key-remove {
+  position: absolute;
+  inset-block-start: 0.25rem;
+  inset-inline-end: 0.25rem;
+}
+
+.attribute-row {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: minmax(0, 2fr) minmax(10rem, 1fr) minmax(0, 2fr) 1.5rem;
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.attribute-remove {
+  margin-top: 1.375rem;
 }
 
 .card-footer {
-  display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 0.25rem 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.write-status {
+  flex: 1 1 15rem;
+  max-height: 4rem;
+  overflow: auto;
+}
+
+.write-status:empty {
+  flex: none;
 }
 
 .skeleton {
-  border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted) / 0.6) 25%,
-    hsl(var(--muted) / 0.9) 50%,
-    hsl(var(--muted) / 0.6) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 0.25rem;
+  background: hsl(var(--muted));
 }
 
-.skeleton-attribute-row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2.5fr) 2rem;
-  gap: 12px;
-}
-
-@keyframes shimmer {
-  from {
-    background-position: -200% 0;
+@container (max-width: 38rem) {
+  .index-key-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+    padding-inline-end: 0.5rem;
   }
-  to {
-    background-position: 200% 0;
+
+  .index-key-metadata {
+    padding-inline-end: 1.5rem;
+  }
+
+  .attribute-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 1.5rem;
+    gap: 0.25rem 0.5rem;
+  }
+
+  .attribute-value {
+    grid-column: 1 / 3;
+  }
+
+  .attribute-remove {
+    grid-column: 3;
+    grid-row: 1;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
+@container (max-width: 23rem) {
+  .attribute-row {
+    grid-template-columns: minmax(0, 1fr) 1.5rem;
+  }
+
+  .attribute-value {
+    grid-column: 1;
+  }
+
+  .attribute-remove {
+    grid-column: 2;
   }
 }
 </style>

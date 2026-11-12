@@ -22,8 +22,16 @@ const props = withDefaults(defineProps<Props>(), {
   <Primitive
     :as="as"
     :as-child="asChild"
+    class="button-control"
     :class="cn(buttonVariants({ variant, size }), props.class)"
   >
     <slot />
   </Primitive>
 </template>
+
+<style scoped>
+.button-control:focus-visible {
+  outline: 2px solid hsl(var(--foreground));
+  outline-offset: 2px;
+}
+</style>

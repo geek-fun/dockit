@@ -47,6 +47,10 @@ export default defineConfig({
         DEFAULT: 'hsl(var(--primary))',
         foreground: 'hsl(var(--primary-foreground))',
       },
+      'primary-action': {
+        DEFAULT: 'hsl(var(--primary-action))',
+        foreground: 'hsl(var(--primary-action-foreground))',
+      },
       secondary: {
         DEFAULT: 'hsl(var(--secondary))',
         foreground: 'hsl(var(--secondary-foreground))',
@@ -54,6 +58,7 @@ export default defineConfig({
       destructive: {
         DEFAULT: 'hsl(var(--destructive))',
         foreground: 'hsl(var(--destructive-foreground))',
+        text: 'hsl(var(--destructive-text))',
       },
       warning: {
         DEFAULT: 'hsl(var(--warning))',
@@ -129,6 +134,9 @@ export default defineConfig({
     'bg-primary',
     'text-primary-foreground',
     'hover:bg-primary/90',
+    'bg-primary-action',
+    'text-primary-action-foreground',
+    'hover:bg-primary-action/90',
     'bg-secondary',
     'text-secondary-foreground',
     'hover:bg-secondary/80',

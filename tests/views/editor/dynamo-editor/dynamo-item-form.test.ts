@@ -63,7 +63,7 @@ describe('Create Item table selection', () => {
     scope.stop();
   });
 
-  it('clears old keys/drafts immediately and ignores out-of-order schema responses', async () => {
+  it('hides the previous form immediately and ignores out-of-order schema responses', async () => {
     const first = deferred<DynamoTableSummary>();
     const second = deferred<DynamoTableSummary>();
     const name = ref('a');
@@ -87,6 +87,82 @@ describe('Create Item table selection', () => {
     expect(state.table.value?.name).toBe('b');
     expect(state.table.value?.sortKey?.name).toBe('sk');
     expect(state.schemaLoading.value).toBe(false);
+    scope.stop();
+  });
+
+  it('restores drafts only for the original connection and table', async () => {
+    const connection = ref({ id: 1 } as DynamoDBConnection);
+    const name = ref('a');
+    const scope = effectScope();
+    const state = scope.run(() =>
+      useDynamoItemForm(
+        () => connection.value,
+        () => name.value,
+        async (_, selected) => table(selected),
+      ),
+    )!;
+    await flush();
+    state.form.value.partitionKey = '42';
+    state.form.value.attributes = [{ key: 'note', type: 'S', value: 'draft' }];
+    state.form.value.keyAttributes = [];
+
+    name.value = 'b';
+    await flush();
+    expect(state.form.value.partitionKey).toBe('');
+    name.value = 'a';
+    await flush();
+    expect(state.form.value.partitionKey).toBe('42');
+    expect(state.form.value.attributes[0]?.value).toBe('draft');
+    expect(state.form.value.keyAttributes).toEqual([]);
+
+    connection.value = { id: 2 } as DynamoDBConnection;
+    await flush();
+    expect(state.form.value.partitionKey).toBe('');
+    expect(state.form.value.attributes).toEqual([]);
+    connection.value = { id: 1 } as DynamoDBConnection;
+    await flush();
+    expect(state.form.value.partitionKey).toBe('42');
+
+    state.reset();
+    name.value = 'b';
+    await flush();
+    name.value = 'a';
+    await flush();
+    expect(state.form.value).toEqual(createDynamoItemForm(table('a')));
+    scope.stop();
+  });
+
+  it('keeps user attributes and replaces incompatible keys after a schema change', async () => {
+    const name = ref('a');
+    const scope = effectScope();
+    const changed = {
+      ...table('a'),
+      partitionKey: { name: 'replacement', type: 'HASH', valueType: 'S' } as const,
+      attributeDefinitions: [{ attributeName: 'new_index', attributeType: 'N' }],
+    };
+    const load = jest
+      .fn()
+      .mockResolvedValueOnce(table('a'))
+      .mockResolvedValueOnce(table('b'))
+      .mockResolvedValueOnce(changed);
+    const state = scope.run(() =>
+      useDynamoItemForm(
+        () => ({ id: 1 }) as DynamoDBConnection,
+        () => name.value,
+        load,
+      ),
+    )!;
+    await flush();
+    state.form.value.partitionKey = '42';
+    state.form.value.attributes = [{ key: 'note', type: 'S', value: 'draft' }];
+    name.value = 'b';
+    await flush();
+    name.value = 'a';
+    await flush();
+    expect(state.form.value).toEqual({
+      ...createDynamoItemForm(changed),
+      attributes: [{ key: 'note', type: 'S', value: 'draft' }],
+    });
     scope.stop();
   });
 

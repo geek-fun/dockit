@@ -19,15 +19,16 @@ The original UI also displayed no pending state while DescribeTable was in fligh
 
 ## Fixes
 
-- Watch connection ID and table name, including initial mount. Load schema for each target, clear the previous draft immediately, and ignore stale responses and responses after unmount.
-- Require valid key metadata before Create can become enabled. While switching tables, replace the entire form with a skeleton frame matching the Manage panel shimmer, minimum 500 ms loading display, theme tokens, and reduced-motion behavior. Reset/Create are disabled until schema loading ends. Errors retain the Retry action.
+- Watch connection ID and table name, including initial mount. Save drafts in memory by connection and table while Create Item is open. Restore compatible key values after loading the latest schema, and ignore stale responses and responses after unmount.
+- Require valid key metadata before enabling the form. Announce the schema load immediately, show a static skeleton after 150 ms, and render the fields as soon as metadata arrives. Errors retain the Retry action.
 - Reset restores the selected table's optional secondary-index attribute rows. Unfilled optional rows are omitted from the payload.
 - Share value validation and payload construction: retain NULL and false BOOL, allow empty non-key strings/binary, reject invalid numbers/base64/structured values and duplicate attribute names. Index key values are validated as keys when filled.
 - Use text-backed decimal inputs for DynamoDB numbers so browser number conversion cannot round large integers before submission.
 - Return explicit creation/skipped outcomes and non-null write response data. Report duplicate creation as skipped. Escape partition key names in the conditional expression, require metadata when duplicate protection is requested, and accept legacy string boolean flags.
 - Retain top-level attribute type metadata alongside Query UI and PartiQL rows, including pagination. Both edit dialogs use the same form builder; reopening discards unsaved drafts, NULL updates are retained, and unchanged attributes are not rewritten. Saving an unchanged/key-only item closes without an invalid empty update.
 - Removing an attribute in the edit dialog now sends a DynamoDB `REMOVE` expression (renaming removes the old name), so the trash action no longer closes with a silent no-op. Deleting a row from the local result cache also drops its type metadata so later edits stay aligned.
-- Preserve exact numeric values beyond f64: u64 integers, 38-digit numbers, and long decimals are written and returned as strings instead of being silently rounded. Deleting items with large numeric keys sends the exact string through IPC instead of a bigint. Use bigint-aware JSON formatting in structured editors and result cells.
+- Preserve exact numeric values beyond f64: the structured editor validates and emits the original JSON text. Form construction, the connection store, and the Tauri capability forward it as a string. Rust's shared attribute converter reads the numeric literals directly for text-encoded lists, maps, and number sets before the SDK serializes PutItem. Typed result cells still use bigint-aware formatting.
+- Keep the primary keys, attribute header, and footer visible while the combined attribute list scrolls. Index-key rows show their schema name and type as text. Match the field name against each secondary index's `keySchema` from DescribeTable to show every index it belongs to. Attribute rows reflow in narrow panes. Form controls have labels and linked validation messages, the structured editor opens from a keyboard-operable button, and a live status announces write outcomes.
 
 ## Shared-code impact
 
@@ -85,6 +86,8 @@ Review of this PR surfaced six follow-ups; all are addressed in this branch:
 Validation for this follow-up: `npx jest --runInBand` (1,873 tests across 56 suites), `cargo test --lib` (693 passed, 1 ignored), `npx tsc --noEmit`, `npm run lint:check`, `npx vite build`, and `rustfmt --check` on all changed Rust files passed. The opt-in DynamoDB Local flow now also exercises attribute removal; it was not re-run locally during this follow-up.
 
 ## Repeat
+
+The focused PutItem wire test checks exact 38-digit numbers, nested numbers, and numeric-looking strings. The draft tests cover connection and table isolation, Reset, and changed key definitions.
 
 ```sh
 npx jest --runInBand tests/views/editor/dynamo-editor tests/dbDataStore.test.ts tests/datasources/dynamoWriteContract.test.ts
