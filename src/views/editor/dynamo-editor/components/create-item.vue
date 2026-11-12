@@ -109,82 +109,84 @@
             ref="attributeList"
             class="attribute-list flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2"
           >
-            <div
-              v-for="({ item, indexNames, error }, index) in indexKeyRows"
-              :key="item.key"
-              class="index-key-row relative rounded-md bg-muted/50 p-2"
-            >
-              <div class="index-key-metadata min-w-0 space-y-1">
-                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span class="min-w-0 break-all font-mono text-sm font-semibold text-foreground">
-                    {{ item.key }}
-                  </span>
-                  <span class="schema-tag schema-type-tag text-caption font-medium">
-                    {{ $t(`editor.dynamo.attributeTypes.${item.type}`) }} ({{ item.type }})
-                  </span>
+            <div v-if="indexKeyRows.length" class="index-key-grid">
+              <div
+                v-for="({ item, indexNames, error }, index) in indexKeyRows"
+                :key="item.key"
+                class="index-key-row relative rounded-md bg-muted/50 p-2"
+              >
+                <div class="min-w-0 space-y-1">
+                  <div class="index-key-heading flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="min-w-0 break-all font-mono text-sm font-semibold text-foreground">
+                      {{ item.key }}
+                    </span>
+                    <span class="schema-tag schema-type-tag text-caption font-medium">
+                      {{ $t(`editor.dynamo.attributeTypes.${item.type}`) }} ({{ item.type }})
+                    </span>
+                  </div>
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <span class="i-lucide-list-tree h-3 w-3 shrink-0" aria-hidden="true" />
+                      {{ $t('editor.dynamo.indexKey') }}
+                    </span>
+                    <ul v-if="indexNames.length" class="flex min-w-0 flex-wrap gap-1" role="list">
+                      <li
+                        v-for="name in indexNames"
+                        :key="name"
+                        class="schema-tag schema-index-tag font-mono text-caption font-medium"
+                      >
+                        {{ name }}
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span class="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                    <span class="i-lucide-list-tree h-3 w-3 shrink-0" aria-hidden="true" />
-                    {{ $t('editor.dynamo.indexKey') }}
-                  </span>
-                  <ul v-if="indexNames.length" class="flex min-w-0 flex-wrap gap-1" role="list">
-                    <li
-                      v-for="name in indexNames"
-                      :key="name"
-                      class="schema-tag schema-index-tag font-mono text-caption font-medium"
+                <FormItem
+                  v-slot="{ control }"
+                  class="index-key-value min-w-0"
+                  :control-id="fieldId('keyAttributes', index, 'value')"
+                  :label="$t('editor.dynamo.optionalAttributeValue')"
+                  :error="error"
+                >
+                  <div class="relative">
+                    <Input
+                      v-bind="control"
+                      :model-value="(item.value as string) ?? ''"
+                      :class="{ 'pr-9': item.type === 'B' }"
+                      :inputmode="item.type === 'N' ? 'decimal' : 'text'"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      :aria-label="
+                        $t('editor.dynamo.namedOptionalAttributeValue', { name: item.key })
+                      "
+                      @update:model-value="
+                        value => (item.value = value === '' ? null : String(value))
+                      "
+                    />
+                    <Button
+                      v-if="item.type === 'B'"
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      class="absolute right-1 top-1"
+                      :aria-label="$t('editor.dynamo.loadNamedBinaryFile', { name: item.key })"
+                      @click="loadBinaryValue(item)"
                     >
-                      {{ name }}
-                    </li>
-                  </ul>
-                </div>
+                      <span class="i-carbon-upload h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </FormItem>
+                <Button
+                  :id="fieldId('keyAttributes', index, 'remove')"
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  class="index-key-remove text-muted-foreground"
+                  :aria-label="$t('editor.dynamo.removeNamedAttribute', { name: item.key })"
+                  :title="$t('editor.dynamo.removeNamedAttribute', { name: item.key })"
+                  @click="removeAttribute('keyAttributes', index)"
+                >
+                  <span class="i-carbon-trash-can h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
               </div>
-              <FormItem
-                v-slot="{ control }"
-                class="index-key-value min-w-0"
-                :control-id="fieldId('keyAttributes', index, 'value')"
-                :label="$t('editor.dynamo.optionalAttributeValue')"
-                :error="error"
-              >
-                <div class="relative">
-                  <Input
-                    v-bind="control"
-                    :model-value="(item.value as string) ?? ''"
-                    :class="{ 'pr-9': item.type === 'B' }"
-                    :inputmode="item.type === 'N' ? 'decimal' : 'text'"
-                    :placeholder="$t('editor.dynamo.inputAttrValue')"
-                    :aria-label="
-                      $t('editor.dynamo.namedOptionalAttributeValue', { name: item.key })
-                    "
-                    @update:model-value="
-                      value => (item.value = value === '' ? null : String(value))
-                    "
-                  />
-                  <Button
-                    v-if="item.type === 'B'"
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    class="absolute right-1 top-1"
-                    :aria-label="$t('editor.dynamo.loadNamedBinaryFile', { name: item.key })"
-                    @click="loadBinaryValue(item)"
-                  >
-                    <span class="i-carbon-upload h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </div>
-              </FormItem>
-              <Button
-                :id="fieldId('keyAttributes', index, 'remove')"
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                class="index-key-remove text-muted-foreground"
-                :aria-label="$t('editor.dynamo.removeNamedAttribute', { name: item.key })"
-                :title="$t('editor.dynamo.removeNamedAttribute', { name: item.key })"
-                @click="removeAttribute('keyAttributes', index)"
-              >
-                <span class="i-carbon-trash-can h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
             </div>
 
             <div v-for="(item, index) in draft.attributes" :key="index" class="attribute-row">
@@ -645,13 +647,26 @@ const handleReset = () => {
   color: hsl(var(--schema-index-foreground));
 }
 
-.index-key-row {
+.index-key-grid {
   display: grid;
   flex-shrink: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
-  align-items: start;
-  padding-inline-end: 2rem;
+}
+
+.index-key-row {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.index-key-heading {
+  padding-inline-end: 1.5rem;
+}
+
+.index-key-value {
+  margin-top: auto;
 }
 
 .index-key-remove {
@@ -695,17 +710,19 @@ const handleReset = () => {
   background: hsl(var(--muted));
 }
 
+@container (min-width: 32rem) {
+  .index-key-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 48rem) {
+  .index-key-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @container (max-width: 38rem) {
-  .index-key-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.25rem;
-    padding-inline-end: 0.5rem;
-  }
-
-  .index-key-metadata {
-    padding-inline-end: 1.5rem;
-  }
-
   .attribute-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 1.5rem;
     gap: 0.25rem 0.5rem;
