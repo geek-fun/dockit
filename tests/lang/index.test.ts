@@ -121,5 +121,80 @@ describe('lang/index', () => {
       });
       expect(getDocLanguage()).toBe('en');
     });
+
+    it.each([
+      ['zh-TW', 'cn'],
+      ['zh-Hant-TW', 'cn'],
+      ['zh-Hant', 'cn'],
+      ['zh-HK', 'cn'],
+      ['zh-MO', 'cn'],
+      ['zh', 'en'],
+      ['en-US', 'en'],
+    ])(
+      'should resolve auto-detected navigator language %s to doc language "%s"',
+      (language, expected) => {
+        const store = mockLocalStorage();
+        store.setItem('lang', 'auto');
+        Object.defineProperty(global, 'localStorage', {
+          value: store,
+          writable: true,
+          configurable: true,
+        });
+        Object.defineProperty(global, 'navigator', {
+          value: { language },
+          writable: true,
+          configurable: true,
+        });
+        expect(getDocLanguage()).toBe(expected);
+      },
+    );
+
+    it('should return "cn" when the persisted app store has languageType "zhTW"', () => {
+      const store = mockLocalStorage();
+      store.setItem('app', JSON.stringify({ languageType: 'zhTW' }));
+      Object.defineProperty(global, 'localStorage', {
+        value: store,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(global, 'navigator', {
+        value: { language: 'en-US' },
+        writable: true,
+        configurable: true,
+      });
+      expect(getDocLanguage()).toBe('cn');
+    });
+
+    it('should fall back to auto-detection when the persisted languageType is invalid', () => {
+      const store = mockLocalStorage();
+      store.setItem('app', JSON.stringify({ languageType: 'frFR' }));
+      Object.defineProperty(global, 'localStorage', {
+        value: store,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(global, 'navigator', {
+        value: { language: 'en-US' },
+        writable: true,
+        configurable: true,
+      });
+      expect(getDocLanguage()).toBe('en');
+    });
+
+    it('should fall back to auto-detection when the persisted app state is corrupted', () => {
+      const store = mockLocalStorage();
+      store.setItem('app', '{not-json');
+      Object.defineProperty(global, 'localStorage', {
+        value: store,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(global, 'navigator', {
+        value: { language: 'en-US' },
+        writable: true,
+        configurable: true,
+      });
+      expect(getDocLanguage()).toBe('en');
+    });
   });
 });

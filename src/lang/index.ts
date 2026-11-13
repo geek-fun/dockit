@@ -5,9 +5,22 @@ import { zhTW } from './zhTW';
 
 type AppLocale = 'zhCN' | 'zhTW' | 'enUS';
 
+const isAppLocale = (value: unknown): value is AppLocale =>
+  value === 'zhCN' || value === 'zhTW' || value === 'enUS';
+
 const getStoredLocale = (): AppLocale | 'auto' => {
   if (typeof localStorage === 'undefined') return 'enUS';
-  return (localStorage.getItem('lang') as AppLocale | 'auto') || 'auto';
+  const lang = localStorage.getItem('lang');
+  if (isAppLocale(lang)) return lang;
+  try {
+    // Fall back to the persisted app-store choice so a language picked in settings
+    // survives restarts (the picker only writes the pinia state).
+    const app = JSON.parse(localStorage.getItem('app') ?? '{}') as { languageType?: unknown };
+    if (isAppLocale(app.languageType)) return app.languageType;
+  } catch {
+    return 'auto';
+  }
+  return 'auto';
 };
 
 const resolveLocale = (): AppLocale => {
