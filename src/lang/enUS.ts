@@ -109,6 +109,10 @@ export const enUS = {
     zhCN: '简体中文',
     zhTW: '繁體中文',
     enUS: 'English',
+    ptBR: 'Português (Brasil)',
+    jaJP: '日本語',
+    koKR: '한국어',
+    esES: 'Español',
     about: 'About Us',
     aboutUs: {
       tagline: 'Learn more about DocKit',

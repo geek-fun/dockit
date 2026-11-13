@@ -23,6 +23,10 @@ export enum LanguageType {
   ZH_CN = 'zhCN',
   ZH_TW = 'zhTW',
   EN_US = 'enUS',
+  PT_BR = 'ptBR',
+  JA_JP = 'jaJP',
+  KO_KR = 'koKR',
+  ES_ES = 'esES',
 }
 
 export type ProviderKind =

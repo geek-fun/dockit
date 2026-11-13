@@ -108,6 +108,10 @@ export const zhTW = {
     zhCN: '简体中文',
     zhTW: '繁體中文',
     enUS: 'English',
+    ptBR: 'Português (Brasil)',
+    jaJP: '日本語',
+    koKR: '한국어',
+    esES: 'Español',
     about: '關於我們',
     aboutUs: {
       tagline: '進一步了解 DocKit',
