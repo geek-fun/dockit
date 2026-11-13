@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-11-13
+
+### Added
+
+- **More AI options** — UberLLM, Standard Compute, cheapaimodel, CloudGPU, and Runcrate are available when configuring a connection (#539) (#541) (#543)
+- **Traditional Chinese (繁體中文)** is available as an interface language — translated with Taiwan terminology, and "Follow OS" resolves zh-TW / zh-HK / zh-Hant system locales to it (#542)
+
+### Changed
+
+- **Consistent typography and tighter density** — one shared text scale across dialogs, tables, editors, and settings; slimmer navigation rail and connection cards; no more sub-11px text (#537)
+- **DynamoDB Create Item** — a structured attribute editor with typed fields, binary file loading, and index keys arranged in a responsive grid
+
+### Fixed
+
+- **Manually selected language persists across restarts** — a language picked in settings no longer reverts to OS auto-detection on the next launch, and choices made in earlier versions take effect too (#544)
+- **DynamoDB Create Item is safer** — key attributes are validated before save, structured numbers keep their exact value, and failures report the reason instead of failing silently
+- **DynamoDB operations show progress** while running, and PartiQL queries page through large result sets correctly
+
 ## [2.0.1] - 2026-10-28
 
 ### Added
