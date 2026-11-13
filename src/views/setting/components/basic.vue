@@ -101,7 +101,7 @@ import darkImg from '../../../assets/img/theme-dark.png';
 import autoImg from '../../../assets/img/theme-auto.png';
 import { LanguageType, ThemeType, useAppStore } from '../../../store';
 import { HISTORY_CAP_MIN, HISTORY_CAP_MAX, HISTORY_CAP_DEFAULT } from '../../../common';
-import { lang } from '../../../lang';
+import { lang, detectFromNavigator } from '../../../lang';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -122,6 +122,10 @@ const langTypes = [
   { type: LanguageType.ZH_CN, name: 'setting.zhCN' },
   { type: LanguageType.ZH_TW, name: 'setting.zhTW' },
   { type: LanguageType.EN_US, name: 'setting.enUS' },
+  { type: LanguageType.PT_BR, name: 'setting.ptBR' },
+  { type: LanguageType.JA_JP, name: 'setting.jaJP' },
+  { type: LanguageType.KO_KR, name: 'setting.koKR' },
+  { type: LanguageType.ES_ES, name: 'setting.esES' },
 ];
 
 const setTheme = (type: ThemeType) => {
@@ -133,9 +137,7 @@ const langTypeChange = (value: string) => {
   if (Object.values(LanguageType).includes(value as LanguageType)) {
     languageType.value = value as LanguageType;
     lang.global.locale.value =
-      languageType.value === LanguageType.ZH_CN || languageType.value === LanguageType.ZH_TW
-        ? languageType.value
-        : LanguageType.EN_US;
+      languageType.value === LanguageType.AUTO ? detectFromNavigator() : languageType.value;
   }
 };
 </script>
