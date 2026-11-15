@@ -36,7 +36,8 @@ export const ptBR = {
     inheritHelp: 'Segue os padrões do sistema, incluindo alterações futuras.',
     noneHelp: 'Sem acesso a dados ou ações administrativas.',
     readHelp: 'Lê dados e inspeciona a estrutura; sem alterações.',
-    dataHelp: 'Alterações de dados, incluindo exclusão. Sem alterações de estrutura ou administrativas.',
+    dataHelp:
+      'Alterações de dados, incluindo exclusão. Sem alterações de estrutura ou administrativas.',
     fullHelp: 'Todas as ações de dados, alterações de estrutura e administração.',
     customHelp: 'Escolha quais ações individuais a IA pode executar.',
     defaultDecision: 'Usar padrão ({decision})',
@@ -183,7 +184,8 @@ export const ptBR = {
         - Responda às perguntas em português, exceto se o usuário especificar outro idioma.
         - Se o usuário fizer perguntas não relacionadas a banco de dados, recuse educadamente.`,
 
-      description: 'Gerencie o acesso aos provedores e escolha quais modelos alimentam cada recurso do DocKit.',
+      description:
+        'Gerencie o acesso aos provedores e escolha quais modelos alimentam cada recurso do DocKit.',
 
       apiKeySet: 'Chave de API salva — digite para substituir',
 
@@ -210,7 +212,8 @@ export const ptBR = {
         endpointSummary: 'Endpoint',
         lastSync: 'Status do catálogo',
         refreshModels: 'Atualizar modelos',
-        discoveredModelsDesc: 'O DocKit agrupa os modelos descobertos por provedor para roteamento de recursos.',
+        discoveredModelsDesc:
+          'O DocKit agrupa os modelos descobertos por provedor para roteamento de recursos.',
         noModels: 'Nenhum modelo descoberto ainda.',
         testConnection: 'Testar conexão',
         testSuccess: 'Conexão bem-sucedida',
@@ -253,8 +256,10 @@ export const ptBR = {
           localEndpoint: 'Endpoint local',
           apiKey: 'Chave de API',
           ready: 'Pronto para o Assistente de IA e o Data Studio.',
-          modelsAvailable: 'Modelos disponíveis. Execute o teste de conexão para verificar as credenciais.',
-          refreshModels: 'Atualize os modelos após salvar as credenciais para popular o catálogo compartilhado.',
+          modelsAvailable:
+            'Modelos disponíveis. Execute o teste de conexão para verificar as credenciais.',
+          refreshModels:
+            'Atualize os modelos após salvar as credenciais para popular o catálogo compartilhado.',
           noModelsSynced: 'Nenhum modelo sincronizado ainda',
           modelsCount: '{n} modelos disponíveis',
           customEndpoint: 'Endpoint personalizado',
@@ -345,7 +350,8 @@ export const ptBR = {
       confirmDestructiveDesc:
         'Exigir confirmação explícita antes de operações destrutivas (delete/drop)',
       allowlist: 'Lista de Conexões Permitidas',
-      allowlistDesc: 'Restringe o MCP a conexões específicas. Desmarque todas para permitir todas as conexões.',
+      allowlistDesc:
+        'Restringe o MCP a conexões específicas. Desmarque todas para permitir todas as conexões.',
       allowlistEmpty: 'Todas as conexões permitidas',
       connectionOverrides: 'Substituições por Conexão',
       overrideReadOnly: 'Somente leitura',
@@ -689,7 +695,8 @@ export const ptBR = {
       billingProvisionedDesc:
         'Reserva um número fixo de unidades de capacidade de leitura/escrita por segundo. Ideal para cargas de trabalho previsíveis e estáveis.',
       tags: 'Tags',
-      tagsDescription: 'Tags são pares chave-valor usados para organizar e rastrear seus recursos AWS.',
+      tagsDescription:
+        'Tags são pares chave-valor usados para organizar e rastrear seus recursos AWS.',
       tagKey: 'Chave',
       tagValue: 'Valor',
       addTag: 'Adicionar Tag',
@@ -704,16 +711,20 @@ export const ptBR = {
       tableClassStandardDesc:
         'Classe de uso geral para dados acessados com frequência. O throughput é o custo dominante.',
       tableClassIA: 'DynamoDB Standard-IA',
-      tableClassIADesc: 'Para dados acessados com pouca frequência, onde o armazenamento é o custo dominante.',
+      tableClassIADesc:
+        'Para dados acessados com pouca frequência, onde o armazenamento é o custo dominante.',
       localSecondaryIndexes: 'Índices Secundários Locais',
       addLsi: 'Adicionar LSI',
       lsiCount: 'Contagem de LSI',
-      lsiRequiresSortKey: 'Uma chave de classificação é necessária para adicionar um Índice Secundário Local.',
+      lsiRequiresSortKey:
+        'Uma chave de classificação é necessária para adicionar um Índice Secundário Local.',
       encryptionAtRest: 'Criptografia em Repouso',
       encryptionAwsOwned: 'Chave de Propriedade da AWS',
-      encryptionAwsOwnedDesc: 'De propriedade e gerenciada pelo DynamoDB. Sem cobranças adicionais.',
+      encryptionAwsOwnedDesc:
+        'De propriedade e gerenciada pelo DynamoDB. Sem cobranças adicionais.',
       encryptionAwsManaged: 'Chave Gerenciada pela AWS',
-      encryptionAwsManagedDesc: 'Armazenada na sua conta, gerenciada pelo AWS KMS. Cobranças do KMS se aplicam.',
+      encryptionAwsManagedDesc:
+        'Armazenada na sua conta, gerenciada pelo AWS KMS. Cobranças do KMS se aplicam.',
       encryptionCustomerManaged: 'Chave Gerenciada pelo Cliente',
       encryptionCustomerManagedDesc:
         'Armazenada na sua conta, gerenciada por você via AWS KMS. Cobranças do KMS se aplicam.',
@@ -807,7 +818,8 @@ export const ptBR = {
       createCollectionDesc: 'Informe o nome da coleção a ser criada.',
       collectionName: 'Nome da Coleção',
       targetDatabase: 'Banco de Dados de Destino',
-      noDatabaseSelected: 'Nenhum banco de dados selecionado. Selecione um banco de dados primeiro.',
+      noDatabaseSelected:
+        'Nenhum banco de dados selecionado. Selecione um banco de dados primeiro.',
       noDatabasesAvailable: 'Nenhum banco de dados disponível. Crie um banco de dados primeiro.',
       dropCollectionTitle: 'Descartar Coleção',
       dropCollectionConfirm:
@@ -940,7 +952,8 @@ export const ptBR = {
     cloudTarget: 'Nuvem AWS',
     authAccessKey: 'Chaves de Acesso AWS',
     authProfile: 'Perfis AWS',
-    awsUltimateOnly: 'Perfil AWS / SSO / AssumeRole são recursos do Ultimate — clique para fazer upgrade',
+    awsUltimateOnly:
+      'Perfil AWS / SSO / AssumeRole são recursos do Ultimate — clique para fazer upgrade',
     authSso: 'SSO',
     authAssumeRole: 'Assumir Role',
     profileName: 'Nome do Perfil',
@@ -1115,7 +1128,8 @@ export const ptBR = {
       systemProxyDetected: 'Proxy do sistema detectado: {url}',
       systemProxyAdd: 'Adicionar',
       systemProxyDetach: 'Remover proxy do sistema',
-      systemProxyNotDetected: 'O proxy do sistema está habilitado, mas nenhum foi detectado. Conectando diretamente.',
+      systemProxyNotDetected:
+        'O proxy do sistema está habilitado, mas nenhum foi detectado. Conectando diretamente.',
       tunnelSkipped:
         'O túnel SSH é um recurso do Ultimate: sessões Community ou sem login ignoram o túnel salvo nesta conexão e conectam diretamente (a configuração em si é mantida).',
       tunnelSkippedHint:
@@ -1257,7 +1271,8 @@ export const ptBR = {
       insertDocumentTitle: 'Inserir Documento',
       insert: 'Inserir',
       insertSuccess: 'Documento inserido com sucesso',
-      insertIdExists: 'Este _id já existe — modifique-o ou exclua o campo para gerar automaticamente',
+      insertIdExists:
+        'Este _id já existe — modifique-o ou exclua o campo para gerar automaticamente',
       insertIdHint:
         'Atualize o valor de _id antes de gravar; exclua o campo _id para gerar um novo id automaticamente',
       edit: 'Editar',
@@ -1327,7 +1342,8 @@ export const ptBR = {
       loadingTableSchema: 'Carregando chaves da tabela…',
       tableSchemaFailed: 'Não foi possível carregar as chaves da tabela.',
       retryTableSchema: 'Tentar novamente',
-      duplicateAttribute: 'Os nomes dos atributos devem ser únicos e não podem duplicar uma chave primária',
+      duplicateAttribute:
+        'Os nomes dos atributos devem ser únicos e não podem duplicar uma chave primária',
       itemAlreadyExists: 'Já existe um item com esta chave primária. Nenhuma alteração foi feita.',
       addAttributesTitle: 'Adicionar Atributos',
       attributeNameRequired: 'O nome do atributo é obrigatório',
@@ -1498,7 +1514,8 @@ export const ptBR = {
   importExport: {
     export: 'Exportar',
     import: 'Importar',
-    restoreSourceDesc: 'Clique ou arraste um arquivo para esta área para carregar seu arquivo JSON/CSV/NDJSON',
+    restoreSourceDesc:
+      'Clique ou arraste um arquivo para esta área para carregar seu arquivo JSON/CSV/NDJSON',
     restoreFromFileSuccess: 'Importado do arquivo com sucesso',
     importForm: {
       connection: 'Conexão',
@@ -1558,7 +1575,8 @@ export const ptBR = {
       detail: {
         ai: 'Funciona com qualquer modelo — nuvem, local ou personalizado',
         mcp: 'Conecta aos seus clientes MCP favoritos',
-        importExport: 'Importe e exporte dados e acompanhe tarefas em segundo plano com o Ultimate.',
+        importExport:
+          'Importe e exporte dados e acompanhe tarefas em segundo plano com o Ultimate.',
       },
       tiles: {
         aiQueryT: 'Consultas em linguagem natural',
@@ -1621,15 +1639,18 @@ export const ptBR = {
       cta: 'Fazer upgrade',
       refresh: 'Atualizar benefícios',
       startFree: 'Começar grátis',
-      versionPermanent: 'As versões lançadas durante a assinatura ficam permanentemente utilizáveis, mesmo offline.',
+      versionPermanent:
+        'As versões lançadas durante a assinatura ficam permanentemente utilizáveis, mesmo offline.',
       versionLockedOut:
         'Esta versão exige uma assinatura ativa para ser desbloqueada. Renove para desbloqueá-la permanentemente.',
     },
     section: {
       title: 'Plano e Versão',
       desc: 'Benefícios da assinatura e estado do version lock desta instalação.',
-      versionPermanent: 'A versão atual pode ser usada permanentemente (coberta pelo seu version lock).',
-      subscriptionActive: 'O Ultimate está ativo — todos os recursos desbloqueados enquanto inscrito.',
+      versionPermanent:
+        'A versão atual pode ser usada permanentemente (coberta pelo seu version lock).',
+      subscriptionActive:
+        'O Ultimate está ativo — todos os recursos desbloqueados enquanto inscrito.',
       versionLockedOut:
         'Esta versão ({date}) não está coberta por um version lock — exibindo o modo Community.',
       expiresAt: 'Ativo até {time}',
@@ -1828,10 +1849,12 @@ export const ptBR = {
     createDirectoryDesc: 'Se o caminho não existir',
     beautifyJson: 'Embelezar Metadados',
     startExportTask: 'Iniciar Tarefa de Exportação',
-    exportNote: 'A tarefa de exportação será executada em segundo plano. Você pode fechar esta janela.',
+    exportNote:
+      'A tarefa de exportação será executada em segundo plano. Você pode fechar esta janela.',
     documents: 'documentos',
     exportSuccess: 'Exportação concluída com sucesso',
-    exportWarning: 'A tarefa de exportação está em execução em segundo plano. Tem certeza de que deseja sair?',
+    exportWarning:
+      'A tarefa de exportação está em execução em segundo plano. Tem certeza de que deseja sair?',
   },
   shortcuts: {
     title: 'Atalhos de Teclado',
@@ -1913,7 +1936,8 @@ export const ptBR = {
     startImportTask: 'Iniciar Tarefa de Importação',
     importNote: 'A tarefa será executada em segundo plano. Você será notificado ao concluir.',
     parseErrors: 'Algumas linhas não puderam ser analisadas',
-    replaceWarning: 'Isso sobrescreverá todos os dados de {index}. Tem certeza de que deseja continuar?',
+    replaceWarning:
+      'Isso sobrescreverá todos os dados de {index}. Tem certeza de que deseja continuar?',
     importSuccess: 'Importação concluída com sucesso',
     metadataLoaded: 'Metadados carregados com sucesso',
     inserted: 'Inseridos',
@@ -1980,7 +2004,8 @@ export const ptBR = {
     temperature: 'Temperatura',
     inputPlaceholder: 'Faça uma pergunta de acompanhamento ou digite um comando...',
     disclaimer: 'A IA do DocKit pode cometer erros. Verifique dados importantes.',
-    modelUnavailable: 'Modelo indisponível: verifique sua chave de API ou as configurações do provedor.',
+    modelUnavailable:
+      'Modelo indisponível: verifique sua chave de API ou as configurações do provedor.',
     modelUnavailableSend:
       'Não é possível enviar — o modelo selecionado está indisponível. Verifique sua chave de API ou as configurações do provedor.',
     addSource: {
@@ -1989,7 +2014,8 @@ export const ptBR = {
       selectConnection: 'SELECIONAR CONEXÃO',
       selectConnectionPlaceholder: 'Pesquisar conexões...',
       noConnections: 'Nenhuma conexão disponível. Crie uma conexão primeiro.',
-      selectHint: 'Selecione uma conexão de banco de dados configurada nas configurações do DocKit.',
+      selectHint:
+        'Selecione uma conexão de banco de dados configurada nas configurações do DocKit.',
       connectionsFound: '{count} conexões encontradas',
       connectSource: 'Conectar',
       searchPlaceholder: 'Pesquisar conexões...',
@@ -2107,7 +2133,8 @@ export const ptBR = {
       },
     },
     contextIndicator: {
-      offBadgeTitle: 'A auto-compactação está DESATIVADA — o contexto não será reduzido automaticamente',
+      offBadgeTitle:
+        'A auto-compactação está DESATIVADA — o contexto não será reduzido automaticamente',
       popoverTitle: 'Janela de contexto',
       warningText:
         'A auto-compactação está DESATIVADA e o contexto está acima do limite. Compacte agora ou a próxima requisição pode falhar.',
