@@ -33,12 +33,12 @@ const getStoredLocale = (): AppLocale | 'auto' => {
   return 'auto';
 };
 
-// maps a browser language tag onto an app locale; unknown tags fall back to enUS
+// maps a browser language tag onto an app locale; ambiguous or unknown tags fall back to enUS
 const detectFromNavigator = (): AppLocale => {
   if (typeof navigator === 'undefined') return 'enUS';
   const tag = (navigator.language || '').toLowerCase();
   if (/^zh-(tw|hk|mo|hant)/.test(tag)) return 'zhTW';
-  if (tag.startsWith('zh')) return 'zhCN';
+  if (tag === 'zh-cn') return 'zhCN';
   if (tag.startsWith('pt')) return 'ptBR';
   if (tag.startsWith('ja')) return 'jaJP';
   if (tag.startsWith('ko')) return 'koKR';
