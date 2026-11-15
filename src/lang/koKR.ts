@@ -80,7 +80,6 @@ export const koKR = {
     importExport: '가져오기/내보내기',
     taskManager: '작업 관리자',
 
-
     dataStudio: 'Data Studio',
 
     chatBotEmptyHint: '데이터베이스나 코드에 대해 무엇이든 물어보세요.',
@@ -122,10 +121,8 @@ export const koKR = {
       features: '주요 기능',
       feature1:
         'VSCode의 기반이 되는 monaco-editor로 구동되는 풀 기능 편집기가 개발자에게 익숙한 편집 환경을 제공합니다.',
-      feature2:
-        '데스크톱 앱에서 연결 정보를 관리하여 대시보드 도구에 대한 의존성을 없애줍니다.',
-      feature3:
-        '파일 저장 기능으로 코드를 파일로 저장하므로 어디에도 잃어버리지 않습니다.',
+      feature2: '데스크톱 앱에서 연결 정보를 관리하여 대시보드 도구에 대한 의존성을 없애줍니다.',
+      feature3: '파일 저장 기능으로 코드를 파일로 저장하므로 어디에도 잃어버리지 않습니다.',
       feature4: 'Elasticsearch, OpenSearch 등 다양한 엔진을 지원하며 앞으로 더 추가될 예정입니다.',
       license: '라이선스',
       licenseDesc: 'DocKit은 Apache 2.0 라이선스 기반의 오픈 소스 프로젝트입니다.',
@@ -211,7 +208,8 @@ export const koKR = {
         endpointSummary: '엔드포인트',
         lastSync: '카탈로그 상태',
         refreshModels: '모델 새로 고침',
-        discoveredModelsDesc: 'DocKit은 기능 라우팅을 위해 발견된 모델을 프로바이더별로 그룹화합니다.',
+        discoveredModelsDesc:
+          'DocKit은 기능 라우팅을 위해 발견된 모델을 프로바이더별로 그룹화합니다.',
         noModels: '아직 발견된 모델이 없습니다.',
         testConnection: '연결 테스트',
         testSuccess: '연결 성공',
@@ -254,7 +252,8 @@ export const koKR = {
           localEndpoint: '로컬 엔드포인트',
           apiKey: 'API 키',
           ready: 'AI 어시스턴트와 Data Studio에서 사용할 준비가 되었습니다.',
-          modelsAvailable: '모델을 사용할 수 있습니다. 연결 테스트를 실행하여 자격 증명을 확인하세요.',
+          modelsAvailable:
+            '모델을 사용할 수 있습니다. 연결 테스트를 실행하여 자격 증명을 확인하세요.',
           refreshModels: '자격 증명을 저장한 후 모델을 새로 고침하여 공유 카탈로그를 채우세요.',
           noModelsSynced: '아직 동기화된 모델이 없습니다',
           modelsCount: '사용 가능한 모델 {n}개',
@@ -298,8 +297,7 @@ export const koKR = {
         emptyState:
           '사이드바 어시스턴트와 Data Studio의 모델을 선택하려면 프로바이더를 최소 한 개 이상 활성화하고 연결하세요.',
         sidebarTitle: '사이드바 어시스턴트',
-        sidebarDescription:
-          '채팅 지원, 설명, 쿼리 안내에 사용되는 모델을 선택하세요.',
+        sidebarDescription: '채팅 지원, 설명, 쿼리 안내에 사용되는 모델을 선택하세요.',
         dataStudioTitle: 'Data Studio',
         dataStudioDescription:
           '스키마 기반 분석과 도구 기반 워크플로에 사용되는 모델을 선택하세요.',
@@ -343,8 +341,7 @@ export const koKR = {
       modeFullAccess: '전체 접근',
       modeFullAccessDesc: '모든 작업이 허용됩니다',
       confirmDestructive: '파괴적 작업 확인',
-      confirmDestructiveDesc:
-        '파괴적 작업(delete/drop) 실행 전 명시적인 확인을 요구합니다',
+      confirmDestructiveDesc: '파괴적 작업(delete/drop) 실행 전 명시적인 확인을 요구합니다',
       allowlist: '연결 허용 목록',
       allowlistDesc: 'MCP를 특정 연결로 제한합니다. 모두 선택 해제하면 모든 연결이 허용됩니다.',
       allowlistEmpty: '모든 연결 허용됨',
@@ -668,8 +665,7 @@ export const koKR = {
       deleteTablePitrWarning:
         '이 테이블에는 시점 복구(PITR)가 활성화되어 있습니다. 삭제하면 특정 시점으로 데이터를 복구할 수 있는 기능을 잃게 됩니다.',
       truncateTableTitle: '테이블 비우기',
-      truncateTableWarning:
-        '테이블의 구조(키, 인덱스, 설정)는 유지하면서 모든 항목을 삭제합니다.',
+      truncateTableWarning: '테이블의 구조(키, 인덱스, 설정)는 유지하면서 모든 항목을 삭제합니다.',
       truncateTableInfo: '모든 항목이 영구적으로 삭제됩니다.',
       truncateTableConfirmLabel: '확인하려면 "truncate"를 입력하세요:',
       truncateTableConfirmPlaceholder: 'truncate 입력',
@@ -809,7 +805,8 @@ export const koKR = {
       collectionName: '컬렉션 이름',
       targetDatabase: '대상 데이터베이스',
       noDatabaseSelected: '선택된 데이터베이스가 없습니다. 먼저 데이터베이스를 선택해 주세요.',
-      noDatabasesAvailable: '사용 가능한 데이터베이스가 없습니다. 먼저 데이터베이스를 생성해 주세요.',
+      noDatabasesAvailable:
+        '사용 가능한 데이터베이스가 없습니다. 먼저 데이터베이스를 생성해 주세요.',
       dropCollectionTitle: '컬렉션 삭제',
       dropCollectionConfirm:
         '컬렉션 "{name}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
@@ -879,8 +876,7 @@ export const koKR = {
       indexAccesses: '접근 횟수',
       dropIndex: '인덱스 삭제',
       dropIndexTitle: '인덱스 삭제',
-      dropIndexConfirm:
-        '인덱스 "{name}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      dropIndexConfirm: '인덱스 "{name}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
       dropIndexSuccess: '인덱스가 삭제되었습니다',
       dropIndexError: '인덱스를 삭제하지 못했습니다',
       createIndex: '인덱스 생성',
@@ -941,7 +937,8 @@ export const koKR = {
     cloudTarget: 'AWS Cloud',
     authAccessKey: 'AWS 액세스 키',
     authProfile: 'AWS 프로파일',
-    awsUltimateOnly: 'AWS 프로파일 / SSO / AssumeRole은 Ultimate 전용 기능입니다 — 클릭하여 업그레이드',
+    awsUltimateOnly:
+      'AWS 프로파일 / SSO / AssumeRole은 Ultimate 전용 기능입니다 — 클릭하여 업그레이드',
     authSso: 'SSO',
     authAssumeRole: 'Assume Role',
     profileName: '프로파일 이름',
@@ -954,8 +951,7 @@ export const koKR = {
     ssoRoleName: '역할 이름',
     ssoLogin: 'SSO로 로그인',
     ssoRetry: '다시 시도',
-    ssoLoginPrompt:
-      'SSO 포털 URL을 입력한 후 저장을 클릭하면 브라우저가 열리고 인증을 진행합니다.',
+    ssoLoginPrompt: 'SSO 포털 URL을 입력한 후 저장을 클릭하면 브라우저가 열리고 인증을 진행합니다.',
     ssoWaiting: '브라우저 인증을 기다리는 중...',
     ssoOpenBrowser: '브라우저에서 이 URL을 여세요:',
     ssoEnterCode: '다음 코드를 입력하세요:',
@@ -1077,8 +1073,7 @@ export const koKR = {
       authTypeScram: 'SCRAM 인증',
       authTypeUri: 'URI 연결 문자열',
 
-      sshTunnelUnsupportedUri:
-        'SSH 터널링은 단일 호스트 mongodb:// 연결 URI만 지원합니다.',
+      sshTunnelUnsupportedUri: 'SSH 터널링은 단일 호스트 mongodb:// 연결 URI만 지원합니다.',
       tlsTunnelWarning:
         'MongoDB 드라이버는 SNI 재정의를 지원하지 않기 때문에 SSH 터널 연결에서는 TLS 인증서 검증이 건너뛰어집니다. SSH 터널이 인증된 암호화 채널을 제공합니다.',
       collectionCount: '컬렉션 {count}개',
@@ -1116,7 +1111,8 @@ export const koKR = {
       systemProxyDetected: '감지된 시스템 프록시: {url}',
       systemProxyAdd: '추가',
       systemProxyDetach: '시스템 프록시 제거',
-      systemProxyNotDetected: '시스템 프록시가 활성화되어 있지만 감지되지 않았습니다. 직접 연결합니다.',
+      systemProxyNotDetected:
+        '시스템 프록시가 활성화되어 있지만 감지되지 않았습니다. 직접 연결합니다.',
       tunnelSkipped:
         'SSH 터널은 Ultimate 전용 기능입니다. Community 버전이나 로그아웃 상태에서는 이 연결에 저장된 터널을 건너뛰고 직접 연결합니다 (설정 자체는 유지됩니다).',
       tunnelSkippedHint:
@@ -1259,8 +1255,7 @@ export const koKR = {
       insert: '삽입',
       insertSuccess: '문서가 삽입되었습니다',
       insertIdExists: '이 _id는 이미 존재합니다 — 값을 수정하거나 필드를 삭제하여 자동 생성하세요',
-      insertIdHint:
-        '쓰기 전에 _id 값을 수정하세요. _id 필드를 삭제하면 새 id가 자동 생성됩니다',
+      insertIdHint: '쓰기 전에 _id 값을 수정하세요. _id 필드를 삭제하면 새 id가 자동 생성됩니다',
       edit: '편집',
       editDocumentTitle: '문서 편집',
       updateSuccess: '문서가 업데이트되었습니다',
@@ -1329,7 +1324,8 @@ export const koKR = {
       tableSchemaFailed: '테이블 키를 불러올 수 없습니다.',
       retryTableSchema: '다시 시도',
       duplicateAttribute: '속성 이름은 고유해야 하며 기본 키와 중복될 수 없습니다',
-      itemAlreadyExists: '이 기본 키를 가진 항목이 이미 존재합니다. 변경 사항이 저장되지 않았습니다.',
+      itemAlreadyExists:
+        '이 기본 키를 가진 항목이 이미 존재합니다. 변경 사항이 저장되지 않았습니다.',
       addAttributesTitle: '속성 추가',
       attributeNameRequired: '속성 이름은 필수입니다',
       attributeTypeRequired: '속성 유형은 필수입니다',
@@ -1414,8 +1410,7 @@ export const koKR = {
       cloneDocumentTitle: '문서 복제',
       editDocumentTitle: '문서 편집',
       insert: '삽입',
-      deleteDocumentConfirm:
-        '이 문서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
+      deleteDocumentConfirm: '이 문서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
       invalidJson: '올바르지 않은 JSON 형식입니다',
       totalDocuments: '문서 {count}개',
       noDocuments: '문서를 찾을 수 없습니다',
@@ -1630,19 +1625,17 @@ export const koKR = {
       title: '플랜 및 버전',
       desc: '이 설치 버전의 구독 권한과 버전 락 상태입니다.',
       versionPermanent: '현재 버전은 영구적으로 사용할 수 있습니다 (버전 락이 적용됨).',
-      subscriptionActive: 'Ultimate이 활성화되어 있습니다 — 구독 기간 동안 모든 기능이 잠금 해제됩니다.',
-      versionLockedOut:
-        '이 버전({date})은 버전 락이 적용되지 않아 Community 모드로 표시됩니다.',
+      subscriptionActive:
+        'Ultimate이 활성화되어 있습니다 — 구독 기간 동안 모든 기능이 잠금 해제됩니다.',
+      versionLockedOut: '이 버전({date})은 버전 락이 적용되지 않아 Community 모드로 표시됩니다.',
       expiresAt: '{time}까지 사용 가능',
-      cancelScheduled:
-        '구독은 현재 결제 기간이 끝나면 종료되도록 예약되어 있습니다.',
+      cancelScheduled: '구독은 현재 결제 기간이 끝나면 종료되도록 예약되어 있습니다.',
       checkFailed:
         '권한을 확인할 수 없습니다 — 캐시된 상태를 표시합니다. 네트워크를 확인한 후 새로 고침해 주세요.',
       sessionExpired: '세션이 만료되었습니다 — 플랜을 확인하려면 다시 로그인하세요.',
       sessionLostSignedOut:
         '세션을 더 이상 갱신할 수 없어 로그아웃되었습니다. 언제든 다시 로그인할 수 있습니다.',
-      deviceActivationFailed:
-        '기기 등록에 실패했습니다 — 자동 세션 갱신을 사용할 수 없습니다.',
+      deviceActivationFailed: '기기 등록에 실패했습니다 — 자동 세션 갱신을 사용할 수 없습니다.',
       notLoggedIn: '로그인되어 있지 않습니다.',
       loginLink: 'GEEKFUN으로 로그인',
       refresh: '새로 고침',
@@ -2009,8 +2002,7 @@ export const koKR = {
     },
     detachSource: {
       title: '소스 분리',
-      message:
-        '이 데이터 소스를 분리하시겠습니까? Data Studio에서 해당 연결이 제거됩니다.',
+      message: '이 데이터 소스를 분리하시겠습니까? Data Studio에서 해당 연결이 제거됩니다.',
       confirm: '분리',
     },
     agent: {

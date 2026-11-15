@@ -121,8 +121,7 @@ export const jaJP = {
       features: '機能',
       feature1:
         'monaco-editor(VSCodeの基盤)を搭載したフル機能エディター。開発者にとって馴染みのある編集環境を提供します。',
-      feature2:
-        '接続情報をデスクトップアプリに保持し、ダッシュボードツールへの依存を解消します。',
+      feature2: '接続情報をデスクトップアプリに保持し、ダッシュボードツールへの依存を解消します。',
       feature3:
         'ファイルの永続化に対応。コードをマシン上のファイルとして保存できるため、失われることはありません。',
       feature4: 'Elasticsearch、OpenSearchなど、複数のエンジンに対応。今後さらに拡張予定です。',
@@ -183,7 +182,8 @@ export const jaJP = {
         - ユーザーが別の言語を指定しない限り、日本語で回答してください。
         - データベースに関係のない質問には、丁寧にお断りしてください。`,
 
-      description: 'プロバイダーへのアクセスを管理し、DocKitの各機能で使用するモデルを選択できます。',
+      description:
+        'プロバイダーへのアクセスを管理し、DocKitの各機能で使用するモデルを選択できます。',
 
       apiKeySet: 'APIキーは保存済みです — 入力すると置き換わります',
 
@@ -210,7 +210,8 @@ export const jaJP = {
         endpointSummary: 'エンドポイント',
         lastSync: 'カタログの状態',
         refreshModels: 'モデルを更新',
-        discoveredModelsDesc: 'DocKitは検出されたモデルをプロバイダーごとにグループ化し、機能に応じてルーティングします。',
+        discoveredModelsDesc:
+          'DocKitは検出されたモデルをプロバイダーごとにグループ化し、機能に応じてルーティングします。',
         noModels: 'まだモデルが見つかっていません。',
         testConnection: '接続テスト',
         testSuccess: '接続に成功しました',
@@ -236,7 +237,8 @@ export const jaJP = {
         featureRequest: '機能リクエストを作成',
         contextWindowLabel: 'コンテキストウィンドウの上書き (トークン)',
         contextWindowPlaceholder: '自動検出',
-        contextWindowDescription: 'このプロバイダーが使用する最大トークン数です。最小値は1024です。',
+        contextWindowDescription:
+          'このプロバイダーが使用する最大トークン数です。最小値は1024です。',
         removeProviderNotice:
           'このプロバイダーを削除しますか？すべての資格情報とモデル設定が消去されます。',
         customAnthropicDescription:
@@ -342,10 +344,10 @@ export const jaJP = {
       modeFullAccess: 'フルアクセス',
       modeFullAccessDesc: 'すべての操作を許可',
       confirmDestructive: '破壊的な操作の確認',
-      confirmDestructiveDesc:
-        '破壊的な操作 (削除/drop) の前に明示的な確認を要求します',
+      confirmDestructiveDesc: '破壊的な操作 (削除/drop) の前に明示的な確認を要求します',
       allowlist: '接続の許可リスト',
-      allowlistDesc: 'MCPを特定の接続に制限します。すべてのチェックを外すと、すべての接続が許可されます。',
+      allowlistDesc:
+        'MCPを特定の接続に制限します。すべてのチェックを外すと、すべての接続が許可されます。',
       allowlistEmpty: 'すべての接続が許可されています',
       connectionOverrides: '接続ごとの上書き',
       overrideReadOnly: '読み取り専用',
@@ -713,7 +715,8 @@ export const jaJP = {
       encryptionAwsOwned: 'AWS所有キー',
       encryptionAwsOwnedDesc: 'DynamoDBが所有・管理します。追加料金はかかりません。',
       encryptionAwsManaged: 'AWS管理キー',
-      encryptionAwsManagedDesc: 'アカウント内に保存され、AWS KMSが管理します。KMSの料金がかかります。',
+      encryptionAwsManagedDesc:
+        'アカウント内に保存され、AWS KMSが管理します。KMSの料金がかかります。',
       encryptionCustomerManaged: 'カスタマー管理キー',
       encryptionCustomerManagedDesc:
         'アカウント内に保存され、AWS KMS経由でユーザーが管理します。KMSの料金がかかります。',
@@ -808,7 +811,8 @@ export const jaJP = {
       collectionName: 'コレクション名',
       targetDatabase: 'ターゲットデータベース',
       noDatabaseSelected: 'データベースが選択されていません。先にデータベースを選択してください。',
-      noDatabasesAvailable: '利用可能なデータベースがありません。先にデータベースを作成してください。',
+      noDatabasesAvailable:
+        '利用可能なデータベースがありません。先にデータベースを作成してください。',
       dropCollectionTitle: 'コレクションの削除',
       dropCollectionConfirm:
         'コレクション「{name}」を削除してもよろしいですか？この操作は元に戻せません。',
@@ -857,7 +861,8 @@ export const jaJP = {
       newCollectionName: '新しいコレクション名',
       cloneCollection: '複製',
       cloneCollectionTitle: 'コレクションの複製',
-      cloneCollectionDesc: 'コレクション「{name}」のコピーを、すべてのドキュメントとインデックス込みで作成します。',
+      cloneCollectionDesc:
+        'コレクション「{name}」のコピーを、すべてのドキュメントとインデックス込みで作成します。',
       cloneCollectionSuccess: 'コレクションを複製しました',
       cloneCollectionError: 'コレクションの複製に失敗しました',
       targetCollectionName: 'ターゲットコレクション名',
@@ -940,7 +945,8 @@ export const jaJP = {
     cloudTarget: 'AWS Cloud',
     authAccessKey: 'AWSアクセスキー',
     authProfile: 'AWSプロファイル',
-    awsUltimateOnly: 'AWSプロファイル / SSO / AssumeRoleはUltimateの機能です — クリックしてアップグレード',
+    awsUltimateOnly:
+      'AWSプロファイル / SSO / AssumeRoleはUltimateの機能です — クリックしてアップグレード',
     authSso: 'SSO',
     authAssumeRole: 'Assume Role',
     profileName: 'プロファイル名',
@@ -1076,8 +1082,7 @@ export const jaJP = {
       authTypeScram: 'SCRAM認証',
       authTypeUri: 'URI接続文字列',
 
-      sshTunnelUnsupportedUri:
-        'SSHトンネルは、単一ホストのmongodb://接続URIのみに対応しています。',
+      sshTunnelUnsupportedUri: 'SSHトンネルは、単一ホストのmongodb://接続URIのみに対応しています。',
       tlsTunnelWarning:
         'MongoDBドライバーにはSNIの上書きがないため、SSHトンネル接続ではTLS証明書の検証がスキップされます。SSHトンネルは認証済みの暗号化チャネルを提供します。',
       collectionCount: '{count}個のコレクション',
@@ -1115,7 +1120,8 @@ export const jaJP = {
       systemProxyDetected: 'システムプロキシを検出: {url}',
       systemProxyAdd: '追加',
       systemProxyDetach: 'システムプロキシを削除',
-      systemProxyNotDetected: 'システムプロキシは有効ですが、検出されませんでした。直接接続します。',
+      systemProxyNotDetected:
+        'システムプロキシは有効ですが、検出されませんでした。直接接続します。',
       tunnelSkipped:
         'SSHトンネルはUltimateの機能です: Communityまたは未ログインのセッションでは、この接続に保存されたトンネルをスキップして直接接続します (設定自体は保持されます)。',
       tunnelSkippedHint:
@@ -1141,7 +1147,8 @@ export const jaJP = {
       keyPassphrase: '鍵のパスフレーズ',
       useSshAgent: 'SSHエージェントを使用',
       sshAgentSockPath: 'SSHエージェントのソケットパス',
-      agentSocketHint: '空欄にすると、デフォルトのSSHエージェントソケット ($SSH_AUTH_SOCK) を使用します。',
+      agentSocketHint:
+        '空欄にすると、デフォルトのSSHエージェントソケット ($SSH_AUTH_SOCK) を使用します。',
       connectTimeout: '接続タイムアウト (秒)',
       keepaliveInterval: 'Keepalive (秒)',
       exposeLan: 'LANに公開',
@@ -1257,7 +1264,8 @@ export const jaJP = {
       insertDocumentTitle: 'ドキュメントの挿入',
       insert: '挿入',
       insertSuccess: 'ドキュメントを挿入しました',
-      insertIdExists: 'この_idは既に存在します — 値を変更するか、フィールドを削除して自動生成してください',
+      insertIdExists:
+        'この_idは既に存在します — 値を変更するか、フィールドを削除して自動生成してください',
       insertIdHint:
         '書き込む前に_idの値を更新してください。_idフィールドを削除すると、新しいidが自動生成されます',
       edit: '編集',
@@ -1431,7 +1439,8 @@ export const jaJP = {
       updateError: 'ドキュメントの更新に失敗しました',
       deleteDocumentSuccess: 'ドキュメントを削除しました',
       deleteError: 'ドキュメントの削除に失敗しました',
-      invalidJsonObject: '値はJSONオブジェクトである必要があります。配列やプリミティブは指定できません',
+      invalidJsonObject:
+        '値はJSONオブジェクトである必要があります。配列やプリミティブは指定できません',
       contextMenu: {
         execute: '実行',
         copy: 'コピー',
@@ -1498,7 +1507,8 @@ export const jaJP = {
   importExport: {
     export: 'エクスポート',
     import: 'インポート',
-    restoreSourceDesc: 'JSON/CSV/NDJSONファイルをクリックまたはこの領域にドラッグしてアップロードしてください',
+    restoreSourceDesc:
+      'JSON/CSV/NDJSONファイルをクリックまたはこの領域にドラッグしてアップロードしてください',
     restoreFromFileSuccess: 'ファイルから正常にインポートしました',
     importForm: {
       connection: '接続',
@@ -1558,7 +1568,8 @@ export const jaJP = {
       detail: {
         ai: 'あらゆるモデルで動作 — クラウド、ローカル、カスタム',
         mcp: 'お好みのMCPクライアントと接続できます',
-        importExport: 'Ultimateでデータのインポート・エクスポートとバックグラウンドタスクの追跡が可能です。',
+        importExport:
+          'Ultimateでデータのインポート・エクスポートとバックグラウンドタスクの追跡が可能です。',
       },
       tiles: {
         aiQueryT: '自然言語クエリ',
@@ -1629,12 +1640,12 @@ export const jaJP = {
       title: 'プランとバージョン',
       desc: 'このインストールのサブスクリプションのエンタイトルメントとバージョンロックの状態です。',
       versionPermanent: '現在のバージョンは永久に使用できます (バージョンロックの対象です)。',
-      subscriptionActive: 'Ultimateが有効です — サブスクライブ中はすべての機能がアンロックされます。',
+      subscriptionActive:
+        'Ultimateが有効です — サブスクライブ中はすべての機能がアンロックされます。',
       versionLockedOut:
         'このバージョン ({date}) はバージョンロックの対象外です — Communityモードを表示しています。',
       expiresAt: '{time}まで有効',
-      cancelScheduled:
-        'サブスクリプションは、現在の請求期間の締め切り時に終了する予定です。',
+      cancelScheduled: 'サブスクリプションは、現在の請求期間の締め切り時に終了する予定です。',
       checkFailed:
         'エンタイトルメントを確認できませんでした — キャッシュされた状態を表示しています。ネットワークを確認して更新してください。',
       sessionExpired: 'セッションが期限切れです — プランを確認するには再度ログインしてください。',
@@ -1828,7 +1839,8 @@ export const jaJP = {
     createDirectoryDesc: 'パスが存在しない場合',
     beautifyJson: 'メタデータを整形',
     startExportTask: 'エクスポートタスクを開始',
-    exportNote: 'エクスポートタスクはバックグラウンドで実行されます。このウィンドウを閉じてもかまいません。',
+    exportNote:
+      'エクスポートタスクはバックグラウンドで実行されます。このウィンドウを閉じてもかまいません。',
     documents: 'ドキュメント',
     exportSuccess: 'エクスポートが正常に完了しました',
     exportWarning: 'エクスポートタスクがバックグラウンドで実行中です。終了してもよろしいですか？',
@@ -1926,7 +1938,8 @@ export const jaJP = {
     indexCreated: 'インデックスを作成しました',
     tableCreated: 'テーブルを作成しました',
     creationFailed: 'コレクションの作成に失敗しました',
-    indexAlreadyExists: 'インデックスは既に存在します。既存コレクションへのインポートとして続行しますか？',
+    indexAlreadyExists:
+      'インデックスは既に存在します。既存コレクションへのインポートとして続行しますか？',
     creationPlan: '作成計画',
     shards: 'シャード',
     replicas: 'レプリカ',
@@ -1960,7 +1973,8 @@ export const jaJP = {
     loopStopped: {
       continueButton: '続行',
       stopButton: '停止',
-      continueHint: '「続行」をクリックすると再開し、「停止」をクリックするとこのタスクを終了します。',
+      continueHint:
+        '「続行」をクリックすると再開し、「停止」をクリックするとこのタスクを終了します。',
     },
     progress: {
       iterating: 'ステップ {iter} / {maxIter}',
@@ -2075,7 +2089,8 @@ export const jaJP = {
           connection: 'この接続のAI権限により拒否されました。',
           conversation: 'この会話のソース制限により拒否されました。',
           rule: '「常に拒否」ルールにより、この会話ではこのツールがブロックされています。',
-          unknown: 'AI権限によりこの操作はブロックされました。再試行の前にアクセスを確認してください。',
+          unknown:
+            'AI権限によりこの操作はブロックされました。再試行の前にアクセスを確認してください。',
         },
         toolDenied: 'ツールの実行が拒否されました',
         toolError: 'ツールの実行に失敗しました',
