@@ -1,3 +1,4 @@
+import { debug } from './debug';
 import { shouldRotateToken } from './sessionExpiry';
 
 type AuthPayload = {
@@ -14,6 +15,7 @@ type AuthPayload = {
 type Rotation = { accessToken: string; refreshToken: string; previousRefreshToken: string };
 type Unlisten = () => void;
 type SessionLifecycle = {
+  syncUiLocale: () => Promise<void>;
   read: () => { token: string; refreshToken: string; revision: number };
   authenticate: (payload: AuthPayload) => void;
   applyRotation: (rotation: Rotation) => void;
@@ -35,6 +37,14 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
 
   const current = (revision: number) => !disposed && ports.read().revision === revision;
 
+  const syncUiLocale = async (): Promise<void> => {
+    try {
+      await ports.syncUiLocale();
+    } catch (error) {
+      debug('Could not sync the UI locale for device activation:', error);
+    }
+  };
+
   const handleAuth = async (payload: AuthPayload) => {
     if (disposed || !payload.token) return;
     if (lastHandoff?.token === payload.token && current(lastHandoff.revision)) return;
@@ -54,6 +64,9 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
   };
 
   const start = async () => {
+    // A pending login can trigger device activation as soon as listeners are ready.
+    await syncUiLocale();
+    if (disposed) return;
     const initialRevision = ports.read().revision;
     await register(
       ports.listenRotation(rotation => {
@@ -105,5 +118,5 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
     unlisteners = [];
   };
 
-  return { start, dispose };
+  return { start, dispose, syncUiLocale };
 };

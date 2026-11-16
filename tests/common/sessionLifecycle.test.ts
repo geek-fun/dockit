@@ -10,6 +10,7 @@ const fixture = (token = 'opaque-access', refreshToken = 'lease') => {
   let rotation: (_payload: Rotation) => void = () => {};
   const unlisten = jest.fn();
   const ports: Ports = {
+    syncUiLocale: jest.fn(async () => {}),
     read: () => session,
     authenticate: jest.fn(payload => {
       session = { token: payload.token, refreshToken: '', revision: session.revision + 1 };
@@ -137,6 +138,9 @@ describe('session startup and handoff', () => {
   it('subscribes before restoration, and activates before checking entitlement', async () => {
     const { ports, lifecycle } = fixture();
     const order: string[] = [];
+    jest.mocked(ports.syncUiLocale).mockImplementation(async () => {
+      order.push('syncUiLocale');
+    });
     jest.mocked(ports.hydrate).mockImplementation(async () => {
       order.push('hydrate');
     });
@@ -152,7 +156,7 @@ describe('session startup and handoff', () => {
       return null;
     });
     await lifecycle.start();
-    expect(order).toEqual(['hydrate', 'activate', 'refresh']);
+    expect(order).toEqual(['syncUiLocale', 'hydrate', 'activate', 'refresh']);
     expect(ports.rotate).not.toHaveBeenCalled();
   });
 
@@ -162,6 +166,18 @@ describe('session startup and handoff', () => {
     await lifecycle.start();
     expect(ports.authenticate).toHaveBeenCalledTimes(1);
     expect(ports.hydrate).not.toHaveBeenCalled();
+    expect(ports.activate).toHaveBeenCalledWith(true);
+  });
+
+  it('processes pending authentication when locale sync fails', async () => {
+    const { ports, lifecycle } = fixture('', '');
+    const payload = { token: 'new-login' };
+    jest.mocked(ports.syncUiLocale).mockRejectedValue(new Error('IPC unavailable'));
+    jest.mocked(ports.consumeAuth).mockResolvedValue(payload);
+
+    await lifecycle.start();
+    expect(ports.listenAuth).toHaveBeenCalled();
+    expect(ports.authenticate).toHaveBeenCalledWith(payload);
     expect(ports.activate).toHaveBeenCalledWith(true);
   });
 
@@ -207,19 +223,11 @@ describe('session startup and handoff', () => {
 
   it('does not apply an old startup rotation after a new handoff', async () => {
     const f = fixture(`a.${btoa(JSON.stringify({ exp: 1 }))}.s`);
-    let resolve!: (_value: { access_token: string; refresh_token: string }) => void;
-    jest.mocked(f.ports.rotate).mockImplementation(
-      () =>
-        new Promise(done => {
-          resolve = done;
-        }),
-    );
-    const starting = f.lifecycle.start();
-    await flush();
-    await flush();
-    f.auth({ token: 'new-login' });
-    resolve({ access_token: 'old-access', refresh_token: 'old-lease' });
-    await starting;
+    jest.mocked(f.ports.rotate).mockImplementation(async () => {
+      f.auth({ token: 'new-login' });
+      return { access_token: 'old-access', refresh_token: 'old-lease' };
+    });
+    await f.lifecycle.start();
     await flush();
     expect(f.ports.applyRotation).not.toHaveBeenCalled();
     expect(f.ports.read().token).toBe('new-login');
@@ -248,9 +256,11 @@ describe('session startup and handoff', () => {
 
   it('stops startup when disposed while a subscription is registering', async () => {
     const f = fixture();
-    const starting = f.lifecycle.start();
-    f.lifecycle.dispose();
-    await starting;
+    jest.mocked(f.ports.listenRotation).mockImplementation(async () => {
+      f.lifecycle.dispose();
+      return f.unlisten;
+    });
+    await f.lifecycle.start();
     expect(f.unlisten).toHaveBeenCalledTimes(1);
     expect(f.ports.consumeAuth).not.toHaveBeenCalled();
   });
