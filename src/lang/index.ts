@@ -38,7 +38,8 @@ const detectFromNavigator = (): AppLocale => {
   if (typeof navigator === 'undefined') return 'enUS';
   const tag = (navigator.language || '').toLowerCase();
   if (/^zh-(tw|hk|mo|hant)/.test(tag)) return 'zhTW';
-  if (tag === 'zh-cn') return 'zhCN';
+  // bare zh and zh-sg resolve to zhCN per the unified language-detection standard (dockit#547)
+  if (tag === 'zh' || tag === 'zh-cn' || tag === 'zh-sg') return 'zhCN';
   if (tag.startsWith('pt')) return 'ptBR';
   if (tag.startsWith('ja')) return 'jaJP';
   if (tag.startsWith('ko')) return 'koKR';
