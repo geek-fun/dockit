@@ -1,4 +1,4 @@
-import { getDocLanguage } from '../../src/lang/index';
+import { currentUiLocaleTag, getDocLanguage, lang } from '../../src/lang/index';
 
 const mockLocalStorage = () => {
   const store: Record<string, string> = {};
@@ -195,6 +195,27 @@ describe('lang/index', () => {
         configurable: true,
       });
       expect(getDocLanguage()).toBe('en');
+    });
+  });
+
+  describe('currentUiLocaleTag', () => {
+    it.each([
+      ['zhCN', 'zh-CN'],
+      ['zhTW', 'zh-TW'],
+      ['enUS', 'en-US'],
+      ['ptBR', 'pt-BR'],
+      ['jaJP', 'ja-JP'],
+      ['koKR', 'ko-KR'],
+      ['esES', 'es-ES'],
+    ])('maps app locale %s to BCP-47 tag %s', (locale, expected) => {
+      lang.global.locale.value = locale;
+      expect(currentUiLocaleTag()).toBe(expected);
+    });
+
+    it('falls back to en-US for an unrecognized locale value', () => {
+      lang.global.locale.value = 'frFR';
+      expect(currentUiLocaleTag()).toBe('en-US');
+      lang.global.locale.value = 'enUS';
     });
   });
 });

@@ -51,6 +51,17 @@ const resolveLocale = (): AppLocale => {
   return stored === 'auto' ? detectFromNavigator() : stored;
 };
 
+// BCP-47 tags reported with the device payload on login/activation (geekfun#548)
+const BCP47_BY_LOCALE: Record<AppLocale, string> = {
+  zhCN: 'zh-CN',
+  zhTW: 'zh-TW',
+  enUS: 'en-US',
+  ptBR: 'pt-BR',
+  jaJP: 'ja-JP',
+  koKR: 'ko-KR',
+  esES: 'es-ES',
+};
+
 const lang = createI18n({
   globalInjection: true,
   locale: resolveLocale(),
@@ -73,5 +84,9 @@ export const getDocLanguage = (): 'en' | 'cn' => {
   const locale = resolveLocale();
   return locale === 'zhCN' || locale === 'zhTW' ? 'cn' : 'en';
 };
+
+// the currently effective UI locale as a BCP-47 tag (AUTO already resolved)
+export const currentUiLocaleTag = (): string =>
+  BCP47_BY_LOCALE[lang.global.locale.value as AppLocale] ?? 'en-US';
 
 export { lang, useLang, detectFromNavigator };
