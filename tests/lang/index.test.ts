@@ -128,7 +128,8 @@ describe('lang/index', () => {
       ['zh-Hant', 'cn'],
       ['zh-HK', 'cn'],
       ['zh-MO', 'cn'],
-      ['zh', 'en'],
+      ['zh', 'cn'],
+      ['zh-SG', 'cn'],
       ['en-US', 'en'],
     ])(
       'should resolve auto-detected navigator language %s to doc language "%s"',
