@@ -44,6 +44,7 @@ let checkForUpdatesListener: UnlistenFn | undefined;
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
 const sessionLifecycle = createSessionLifecycle({
+  syncUiLocale: () => invoke<void>('set_ui_locale', { locale: currentUiLocaleTag() }),
   read: () => ({
     token: userStore.accessToken,
     refreshToken: userStore.refreshToken,
@@ -84,12 +85,7 @@ const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) =>
   setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK);
 };
 
-// The device payload (login/activation/refresh) reports the effective UI
-// locale (geekfun#548) — push the initial value before any session request
-// fires, then keep it in sync on language changes.
-const syncUiLocale = () => invoke('set_ui_locale', { locale: currentUiLocaleTag() });
-
-watch(() => lang.global.locale.value, syncUiLocale);
+watch(() => lang.global.locale.value, sessionLifecycle.syncUiLocale);
 
 onMounted(async () => {
   if (themeType.value === ThemeType.AUTO) {
@@ -105,7 +101,6 @@ onMounted(async () => {
     checkForUpdates(true);
   });
 
-  await syncUiLocale();
   await sessionLifecycle.start();
 });
 

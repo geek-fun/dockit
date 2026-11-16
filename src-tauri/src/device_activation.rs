@@ -22,9 +22,7 @@ pub const DEVICE_LIMIT_ERROR_TYPE: &str = "DEVICE_LIMIT_REACHED";
 
 pub struct DeviceIdentityState {
     app_data_dir: PathBuf,
-    /// Current UI locale (BCP-47 tag) pushed from the frontend on startup and
-    /// on language change (geekfun#548) — rides along on every request that
-    /// carries the device payload.
+    /// Current UI locale (BCP-47 tag) reported during device activation.
     ui_locale: Mutex<Option<String>>,
 }
 
@@ -36,14 +34,14 @@ impl DeviceIdentityState {
         }
     }
 
-    pub fn set_ui_locale(&self, locale: Option<String>) {
+    fn set_ui_locale(&self, locale: Option<String>) {
         *self
             .ui_locale
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = locale;
     }
 
-    pub fn ui_locale(&self) -> Option<String> {
+    fn ui_locale(&self) -> Option<String> {
         self.ui_locale
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -51,7 +49,7 @@ impl DeviceIdentityState {
     }
 
     pub fn payload(&self) -> device_identity::DevicePayload {
-        device_identity::build_payload(&self.app_data_dir, self.ui_locale().as_deref())
+        device_identity::build_payload(&self.app_data_dir)
     }
 }
 
@@ -71,9 +69,7 @@ fn normalize_ui_locale(raw: &str) -> Option<String> {
     well_formed.then(|| tag.to_string())
 }
 
-/// Store the currently effective UI locale so the next device-payload-bearing
-/// request (activate / session refresh) reports it. Never fails the caller —
-/// an unusable value simply clears the stored locale.
+/// Store the effective UI locale for the next device activation.
 #[tauri::command]
 pub fn set_ui_locale(locale: String, state: State<'_, DeviceIdentityState>) -> Result<(), String> {
     state.set_ui_locale(normalize_ui_locale(&locale));
@@ -168,25 +164,25 @@ enum ActivateAttempt {
 fn activation_body(
     payload: &device_identity::DevicePayload,
     replace_device_id: Option<&str>,
+    ui_locale: Option<&str>,
 ) -> serde_json::Value {
     let mut body = json!({ "device": payload });
     if let Some(replace) = replace_device_id {
         body["replaceDeviceId"] = json!(replace);
     }
+    if let Some(locale) = ui_locale {
+        body["device"]["uiLocale"] = json!(locale);
+    }
     body
 }
 
-async fn post_activate(
-    token: &str,
-    payload: &device_identity::DevicePayload,
-    replace_device_id: Option<&str>,
-) -> ActivateAttempt {
+async fn post_activate(token: &str, body: &serde_json::Value) -> ActivateAttempt {
     let url = format!("{}/api/v1/devices/activate", console::api_base_url());
 
     let response = match console::client()
         .post(url)
         .bearer_auth(token)
-        .json(&activation_body(payload, replace_device_id))
+        .json(body)
         .send()
         .await
     {
@@ -245,9 +241,14 @@ pub async fn activate_device(
         return Err("not logged in".to_string());
     }
     let payload = state.payload();
+    let body = activation_body(
+        &payload,
+        replace_device_id.as_deref(),
+        state.ui_locale().as_deref(),
+    );
 
     let mut rotated_access = None;
-    let mut attempt = post_activate(&token, &payload, replace_device_id.as_deref()).await;
+    let mut attempt = post_activate(&token, &body).await;
     if let ActivateAttempt::Unauthorized = attempt {
         let lease = refresh_token.as_deref().unwrap_or("").trim();
         if !lease.is_empty() {
@@ -260,12 +261,7 @@ pub async fn activate_device(
                         "previousRefreshToken": refreshed.previous_refresh_token,
                     }),
                 );
-                attempt = post_activate(
-                    &refreshed.access_token,
-                    &payload,
-                    replace_device_id.as_deref(),
-                )
-                .await;
+                attempt = post_activate(&refreshed.access_token, &body).await;
                 rotated_access = Some(refreshed.access_token);
             }
         }
@@ -380,14 +376,16 @@ mod tests {
             secondary: vec![],
             is_virtual: false,
         };
-        let composed = device_identity::compose_payload(&identity, "install", "n", "linux", None);
+        let composed = device_identity::compose_payload(&identity, "install", "n", "linux");
 
-        let without_replace = activation_body(&composed, None);
+        let without_replace = activation_body(&composed, None, Some("zh-CN"));
         assert!(without_replace.get("replaceDeviceId").is_none());
         assert_eq!(without_replace["device"]["platform"], "linux");
+        assert_eq!(without_replace["device"]["uiLocale"], "zh-CN");
 
-        let with_replace = activation_body(&composed, Some("dev_9"));
+        let with_replace = activation_body(&composed, Some("dev_9"), Some("zh-CN"));
         assert_eq!(with_replace["replaceDeviceId"], "dev_9");
+        assert_eq!(with_replace["device"]["uiLocale"], "zh-CN");
     }
 
     #[test]
@@ -427,24 +425,32 @@ mod tests {
     }
 
     #[test]
-    fn stored_ui_locale_rides_on_the_built_payload() {
-        let dir = std::env::temp_dir().join(format!(
-            "dockit-ui-locale-test-{}",
-            uuid::Uuid::new_v4().simple()
-        ));
-        std::fs::create_dir_all(&dir).expect("temp dir");
-        let state = DeviceIdentityState::load(dir.clone());
+    fn stored_ui_locale_is_only_added_to_activation() {
+        use tauri::Manager;
 
-        assert!(state.payload().ui_locale.is_none(), "unset by default");
+        let app = tauri::test::mock_builder()
+            .manage(DeviceIdentityState::load(PathBuf::new()))
+            .build(tauri::test::mock_context(tauri::test::noop_assets()))
+            .expect("mock app");
+        let identity = device_identity::RawIdentity {
+            primary: Some("PLATFORM".to_string()),
+            secondary: vec![],
+            is_virtual: false,
+        };
+        let payload = device_identity::compose_payload(&identity, "install", "n", "linux");
+        let state = app.state::<DeviceIdentityState>();
+        let body = || activation_body(&payload, None, state.ui_locale().as_deref());
 
-        state.set_ui_locale(normalize_ui_locale("pt-BR"));
-        assert_eq!(state.payload().ui_locale.as_deref(), Some("pt-BR"));
+        assert!(body()["device"].get("uiLocale").is_none());
 
-        // A language change refreshes the stored value for the next request.
-        state.set_ui_locale(normalize_ui_locale("ko-KR"));
-        assert_eq!(state.payload().ui_locale.as_deref(), Some("ko-KR"));
+        set_ui_locale("pt-BR".to_string(), app.state()).expect("initial locale");
+        assert_eq!(body()["device"]["uiLocale"], "pt-BR");
 
-        drop(state);
-        let _ = std::fs::remove_dir_all(&dir);
+        set_ui_locale("ko-KR".to_string(), app.state()).expect("updated locale");
+        assert_eq!(body()["device"]["uiLocale"], "ko-KR");
+        assert!(json!(payload).get("uiLocale").is_none());
+
+        set_ui_locale("".to_string(), app.state()).expect("invalid locale");
+        assert!(body()["device"].get("uiLocale").is_none());
     }
 }
