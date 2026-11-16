@@ -62,6 +62,8 @@ DocKit replaces browser consoles like Kibana and AWS Console with a single nativ
   <img src="https://img.shields.io/badge/Website-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
 </a>
 
+Closing the DocKit window keeps background tasks and the MCP server running. Use **Show Window** from the DocKit menu-bar or system-tray icon to return to your session. Choose **Quit** from that menu to stop the app.
+
 ## Community vs Ultimate
 
 DocKit follows a single official build with a runtime Community/Ultimate mode (source remains Apache-2.0).

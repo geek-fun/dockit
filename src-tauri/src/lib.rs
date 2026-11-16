@@ -12,6 +12,7 @@ pub(crate) mod ai_permissions;
 pub mod capabilities;
 pub mod common;
 pub mod db;
+mod desktop;
 pub mod device_activation;
 pub mod device_identity;
 pub mod dynamo;
@@ -134,12 +135,8 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_system_info::init())
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            // Forward argv through the deep-link plugin: it filters for the
-            // configured schemes and emits `deep-link://new-url` on the
-            // running instance (the only path that works on Linux/Windows).
-            use tauri_plugin_deep_link::DeepLinkExt;
-            app.deep_link().handle_cli_arguments(args.iter());
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            desktop::show_main_window(app);
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
@@ -215,6 +212,7 @@ pub fn run() {
         ])
         .setup(|app| {
             menu::create_menu(app)?;
+            desktop::setup(app);
 
             use tauri::Manager;
             // Store AppHandle globally so capability handlers can access the store
@@ -306,8 +304,18 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = _event
+            {
+                desktop::show_main_window(_app);
+            }
+        });
 }
 
 // Integration tests — included as a crate module to avoid separate
