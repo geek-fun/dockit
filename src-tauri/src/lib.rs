@@ -207,6 +207,7 @@ pub fn run() {
             crate::session::rotate_session_now,
             crate::session::revoke_session,
             crate::device_activation::activate_device,
+            crate::device_activation::set_ui_locale,
             crate::mcp_bridge::get_mcp_status,
             crate::mcp_bridge::save_mcp_config,
         ])

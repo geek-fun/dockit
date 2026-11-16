@@ -21,7 +21,7 @@ import {
 } from '../store';
 import { createSessionLifecycle } from '../common';
 import { useAppUpdater, useMessageService } from '@/composables';
-import { lang } from '../lang';
+import { currentUiLocaleTag, lang } from '../lang';
 import { resolveAvatarUrl } from '../datasources';
 import AboutDialog from './AboutDialog.vue';
 import UpgradeDialog from './upgrade/UpgradeDialog.vue';
@@ -84,6 +84,13 @@ const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) =>
   setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK);
 };
 
+// The device payload (login/activation/refresh) reports the effective UI
+// locale (geekfun#548) — push the initial value before any session request
+// fires, then keep it in sync on language changes.
+const syncUiLocale = () => invoke('set_ui_locale', { locale: currentUiLocaleTag() });
+
+watch(() => lang.global.locale.value, syncUiLocale);
+
 onMounted(async () => {
   if (themeType.value === ThemeType.AUTO) {
     handleSystemThemeChange(sysPreferLight);
@@ -98,6 +105,7 @@ onMounted(async () => {
     checkForUpdates(true);
   });
 
+  await syncUiLocale();
   await sessionLifecycle.start();
 });
 

@@ -282,6 +282,11 @@ pub struct DevicePayload {
     pub name: String,
     pub platform: String,
     pub is_virtual: bool,
+    /// Current UI locale as a BCP-47 tag (geekfun#548); absent when unknown —
+    /// the field is omitted so the payload stays byte-compatible with the
+    /// pre-locale shape (server treats missing as NULL).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ui_locale: Option<String>,
 }
 
 /// Pure composition (unit-testable): primary survives reinstall; VMs mix in
@@ -292,6 +297,7 @@ pub fn compose_payload(
     install_id: &str,
     name: &str,
     platform: &str,
+    ui_locale: Option<&str>,
 ) -> DevicePayload {
     let mut components: BTreeMap<String, String> = identity
         .secondary
@@ -313,13 +319,20 @@ pub fn compose_payload(
         name: name.chars().take(100).collect(),
         platform: platform.to_string(),
         is_virtual: identity.is_virtual,
+        ui_locale: ui_locale.map(str::to_string),
     }
 }
 
-pub fn build_payload(app_data_dir: &Path) -> DevicePayload {
+pub fn build_payload(app_data_dir: &Path, ui_locale: Option<&str>) -> DevicePayload {
     let install_id = load_or_create_install_id(app_data_dir);
     let identity = collect_identity();
-    compose_payload(&identity, &install_id, &hostname(), CURRENT_PLATFORM)
+    compose_payload(
+        &identity,
+        &install_id,
+        &hostname(),
+        CURRENT_PLATFORM,
+        ui_locale,
+    )
 }
 
 #[cfg(target_os = "macos")]
@@ -386,7 +399,7 @@ mod tests {
             secondary: vec![("serial".to_string(), "C02X1234".to_string())],
             is_virtual: false,
         };
-        let payload = compose_payload(&identity, "install-id-1", "MacBook Pro", "macos");
+        let payload = compose_payload(&identity, "install-id-1", "MacBook Pro", "macos", None);
 
         assert_eq!(payload.components.len(), 2);
         assert_eq!(
@@ -415,9 +428,9 @@ mod tests {
             is_virtual: true,
         };
 
-        let host_payload = compose_payload(&host, "install-1", "MacBook Pro", "macos");
-        let vm_payload = compose_payload(&vm, "install-1", "VM", "macos");
-        let vm_clone = compose_payload(&vm, "install-2", "VM", "macos");
+        let host_payload = compose_payload(&host, "install-1", "MacBook Pro", "macos", None);
+        let vm_payload = compose_payload(&vm, "install-1", "VM", "macos", None);
+        let vm_clone = compose_payload(&vm, "install-2", "VM", "macos", None);
 
         assert_ne!(host_payload.fingerprint, vm_payload.fingerprint);
         // A full clone that preserves the platform UUID still diverges via the
@@ -464,10 +477,31 @@ mod tests {
             secondary: vec![],
             is_virtual: false,
         };
-        let payload = compose_payload(&bare, "install-only", "Linux box", "linux");
+        let payload = compose_payload(&bare, "install-only", "Linux box", "linux", None);
 
         assert_eq!(payload.fingerprint, hmac_hex("fallback|install-only"));
         assert_eq!(payload.components.len(), 1);
         assert_eq!(payload.name, "Linux box");
+    }
+
+    #[test]
+    fn ui_locale_is_reported_only_when_known() {
+        let identity = RawIdentity {
+            primary: Some("PLATFORM-UUID".to_string()),
+            secondary: vec![],
+            is_virtual: false,
+        };
+
+        let tagged = compose_payload(&identity, "install", "Mac", "macos", Some("zh-CN"));
+        assert_eq!(tagged.ui_locale.as_deref(), Some("zh-CN"));
+        let json = serde_json::to_value(&tagged).expect("serialize");
+        assert_eq!(json["uiLocale"], "zh-CN");
+
+        let bare = compose_payload(&identity, "install", "Mac", "macos", None);
+        assert!(bare.ui_locale.is_none());
+        // The field is omitted entirely so missing locale stays indistinguishable
+        // from a legacy client that never reports one.
+        let json = serde_json::to_value(&bare).expect("serialize");
+        assert!(json.get("uiLocale").is_none());
     }
 }

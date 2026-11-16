@@ -11,6 +11,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::common::console;
@@ -21,16 +22,62 @@ pub const DEVICE_LIMIT_ERROR_TYPE: &str = "DEVICE_LIMIT_REACHED";
 
 pub struct DeviceIdentityState {
     app_data_dir: PathBuf,
+    /// Current UI locale (BCP-47 tag) pushed from the frontend on startup and
+    /// on language change (geekfun#548) — rides along on every request that
+    /// carries the device payload.
+    ui_locale: Mutex<Option<String>>,
 }
 
 impl DeviceIdentityState {
     pub fn load(app_data_dir: PathBuf) -> Self {
-        DeviceIdentityState { app_data_dir }
+        DeviceIdentityState {
+            app_data_dir,
+            ui_locale: Mutex::new(None),
+        }
+    }
+
+    pub fn set_ui_locale(&self, locale: Option<String>) {
+        *self
+            .ui_locale
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = locale;
+    }
+
+    pub fn ui_locale(&self) -> Option<String> {
+        self.ui_locale
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     pub fn payload(&self) -> device_identity::DevicePayload {
-        device_identity::build_payload(&self.app_data_dir)
+        device_identity::build_payload(&self.app_data_dir, self.ui_locale().as_deref())
     }
+}
+
+/// Accept a BCP-47 tag from the frontend, or none at all: whitespace is
+/// trimmed; anything blank, over 35 chars, or not built from short
+/// alphanumeric subtags resolves to None (the server drops invalid values
+/// anyway — this keeps the payload clean client-side).
+fn normalize_ui_locale(raw: &str) -> Option<String> {
+    let tag = raw.trim();
+    let well_formed = !tag.is_empty()
+        && tag.len() <= 35
+        && tag.split('-').all(|subtag| {
+            !subtag.is_empty()
+                && subtag.len() <= 8
+                && subtag.chars().all(|c| c.is_ascii_alphanumeric())
+        });
+    well_formed.then(|| tag.to_string())
+}
+
+/// Store the currently effective UI locale so the next device-payload-bearing
+/// request (activate / session refresh) reports it. Never fails the caller —
+/// an unusable value simply clears the stored locale.
+#[tauri::command]
+pub fn set_ui_locale(locale: String, state: State<'_, DeviceIdentityState>) -> Result<(), String> {
+    state.set_ui_locale(normalize_ui_locale(&locale));
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -333,7 +380,7 @@ mod tests {
             secondary: vec![],
             is_virtual: false,
         };
-        let composed = device_identity::compose_payload(&identity, "install", "n", "linux");
+        let composed = device_identity::compose_payload(&identity, "install", "n", "linux", None);
 
         let without_replace = activation_body(&composed, None);
         assert!(without_replace.get("replaceDeviceId").is_none());
@@ -341,5 +388,63 @@ mod tests {
 
         let with_replace = activation_body(&composed, Some("dev_9"));
         assert_eq!(with_replace["replaceDeviceId"], "dev_9");
+    }
+
+    #[test]
+    fn ui_locale_normalization_accepts_tags_only() {
+        assert_eq!(
+            normalize_ui_locale("zh-CN").as_deref(),
+            Some("zh-CN"),
+            "canonical tag passes through untouched"
+        );
+        assert_eq!(normalize_ui_locale("  ja-JP  ").as_deref(), Some("ja-JP"));
+        assert!(normalize_ui_locale("").is_none(), "blank is dropped");
+        assert!(
+            normalize_ui_locale("   ").is_none(),
+            "whitespace is dropped"
+        );
+        assert!(
+            normalize_ui_locale(&"a".repeat(36)).is_none(),
+            "over 35 chars is dropped"
+        );
+        assert!(
+            normalize_ui_locale("zh CN").is_none(),
+            "space separator is not a BCP-47 tag"
+        );
+        assert!(
+            normalize_ui_locale("zh--CN").is_none(),
+            "empty subtag is dropped"
+        );
+        assert!(
+            normalize_ui_locale(&format!("{}-CN", "a".repeat(9))).is_none(),
+            "subtags longer than 8 chars are dropped"
+        );
+        assert_eq!(
+            normalize_ui_locale("zh-Hant-TW").as_deref(),
+            Some("zh-Hant-TW"),
+            "multi-subtag tags pass"
+        );
+    }
+
+    #[test]
+    fn stored_ui_locale_rides_on_the_built_payload() {
+        let dir = std::env::temp_dir().join(format!(
+            "dockit-ui-locale-test-{}",
+            uuid::Uuid::new_v4().simple()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let state = DeviceIdentityState::load(dir.clone());
+
+        assert!(state.payload().ui_locale.is_none(), "unset by default");
+
+        state.set_ui_locale(normalize_ui_locale("pt-BR"));
+        assert_eq!(state.payload().ui_locale.as_deref(), Some("pt-BR"));
+
+        // A language change refreshes the stored value for the next request.
+        state.set_ui_locale(normalize_ui_locale("ko-KR"));
+        assert_eq!(state.payload().ui_locale.as_deref(), Some("ko-KR"));
+
+        drop(state);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
