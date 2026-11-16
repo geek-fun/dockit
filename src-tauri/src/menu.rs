@@ -103,7 +103,9 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
     app.set_menu(menu)?; // Set the built menu
 
     app.on_menu_event(move |app_handle: &tauri::AppHandle, event| {
-        let window = app_handle.get_webview_window("main").unwrap();
+        let Some(window) = app_handle.get_webview_window("main") else {
+            return;
+        };
 
         match event.id().0.as_str() {
             #[cfg(not(target_os = "macos"))]
