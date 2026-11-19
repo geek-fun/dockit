@@ -25,7 +25,7 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-system-info = { git = "https://github.com/HuakunShen/tauri-plugin-system-info", rev = "afb2b7fe50f337500937eb946c1204a728353b63" }
 url = "2"
 
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy", "socks"] }
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls", "system-proxy", "socks"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client", "client-proxy", "client-proxy-system"] }
 tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
@@ -39,26 +39,25 @@ aws-smithy-http-client = { version = "1.2", default-features = false, features =
 aws-sdk-sts = { version = "1.103.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 aws-sdk-ssooidc = { version = "1.100.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 aws-sdk-sso = { version = "1.98.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
-base64 = "0.22.1"
+base64 = "0.23.1"
 mongodb = { version = "3.1", features = ["socks5-proxy"] }
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
-hmac = "0.12"
-sha2 = "0.10"
+hmac = "0.13"
+sha2 = "0.11"
 async-trait = "0.1"
-rand = "0.8"
-sqlparser = "0.62"
+sqlparser = "0.64"
 # Use a release tag; Cargo.lock pins the resolved Git revision.
-data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", tag = "v0.2.0" }
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", tag = "v0.2.2" }
 axum = "0.8"
 portpicker = "0.1.1"
 pageant = "0.2"
-russh = "0.60"
+russh = "0.65"
 fast-socks5 = "1.0"
 
 [dev-dependencies]
 wiremock = "0.6"
-mockall = "0.13"
+mockall = "0.15"
 tauri = { version = "2.10", features = ["test"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 tokio-rustls = "0.26"
@@ -74,4 +73,4 @@ tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri-plugin-process = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-system-configuration = "0.7"
+system-configuration = "0.8"
