@@ -47,6 +47,11 @@
     "test:ci": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand --ci --coverage --coverageReporters json-summary text html lcov",
     "build:macos": "tauri build -t universal-apple-darwin"
   },
+  "overrides": {
+    "dompurify": "$dompurify",
+    "glob": "14.0.6",
+    "minimatch": "11.0.9"
+  },
   "dependencies": {
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
