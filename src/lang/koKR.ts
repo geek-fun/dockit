@@ -317,7 +317,7 @@ export const koKR = {
     },
     mcp: {
       saved: '설정이 저장되었습니다',
-      title: 'MCP Bridge',
+      title: 'Data Studio Bridge',
       status: '상태',
       running: '포트 {port}에서 실행 중',
       stopped: '중지됨',

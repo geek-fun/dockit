@@ -318,7 +318,7 @@ export const enUS = {
     },
     mcp: {
       saved: 'Settings saved',
-      title: 'MCP Bridge',
+      title: 'Data Studio Bridge',
       status: 'Status',
       running: 'Running on port {port}',
       stopped: 'Stopped',
