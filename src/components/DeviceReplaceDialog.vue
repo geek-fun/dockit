@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { Laptop, Monitor, MonitorSmartphone, Server } from 'lucide-vue-next';
+import { Laptop, Monitor, MonitorSmartphone, Server } from '@lucide/vue';
 import { useDeviceStore, type DeviceDto } from '../store/deviceStore';
 import { useLang } from '../lang';
 import {

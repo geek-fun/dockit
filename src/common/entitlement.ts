@@ -4,13 +4,7 @@ export const SESSION_REJECTED_ERROR_TYPE = 'SESSION_REJECTED';
 export const UPGRADE_URL = 'https://www.geekfun.club/pricing';
 
 export type PaidFeature =
-  | 'ai'
-  | 'cluster_manage'
-  | 'import_export'
-  | 'ssh_tunnel'
-  | 'proxy'
-  | 'aws_profile'
-  | 'mcp_bridge';
+  'ai' | 'cluster_manage' | 'import_export' | 'ssh_tunnel' | 'proxy' | 'aws_profile' | 'mcp_bridge';
 
 export type EntitlementView = {
   refreshedSession?: {

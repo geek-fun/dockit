@@ -125,7 +125,7 @@
 <script setup lang="ts">
 import { useDialogService, useDialogResult, formatApiError } from '@/composables';
 import { storeToRefs } from 'pinia';
-import { Loader2, X } from 'lucide-vue-next';
+import { Loader2, X } from '@lucide/vue';
 import { jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';

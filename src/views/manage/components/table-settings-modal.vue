@@ -336,7 +336,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import {
   Dialog,
   DialogContent,
@@ -558,10 +558,7 @@ const handleSubmit = async () => {
       await dynamoManageStore.updateStreams(props.connection, props.tableName, {
         enabled: formValue.value.streamsEnabled,
         streamViewType: formValue.value.streamViewType as
-          | 'KEYS_ONLY'
-          | 'NEW_IMAGE'
-          | 'OLD_IMAGE'
-          | 'NEW_AND_OLD_IMAGES',
+          'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES',
       });
       successKey = lang.t('manage.dynamo.updateStreamsSuccess');
     } else if (tab === 'ttl') {

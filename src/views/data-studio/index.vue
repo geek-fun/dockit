@@ -427,11 +427,7 @@ const confirmAddSource = async () => {
       connectionId: Number(conn.id),
       name: conn.name,
       databaseType: conn.type as
-        | 'ELASTICSEARCH'
-        | 'OPENSEARCH'
-        | 'EASYSEARCH'
-        | 'DYNAMODB'
-        | 'MONGODB',
+        'ELASTICSEARCH' | 'OPENSEARCH' | 'EASYSEARCH' | 'DYNAMODB' | 'MONGODB',
       permissions: { read: true, create: false, update: false, delete: false, manage: false },
     });
     if (!dataStudioStore.activeSession) await dataStudioStore.getOrCreateSession([]);

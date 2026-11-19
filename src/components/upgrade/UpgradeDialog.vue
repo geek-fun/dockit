@@ -108,7 +108,7 @@ import { storeToRefs } from 'pinia';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Check, CircleSlash, KeyRound, RefreshCw, ShieldCheck, Sparkles } from 'lucide-vue-next';
+import { Check, CircleSlash, KeyRound, RefreshCw, ShieldCheck, Sparkles } from '@lucide/vue';
 import { type PaidFeature, UPGRADE_URL } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
 import { authService } from '../../datasources';

@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Connection,

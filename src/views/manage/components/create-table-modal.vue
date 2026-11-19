@@ -1006,7 +1006,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, reactive } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import {
   Dialog,
   DialogContent,
@@ -1119,10 +1119,7 @@ const formValue = reactive({
   streamSpecification: {
     streamEnabled: false,
     streamViewType: 'NEW_AND_OLD_IMAGES' as
-      | 'KEYS_ONLY'
-      | 'NEW_IMAGE'
-      | 'OLD_IMAGE'
-      | 'NEW_AND_OLD_IMAGES',
+      'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES',
   },
   sseSpecification: {
     enabled: false,
