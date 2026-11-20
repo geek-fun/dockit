@@ -333,7 +333,7 @@ export const zhCN = {
       statusLoadFailed: 'MCP 桥接状态加载失败',
       copyUrl: '复制 MCP 桥接地址',
       portFallback: '端口 {configured} 被占用，MCP 桥接已改用 {actual}。',
-      sessions: '{count} 个会话 — {clients}',
+      sessions: '{count} 个会话 — {clients} | {count} 个会话 — {clients}',
       sessionsEmpty: '把 Data Studio MCP 添加到你的 AI 工具（见下方指引）。',
       serverTitle: 'DocKit MCP Server',
       serverDesc: 'DocKit 暴露给 AI 客户端的 MCP 工具目录。',

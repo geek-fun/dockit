@@ -338,7 +338,7 @@ export const zhTW = {
       statusLoadFailed: '無法載入 MCP Bridge 狀態',
       copyUrl: '複製 Bridge 地址',
       portFallback: '連接埠 {configured} 被佔用，Bridge 已改用 {actual}。',
-      sessions: '{count} 個會話 — {clients}',
+      sessions: '{count} 個會話 — {clients} | {count} 個會話 — {clients}',
       sessionsEmpty: '將 Data Studio MCP 加入你的 AI 工具（見下方指引）。',
       serverTitle: 'DocKit MCP Server',
       serverDesc: 'DocKit 暴露給 AI 用戶端的 MCP 工具目錄。',
