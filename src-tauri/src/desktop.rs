@@ -6,46 +6,31 @@ use tauri::tray::{TrayIcon, TrayIconBuilder};
 use tauri::{App, AppHandle, Manager, WindowEvent, Wry};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
-use crate::mcp_bridge::{BridgeStopReason, McpSessionRegistry};
+use crate::mcp_bridge::BridgeStopReason;
 
 const MAIN_WINDOW: &str = "main";
 const SHOW_WINDOW: &str = "tray-show-window";
+const UNLOCK_BRIDGE: &str = "tray-unlock-bridge";
 const COPY_BRIDGE_URL: &str = "tray-copy-bridge-url";
 const QUIT: &str = "tray-quit";
 const STATUS_REFRESH: Duration = Duration::from_secs(5);
-/// Client names rendered on one tray line; the rest collapses into "+N".
-const MAX_CLIENTS_DISPLAYED: usize = 3;
 
-/// Localized tray copy. Product nouns ("Data Studio Bridge", backend client
+/// Localized tray copy. Product nouns ("MCP Bridge", backend client
 /// names) stay untranslated; only the status phrasing is localized.
 struct TrayLabels {
     show_window: &'static str,
     quit: &'static str,
     copy_url: &'static str,
-    /// "{}" → port
     bridge_running: &'static str,
     bridge_stopped: &'static str,
     bridge_stopped_gate: &'static str,
-    /// "{count}" → session count, "{clients}" → client names
-    server_sessions: &'static str,
-    /// "{}" → seconds since last anonymous request
-    server_anonymous: &'static str,
-    server_none: &'static str,
+    /// Action item shown under the gated-stop status; "…" = opens a dialog.
+    unlock: &'static str,
 }
 
 impl TrayLabels {
     fn bridge_running_line(&self, port: u16) -> String {
         self.bridge_running.replace("{}", &port.to_string())
-    }
-
-    fn server_sessions_line(&self, count: usize, clients: &str) -> String {
-        self.server_sessions
-            .replace("{count}", &count.to_string())
-            .replace("{clients}", clients)
-    }
-
-    fn server_anonymous_line(&self, secs: u64) -> String {
-        self.server_anonymous.replace("{}", &secs.to_string())
     }
 }
 
@@ -58,79 +43,65 @@ fn tray_labels(locale: &str) -> TrayLabels {
                 show_window: "顯示視窗",
                 quit: "結束",
                 copy_url: "複製 Bridge 地址",
-                bridge_running: "運行中（連接埠 {}）",
-                bridge_stopped: "已停止",
-                bridge_stopped_gate: "已停止（需要訂閱）",
-                server_sessions: "{count} 個會話 — {clients}",
-                server_anonymous: "活躍（{} 秒前有活動）",
-                server_none: "無活躍會話",
+                bridge_running: "MCP Bridge：運行中（連接埠 {}）",
+                bridge_stopped: "MCP Bridge：已停止",
+                bridge_stopped_gate: "MCP Bridge：已停止（需要訂閱）",
+                unlock: "解鎖 MCP Bridge…",
             }
         }
         Some("zh") => TrayLabels {
             show_window: "显示窗口",
             quit: "退出",
             copy_url: "复制 Bridge 地址",
-            bridge_running: "运行中（端口 {}）",
-            bridge_stopped: "已停止",
-            bridge_stopped_gate: "已停止（需要订阅）",
-            server_sessions: "{count} 个会话 — {clients}",
-            server_anonymous: "活跃（{} 秒前有活动）",
-            server_none: "无活跃会话",
+            bridge_running: "MCP 桥接：运行中（端口 {}）",
+            bridge_stopped: "MCP 桥接：已停止",
+            bridge_stopped_gate: "MCP 桥接：已停止（需要订阅）",
+            unlock: "解锁 MCP 桥接…",
         },
         Some("pt") => TrayLabels {
             show_window: "Mostrar janela",
             quit: "Sair",
             copy_url: "Copiar URL do Bridge",
-            bridge_running: "Em execução (porta {})",
-            bridge_stopped: "Parado",
-            bridge_stopped_gate: "Parado (assinatura necessária)",
-            server_sessions: "{count} sessão(ões) — {clients}",
-            server_anonymous: "ativo (visto há {}s)",
-            server_none: "sem sessões ativas",
+            bridge_running: "Ponte MCP: em execução (porta {})",
+            bridge_stopped: "Ponte MCP: parado",
+            bridge_stopped_gate: "Ponte MCP: parado (assinatura necessária)",
+            unlock: "Desbloquear Ponte MCP…",
         },
         Some("ja") => TrayLabels {
             show_window: "ウィンドウを表示",
             quit: "終了",
             copy_url: "Bridge URL をコピー",
-            bridge_running: "実行中（ポート {}）",
-            bridge_stopped: "停止中",
-            bridge_stopped_gate: "停止中（サブスクリプションが必要）",
-            server_sessions: "{count} セッション — {clients}",
-            server_anonymous: "アクティブ（{} 秒前に活動）",
-            server_none: "アクティブなセッションなし",
+            bridge_running: "MCPブリッジ：実行中（ポート {}）",
+            bridge_stopped: "MCPブリッジ：停止中",
+            bridge_stopped_gate: "MCPブリッジ：停止中（サブスクリプションが必要）",
+            unlock: "MCPブリッジを解錠…",
         },
         Some("ko") => TrayLabels {
             show_window: "창 표시",
             quit: "종료",
             copy_url: "Bridge URL 복사",
-            bridge_running: "실행 중 (포트 {})",
-            bridge_stopped: "중지됨",
-            bridge_stopped_gate: "중지됨 (구독 필요)",
-            server_sessions: "{count}개 세션 — {clients}",
-            server_anonymous: "활성 ({}초 전 활동)",
-            server_none: "활성 세션 없음",
+            bridge_running: "MCP 브리지: 실행 중 (포트 {})",
+            bridge_stopped: "MCP 브리지: 중지됨",
+            bridge_stopped_gate: "MCP 브리지: 중지됨 (구독 필요)",
+            unlock: "MCP 브리지 잠금 해제…",
         },
         Some("es") => TrayLabels {
             show_window: "Mostrar ventana",
             quit: "Salir",
             copy_url: "Copiar URL del Bridge",
-            bridge_running: "En ejecución (puerto {})",
-            bridge_stopped: "Detenido",
-            bridge_stopped_gate: "Detenido (se requiere suscripción)",
-            server_sessions: "{count} sesión(es) — {clients}",
-            server_anonymous: "activo (visto hace {}s)",
-            server_none: "sin sesiones activas",
+            bridge_running: "Puente MCP: en ejecución (puerto {})",
+            bridge_stopped: "Puente MCP: detenido",
+            bridge_stopped_gate: "Puente MCP: detenido (se requiere suscripción)",
+            unlock: "Desbloquear Puente MCP…",
         },
         _ => TrayLabels {
             show_window: "Show Window",
             quit: "Quit",
             copy_url: "Copy Bridge URL",
-            bridge_running: "Running (port {})",
-            bridge_stopped: "Stopped",
-            bridge_stopped_gate: "Stopped (subscription required)",
-            server_sessions: "{count} session(s) — {clients}",
-            server_anonymous: "active (last seen {}s ago)",
-            server_none: "no active sessions",
+            bridge_running: "MCP Bridge: Running (port {})",
+            bridge_stopped: "MCP Bridge: Stopped",
+            bridge_stopped_gate: "MCP Bridge: Stopped (subscription required)",
+            unlock: "Unlock MCP Bridge…",
         },
     }
 }
@@ -141,7 +112,7 @@ fn tray_labels(locale: &str) -> TrayLabels {
 struct TrayStatusItems {
     tray: TrayIcon<Wry>,
     bridge_line: MenuItem<Wry>,
-    server_line: MenuItem<Wry>,
+    unlock_line: MenuItem<Wry>,
     copy_url: MenuItem<Wry>,
     labels: TrayLabels,
     app_name: String,
@@ -215,14 +186,15 @@ fn create_tray(app: &App) -> Result<TrayStatusItems, Box<dyn std::error::Error>>
     let labels = tray_labels(&locale);
     let app_name = app.package_info().name.clone();
 
+    // Inert status line — its id is never matched; the unlock item below carries the click.
     let bridge_line = MenuItem::with_id(app, "tray-bridge-status", "", false, None::<&str>)?;
-    let server_line = MenuItem::with_id(app, "tray-server-status", "", false, None::<&str>)?;
+    let unlock_line = MenuItem::with_id(app, UNLOCK_BRIDGE, labels.unlock, false, None::<&str>)?;
     let copy_url = MenuItem::with_id(app, COPY_BRIDGE_URL, labels.copy_url, true, None::<&str>)?;
     let show = MenuItem::with_id(app, SHOW_WINDOW, labels.show_window, true, None::<&str>)?;
     let quit = MenuItem::with_id(app, QUIT, labels.quit, true, None::<&str>)?;
     let menu = MenuBuilder::new(app)
         .item(&bridge_line)
-        .item(&server_line)
+        .item(&unlock_line)
         .item(&copy_url)
         .separator()
         .item(&show)
@@ -237,6 +209,11 @@ fn create_tray(app: &App) -> Result<TrayStatusItems, Box<dyn std::error::Error>>
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             SHOW_WINDOW => show_main_window(app),
+            UNLOCK_BRIDGE => {
+                show_main_window(app);
+                use tauri::Emitter;
+                let _ = app.emit("mcp-bridge://subscription", ());
+            }
             COPY_BRIDGE_URL => copy_bridge_url(app),
             QUIT => app.exit(0),
             _ => {}
@@ -246,7 +223,7 @@ fn create_tray(app: &App) -> Result<TrayStatusItems, Box<dyn std::error::Error>>
     Ok(TrayStatusItems {
         tray,
         bridge_line,
-        server_line,
+        unlock_line,
         copy_url,
         labels,
         app_name,
@@ -277,56 +254,17 @@ fn refresh_status_lines(app: &AppHandle, items: &TrayStatusItems) {
         }
     };
 
-    let server_text = app
-        .try_state::<McpSessionRegistry>()
-        .map(|registry| server_line(&registry, &items.labels))
-        .unwrap_or_else(|| items.labels.server_none.to_string());
-
+    // The "Unlock …" action item appears only under the gated-stop status —
+    // the status line itself stays inert; the action item carries the click.
+    let gated_stop = running_port.is_none() && bridge_text == items.labels.bridge_stopped_gate;
     let _ = items.bridge_line.set_text(&bridge_text);
-    let _ = items.server_line.set_text(&server_text);
+    let _ = items.unlock_line.set_enabled(gated_stop);
     let _ = items.copy_url.set_enabled(running_port.is_some());
     let tooltip = match running_port {
-        Some(port) => format!("{} — Data Studio Bridge on :{port}", items.app_name),
+        Some(port) => format!("{} — MCP Bridge on :{port}", items.app_name),
         None => items.app_name.clone(),
     };
     let _ = items.tray.set_tooltip(Some(tooltip));
-}
-
-fn server_line(registry: &McpSessionRegistry, labels: &TrayLabels) -> String {
-    let sessions = registry.live_sessions();
-    if sessions.is_empty() {
-        return registry
-            .anonymous_age_secs()
-            .map(|secs| labels.server_anonymous_line(secs))
-            .unwrap_or_else(|| labels.server_none.to_string());
-    }
-
-    let names: Vec<String> = sessions
-        .iter()
-        .map(|entry| {
-            entry
-                .client
-                .clone()
-                .or_else(|| {
-                    entry
-                        .version
-                        .clone()
-                        .map(|v| format!("data-studio-mcp/{v}"))
-                })
-                .unwrap_or_else(|| "data-studio-mcp".to_string())
-        })
-        .collect();
-    let shown = &names[..names.len().min(MAX_CLIENTS_DISPLAYED)];
-    let clients = if names.len() > MAX_CLIENTS_DISPLAYED {
-        format!(
-            "{} +{}",
-            shown.join(", "),
-            names.len() - MAX_CLIENTS_DISPLAYED
-        )
-    } else {
-        shown.join(", ")
-    };
-    labels.server_sessions_line(names.len(), &clients)
 }
 
 fn copy_bridge_url(app: &AppHandle) {

@@ -804,11 +804,35 @@ pub async fn get_mcp_status(app: AppHandle) -> Result<String, String> {
     let config = read_permission_config(&app_data_dir)?;
     let running_port = get_actual_port(&app_data_dir);
 
+    let stop_reason = app.try_state::<BridgeStopStatus>().and_then(|status| {
+        (*status.reason.lock().unwrap()).map(|reason| match reason {
+            BridgeStopReason::SubscriptionRequired => "subscriptionRequired",
+        })
+    });
+    let sessions: Vec<Value> = app
+        .try_state::<McpSessionRegistry>()
+        .map(|registry| {
+            registry
+                .live_sessions()
+                .iter()
+                .map(|entry| {
+                    json!({
+                        "client": entry.client,
+                        "version": entry.version,
+                        "lastSeenSecs": entry.last_seen.elapsed().as_secs(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     let status = json!({
         "running": running_port.is_some(),
         "port": running_port,
         "configuredPort": config.port,
         "autoStart": config.auto_start,
+        "stopReason": stop_reason,
+        "sessions": sessions,
         "policy": serde_json::to_value(&config.policy).map_err(|e| e.to_string())?,
     });
 

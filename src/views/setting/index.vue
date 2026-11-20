@@ -48,7 +48,10 @@
               <aigc />
             </PaidGate>
           </TabsContent>
-          <TabsContent value="MCP" class="m-0 flex-1 flex flex-col">
+          <TabsContent value="MCP" class="m-0 flex-1 flex flex-col gap-6">
+            <!-- Bridge status stays outside the gate: users without an active
+                 subscription need the "why is it stopped" answer most. -->
+            <bridge-status />
             <PaidGate feature="mcp_bridge" compact>
               <mcp-bridge />
             </PaidGate>
@@ -68,6 +71,7 @@ import EditorSetting from './components/editor.vue';
 import Aigc from './components/aigc.vue';
 import AboutUs from './components/about-us.vue';
 import McpBridge from './components/mcp-bridge.vue';
+import BridgeStatus from './components/bridge-status.vue';
 import { PaidGate } from '@/components/upgrade';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 </script>
