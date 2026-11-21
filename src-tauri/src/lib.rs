@@ -63,6 +63,9 @@ struct AuthPayload {
     username: Option<String>,
     email: Option<String>,
     avatar: Option<String>,
+    // unix seconds — signature expiry of `avatar` when the console provides it
+    #[serde(rename = "avatarExpiresAt")]
+    avatar_expires_at: Option<i64>,
 }
 
 fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
@@ -79,12 +82,16 @@ fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
     let username = params.get("username").map(|v| v.to_string());
     let email = params.get("email").map(|v| v.to_string());
     let avatar = params.get("avatar").map(|v| v.to_string());
+    let avatar_expires_at = params
+        .get("avatarExpiresAt")
+        .and_then(|v| v.parse::<i64>().ok());
     Some(AuthPayload {
         token,
         user_id,
         username,
         email,
         avatar,
+        avatar_expires_at,
     })
 }
 
@@ -206,6 +213,7 @@ pub fn run() {
             crate::entitlement::clear_entitlement,
             crate::session::rotate_session_now,
             crate::session::revoke_session,
+            crate::session::refresh_avatar,
             crate::device_activation::activate_device,
             crate::device_activation::set_ui_locale,
             crate::mcp_bridge::get_mcp_status,
