@@ -132,7 +132,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { Loader2, Sparkles } from 'lucide-vue-next';
@@ -155,9 +155,10 @@ const recovering = ref(false);
 
 const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar, import.meta.env.DEV));
 
-// A dead signature renders blank — fall back and re-sign once per failed URL.
 const avatarBroken = ref(false);
-const avatarFailure = createAvatarFailureGuard();
+const avatarFailure = createAvatarFailureGuard(() => {
+  avatarBroken.value = false;
+});
 
 const avatarRenderable = computed(() => isSafeAvatar.value && !avatarBroken.value);
 
@@ -167,11 +168,14 @@ const onAvatarError = () => {
 };
 
 watch(
-  () => userStore.avatar,
-  url => {
-    if (avatarFailure.hasRecovered(url)) avatarBroken.value = false;
+  [() => userStore.avatar, () => userStore.sessionRevision],
+  ([, revision], [, previousRevision]) => {
+    if (revision === previousRevision) avatarFailure.cancelRetry();
+    else avatarFailure.reset();
+    avatarBroken.value = false;
   },
 );
+onBeforeUnmount(avatarFailure.cancelRetry);
 
 const badgeVariant = computed(() => {
   // A dead session degrades the badge — the cached entitlement is no longer

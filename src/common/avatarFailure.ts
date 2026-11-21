@@ -1,20 +1,29 @@
-/**
- * One re-sign attempt per failed avatar URL; the marker is deliberately
- * ephemeral so a network hiccup is retried on the next session.
- */
-type AvatarFailureGuard = {
-  recordFailed: (url: string) => boolean;
-  hasRecovered: (url: string) => boolean;
-};
+const AVATAR_IMAGE_RETRY_DELAY_MS = 2000;
 
-export const createAvatarFailureGuard = (): AvatarFailureGuard => {
+export const createAvatarFailureGuard = (retryImage: () => void) => {
   let failedUrl = '';
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const cancelRetry = () => {
+    clearTimeout(retryTimer);
+    retryTimer = undefined;
+  };
+
   return {
-    recordFailed: url => {
+    recordFailed: (url: string) => {
       if (!url || url === failedUrl) return false;
+      cancelRetry();
       failedUrl = url;
+      retryTimer = setTimeout(() => {
+        retryTimer = undefined;
+        retryImage();
+      }, AVATAR_IMAGE_RETRY_DELAY_MS);
       return true;
     },
-    hasRecovered: url => url !== failedUrl,
+    cancelRetry,
+    reset: () => {
+      cancelRetry();
+      failedUrl = '';
+    },
   };
 };
