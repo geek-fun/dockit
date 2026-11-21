@@ -10,10 +10,7 @@ export const useUserStore = defineStore('user', {
     /** Console account identity, delivered by the web login deep link. */
     userId: '',
     avatar: '',
-    /**
-     * Signature expiry of `avatar` (unix seconds, 0 = unknown). Drives the
-     * renewal timer in avatarRefresh; renewed like the session tokens.
-     */
+    /** Signature expiry of `avatar` (unix seconds, 0 = unknown). */
     avatarExpiresAt: 0,
     username: '',
     email: '',
@@ -68,7 +65,6 @@ export const useUserStore = defineStore('user', {
       // A web login has no device lease yet — never carry one over.
       this.refreshToken = '';
     },
-    /** Renewal write-back from avatarRefresh — the only other avatar writer. */
     setAvatar(avatar: string, avatarExpiresAt = 0): void {
       this.avatar = avatar;
       this.avatarExpiresAt = avatarExpiresAt;

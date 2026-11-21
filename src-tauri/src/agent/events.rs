@@ -142,10 +142,9 @@ mod tests {
         }
     }
 
-    // The in-process model server and the agent loop share this runtime; the
-    // default single-thread flavor lets the loop's synchronous stretches
-    // (sqlite, JSON) starve the server task, which under llvm-cov on slow CI
-    // runners once pushed the run past the outer timeout (Elapsed flake).
+    // Multi-thread flavor: the default single-thread runtime lets the loop's
+    // synchronous stretches starve the in-process model server, which under
+    // llvm-cov on slow CI runners once blew the outer timeout (Elapsed flake).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn denied_preflight_persists_result_and_stops_before_another_model_turn() {
         use async_trait::async_trait;

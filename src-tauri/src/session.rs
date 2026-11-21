@@ -180,9 +180,8 @@ fn parse_avatar_envelope(raw: serde_json::Value) -> Result<AvatarRefresh, String
     })
 }
 
-/// Fresh signed URL for the account avatar. The avatar is an expiring OSS
-/// signature — the frontend renews it on the same schedule as session
-/// tokens, so this must stay cheap and stateless (no caching here).
+/// Fresh signed URL for the account avatar — the frontend renews it on the
+/// session schedule, so this stays cheap and stateless (no caching here).
 #[tauri::command]
 pub async fn refresh_avatar(token: String, user_id: String) -> Result<AvatarRefresh, String> {
     let token = token.trim();
