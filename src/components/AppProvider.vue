@@ -19,13 +19,13 @@ import {
   useEntitlementStore,
   useUserStore,
 } from '../store';
-import { createSessionLifecycle } from '../common';
 import {
-  cancelAvatarRenewal,
   configureAvatarRefresh,
+  createSessionLifecycle,
   ensureFreshAvatar,
   parseJwtStringClaim,
   resolveAvatarExpiresSec,
+  type AvatarRefreshPorts,
 } from '../common';
 import { useAppUpdater, useMessageService } from '@/composables';
 import { currentUiLocaleTag, lang } from '../lang';
@@ -50,8 +50,11 @@ let checkForUpdatesListener: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
-configureAvatarRefresh({
-  read: () => ({ url: userStore.avatar, expiresAtSec: userStore.avatarExpiresAt }),
+const avatarRefreshPorts: AvatarRefreshPorts = {
+  read: () =>
+    userStore.isLoggedIn
+      ? { url: userStore.avatar, expiresAtSec: userStore.avatarExpiresAt }
+      : null,
   apply: (url, expiresAtSec) => userStore.setAvatar(url, expiresAtSec),
   fetch: async () => {
     // Handoffs from older console builds can omit userId — the JWT carries
@@ -66,7 +69,16 @@ configureAvatarRefresh({
     );
     return { avatarUrl: result.avatarUrl ?? '', expiresAtSec: result.expiresAt ?? null };
   },
-});
+};
+
+watch(
+  () => userStore.sessionRevision,
+  () => configureAvatarRefresh(avatarRefreshPorts),
+  {
+    immediate: true,
+    flush: 'sync',
+  },
+);
 
 const sessionLifecycle = createSessionLifecycle({
   syncUiLocale: () => invoke<void>('set_ui_locale', { locale: currentUiLocaleTag() }),
@@ -137,7 +149,7 @@ onUnmounted(() => {
   showAboutListener?.();
   checkForUpdatesListener?.();
   sessionLifecycle.dispose();
-  cancelAvatarRenewal();
+  configureAvatarRefresh(null);
 });
 
 // Definite session loss (lease rejected, or bearer dead without a lease) is

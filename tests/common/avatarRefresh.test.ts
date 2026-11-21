@@ -37,6 +37,15 @@ const fixture = (url = '', expiresAtSec = 0): Fixture => {
   return { ports, read: snapshot };
 };
 
+const pendingAvatarResponse = () => {
+  type Response = Awaited<ReturnType<AvatarRefreshPorts['fetch']>>;
+  let resolve!: (_value: Response) => void;
+  const promise = new Promise<Response>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
 describe('avatarRefresh', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -86,6 +95,50 @@ describe('avatarRefresh', () => {
       const [first, second] = await Promise.all([refreshAvatar(), refreshAvatar()]);
       expect(ports.fetch).toHaveBeenCalledTimes(1);
       expect(second).toBe(first);
+    });
+
+    it('discards a previous account response without disturbing the new refresh', async () => {
+      const { ports, read } = fixture();
+      const previousResponse = pendingAvatarResponse();
+      const currentResponse = pendingAvatarResponse();
+      jest
+        .mocked(ports.fetch)
+        .mockReturnValueOnce(previousResponse.promise)
+        .mockReturnValueOnce(currentResponse.promise);
+      const previous = refreshAvatar();
+      configureAvatarRefresh(ports);
+      const current = refreshAvatar();
+
+      previousResponse.resolve({
+        avatarUrl: 'https://oss/previous.webp',
+        expiresAtSec: FRESH_EXPIRES_SEC,
+      });
+      await expect(previous).resolves.toEqual({ ok: false, url: '', changed: false });
+      expect(ports.apply).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+      expect(refreshAvatar()).toBe(current);
+      expect(ports.fetch).toHaveBeenCalledTimes(2);
+
+      currentResponse.resolve({ avatarUrl: FRESH_URL, expiresAtSec: FRESH_EXPIRES_SEC });
+      await current;
+      expect(read.url).toBe(FRESH_URL);
+    });
+
+    it('discards a response arriving after logout and skips anonymous requests', async () => {
+      const { ports } = fixture();
+      const response = pendingAvatarResponse();
+      jest.mocked(ports.fetch).mockReturnValueOnce(response.promise);
+      const pending = refreshAvatar();
+      jest.mocked(ports.read).mockReturnValue(null);
+      configureAvatarRefresh(ports);
+      response.resolve({ avatarUrl: FRESH_URL, expiresAtSec: FRESH_EXPIRES_SEC });
+
+      await expect(pending).resolves.toEqual({ ok: false, url: '', changed: false });
+      await expect(ensureFreshAvatar()).resolves.toBeNull();
+      await expect(refreshAvatar()).resolves.toMatchObject({ ok: false });
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      expect(ports.apply).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
     });
 
     it('keeps the previous URL when the fetch fails', async () => {
@@ -197,6 +250,18 @@ describe('avatarRefresh', () => {
       await refreshAvatar();
       configureAvatarRefresh(null);
       jest.advanceTimersByTime(30 * 24 * 3600 * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels a pending retry when a new session uses the same ports', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      jest.mocked(ports.fetch).mockRejectedValueOnce(new Error('offline'));
+      await refreshAvatar();
+      expect(jest.getTimerCount()).toBe(1);
+
+      configureAvatarRefresh(ports);
+      expect(jest.getTimerCount()).toBe(0);
+      jest.advanceTimersByTime(AVATAR_RENEW_MIN_DELAY_SEC * 1000);
       expect(ports.fetch).toHaveBeenCalledTimes(1);
     });
   });
