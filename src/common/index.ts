@@ -16,6 +16,9 @@ export * from './entitlement';
 export * from './sessionPhase';
 export * from './connectQuery';
 export * from './sessionExpiry';
+export * from './avatarExpiry';
+export * from './avatarFailure';
+export * from './avatarRefresh';
 
 export * from './aiPermissions';
 

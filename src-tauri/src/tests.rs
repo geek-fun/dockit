@@ -69,6 +69,7 @@ fn pending_auth_is_single_shot_and_last_write_wins() {
         username: Some("ada".to_string()),
         email: None,
         avatar: None,
+        avatar_expires_at: None,
     });
     let delivered = state.consume().expect("pending auth");
     assert_eq!(delivered.token, "t-1");
@@ -82,6 +83,7 @@ fn pending_auth_is_single_shot_and_last_write_wins() {
         username: None,
         email: None,
         avatar: None,
+        avatar_expires_at: None,
     });
     state.store(crate::AuthPayload {
         token: "t-2".to_string(),
@@ -89,6 +91,7 @@ fn pending_auth_is_single_shot_and_last_write_wins() {
         username: None,
         email: None,
         avatar: None,
+        avatar_expires_at: None,
     });
     assert_eq!(state.consume().expect("pending auth").token, "t-2");
     assert!(state.consume().is_none());

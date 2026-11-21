@@ -142,7 +142,10 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    // Multi-thread flavor: the default single-thread runtime lets the loop's
+    // synchronous stretches starve the in-process model server, which under
+    // llvm-cov on slow CI runners once blew the outer timeout (Elapsed flake).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn denied_preflight_persists_result_and_stops_before_another_model_turn() {
         use async_trait::async_trait;
         use data_studio_agent::{
@@ -204,7 +207,7 @@ mod tests {
         };
         let settings = json!({"baseUrl":format!("http://{address}"),"model":"gpt-4o-mini","apiKey":"synthetic","proxyMode":"none","tools":[{"type":"function","function":{"name":"es__create_index","parameters":{"type":"object"}}}],"maxIterations":3});
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
+            std::time::Duration::from_secs(120),
             data_studio_agent::loop_runner::run_agent_loop(
                 "chat",
                 "Create example",
