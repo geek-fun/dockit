@@ -24,17 +24,20 @@ const ALLOWED_AVATAR_HOSTS = [
   'console.geekfun.club',
   'console-geekfun.wentsen.com',
   ...AVATAR_MEDIA_HOSTS,
-  ...(import.meta.env.DEV ? ['localhost'] : []),
 ];
 
-export const isSafeAvatarUrl = (url: string): boolean => {
+/** Render only https URLs on an exact-match allowlist — a handoff value is
+ * still remote input; `allowDevHosts` enables the local dev console. */
+export const isSafeAvatarUrl = (url: string, allowDevHosts = false): boolean => {
   try {
     const parsed = new URL(url);
     // Only allow exact hostname matches — no subdomain wildcards
-    return (
-      (parsed.protocol === 'https:' || (import.meta.env.DEV && parsed.protocol === 'http:')) &&
-      ALLOWED_AVATAR_HOSTS.includes(parsed.hostname)
-    );
+    const hostAllowed =
+      ALLOWED_AVATAR_HOSTS.includes(parsed.hostname) ||
+      (allowDevHosts && parsed.hostname === 'localhost');
+    const protocolAllowed =
+      parsed.protocol === 'https:' || (allowDevHosts && parsed.protocol === 'http:');
+    return hostAllowed && protocolAllowed;
   } catch {
     return false;
   }

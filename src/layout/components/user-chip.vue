@@ -142,7 +142,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import DefaultAvatar from '@/components/DefaultAvatar.vue';
 import { openUpgradeDialog } from '@/components/upgrade';
 import { authService, isSafeAvatarUrl } from '../../datasources/authService';
-import { refreshAvatar } from '../../common';
+import { createAvatarFailureGuard, refreshAvatar } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
 
 const { t } = useI18n();
@@ -153,27 +153,23 @@ const { view } = storeToRefs(entitlementStore);
 const open = ref(false);
 const recovering = ref(false);
 
-const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar));
+const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar, import.meta.env.DEV));
 
-// A dead signature renders as a blank box — fall back to the default avatar
-// and ask for a re-signed URL once per failed URL, never in a loop.
+// A dead signature renders blank — fall back and re-sign once per failed URL.
 const avatarBroken = ref(false);
-const lastFailedAvatar = ref('');
+const avatarFailure = createAvatarFailureGuard();
 
 const avatarRenderable = computed(() => isSafeAvatar.value && !avatarBroken.value);
 
 const onAvatarError = () => {
   avatarBroken.value = true;
-  if (userStore.avatar && userStore.avatar !== lastFailedAvatar.value) {
-    lastFailedAvatar.value = userStore.avatar;
-    void refreshAvatar();
-  }
+  if (avatarFailure.recordFailed(userStore.avatar)) void refreshAvatar();
 };
 
 watch(
   () => userStore.avatar,
   url => {
-    if (url !== lastFailedAvatar.value) avatarBroken.value = false;
+    if (avatarFailure.hasRecovered(url)) avatarBroken.value = false;
   },
 );
 
