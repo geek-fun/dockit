@@ -28,13 +28,19 @@ describe('avatarExpiry', () => {
   });
 
   describe('resolveAvatarExpiresSec', () => {
-    it('prefers the stored value over URL parsing', () => {
-      expect(resolveAvatarExpiresSec(signedUrl(100), 200)).toBe(200);
+    it("trusts the signature's Expires over the stored value", () => {
+      expect(resolveAvatarExpiresSec(signedUrl(100), 200)).toBe(100);
     });
 
-    it('falls back to the URL when the store has no value', () => {
-      expect(resolveAvatarExpiresSec(signedUrl(100), 0)).toBe(100);
+    it('falls back to the stored expiry only for unsigned URLs', () => {
+      expect(resolveAvatarExpiresSec('https://oss.example.com/avatars/u-1.webp', 200)).toBe(200);
       expect(resolveAvatarExpiresSec('/avatars/u-1.webp', 0)).toBeNull();
+    });
+
+    it('ignores an implausible stored value such as milliseconds', () => {
+      expect(
+        resolveAvatarExpiresSec('https://oss.example.com/avatars/u-1.webp', 1_792_916_106_000),
+      ).toBeNull();
     });
   });
 
@@ -59,6 +65,10 @@ describe('avatarExpiry', () => {
 
     it('treats an unresolvable expiry as due', () => {
       expect(shouldRefreshAvatar('/avatars/u-1.webp', 0, NOW)).toBe(true);
+    });
+
+    it('is due when the signature expired even if the stored value claims otherwise', () => {
+      expect(shouldRefreshAvatar(signedUrl(NOW - 1), NOW + 10_000, NOW)).toBe(true);
     });
   });
 });

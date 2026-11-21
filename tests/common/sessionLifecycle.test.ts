@@ -293,4 +293,13 @@ describe('session startup and handoff', () => {
     await expect(f.lifecycle.start()).resolves.toBeUndefined();
     expect(f.ports.refresh).toHaveBeenCalledTimes(1);
   });
+
+  it('does not wait for a slow avatar calibration to finish the handoff', async () => {
+    const f = fixture();
+    jest.mocked(f.ports.consumeAuth).mockResolvedValue({ token: 'handoff' });
+    jest.mocked(f.ports.ensureFreshAvatar).mockReturnValue(new Promise(() => {}));
+    await expect(f.lifecycle.start()).resolves.toBeUndefined();
+    expect(f.ports.ensureFreshAvatar).toHaveBeenCalledTimes(1);
+    expect(f.ports.refresh).toHaveBeenCalledTimes(1);
+  });
 });

@@ -1,10 +1,7 @@
 /**
- * Avatar URL expiry (mirror of sessionExpiry.ts for the avatar credential).
- *
- * The console hands off the avatar as an OSS-signed URL — a time-limited
- * credential stored in a metadata slot. The V1 signature embeds its expiry
- * as the `Expires` query parameter (unix seconds), which is the only expiry
- * signal available until the backend returns an explicit `expiresAt`.
+ * Avatar URL expiry — the OSS V1 signature's `Expires` query parameter
+ * (unix seconds) is the authoritative signal; a stored `expiresAt` only
+ * fills in for URLs without a signature.
  */
 
 /** Renew this far before the signature expires (mirrors the backend cache). */
@@ -21,17 +18,21 @@ export const parseSignedUrlExpiresSec = (url: string): number | null => {
   }
 };
 
-/** Store value wins; a legacy handoff without one falls back to URL parsing. */
+/** Unix seconds above this are milliseconds or junk (~year 5138). */
+const MAX_PLAUSIBLE_EXPIRES_SEC = 10 ** 11;
+
+/** The signature's own `Expires` is what the storage enforces; a stored value
+ * only fills in for unsigned URLs and is rejected when implausible. */
 export const resolveAvatarExpiresSec = (url: string, storedExpiresSec: number): number | null => {
-  if (storedExpiresSec > 0) return storedExpiresSec;
-  return parseSignedUrlExpiresSec(url);
+  const signedExpiresSec = parseSignedUrlExpiresSec(url);
+  if (signedExpiresSec !== null) return signedExpiresSec;
+  return storedExpiresSec > 0 && storedExpiresSec < MAX_PLAUSIBLE_EXPIRES_SEC
+    ? storedExpiresSec
+    : null;
 };
 
-/**
- * Whether the avatar credential is due for renewal. An empty URL with an
- * active session, and an unresolvable expiry, both count as due — the
- * refresh is cheap and the old value cannot be trusted.
- */
+/** An empty URL with an active session, and an unresolvable expiry, both
+ * count as due — the refresh is cheap and the old value cannot be trusted. */
 export const shouldRefreshAvatar = (
   url: string,
   storedExpiresSec: number,

@@ -6,14 +6,16 @@ import {
 
 /**
  * Avatar credential renewal — the avatar counterpart of session rotation.
- *
- * One module-level instance owns every write to the avatar state: proactive
- * checks (app start, login handoff, expiry timer) and the reactive `<img>`
- * error path all funnel through the same single-flight refresh, so four
- * trigger sources can never stampede the console API. The renewal timer is
- * a setTimeout chain — re-armed from the freshly applied expiry after every
- * refresh, cancelled on dispose.
+ * One single-flight refresh serves every trigger (startup, handoff, renewal
+ * timer, `<img>` error); the timer is a setTimeout chain re-armed from the
+ * freshly applied expiry, cancelled on dispose.
  */
+
+/** Never renew sooner than this, even when the margin target is already past. */
+export const AVATAR_RENEW_MIN_DELAY_SEC = 5 * 60;
+
+/** Consecutive attempts before a failing renewal waits for an external trigger. */
+export const AVATAR_REFRESH_RETRY_LIMIT = 3;
 
 export type AvatarSnapshot = { url: string; expiresAtSec: number };
 
@@ -29,6 +31,7 @@ export type AvatarRefreshResult = { ok: boolean; url: string; changed: boolean }
 let ports: AvatarRefreshPorts | null = null;
 let inFlight: Promise<AvatarRefreshResult> | null = null;
 let renewTimer: ReturnType<typeof setTimeout> | null = null;
+let failedAttempts = 0;
 
 const nowSec = () => Math.floor(Date.now() / 1000);
 
@@ -39,7 +42,6 @@ export const cancelAvatarRenewal = (): void => {
   }
 };
 
-/** Concurrent triggers share one request; the result is the shared outcome. */
 export const refreshAvatar = (): Promise<AvatarRefreshResult> => {
   if (!ports) {
     return Promise.resolve({ ok: false, url: '', changed: false });
@@ -52,10 +54,15 @@ export const refreshAvatar = (): Promise<AvatarRefreshResult> => {
         if (!avatarUrl) {
           return { ok: false, url: previous, changed: false };
         }
-        ports.apply(avatarUrl, expiresAtSec ?? 0);
-        scheduleAvatarRenewal(expiresAtSec ?? 0);
+        // Resolve the applied URL's own Expires so the timer arms for the
+        // value just applied, not only at the next startup.
+        const expiry = resolveAvatarExpiresSec(avatarUrl, expiresAtSec ?? 0) ?? 0;
+        failedAttempts = 0;
+        ports.apply(avatarUrl, expiry);
+        scheduleAvatarRenewal(expiry);
         return { ok: true, url: avatarUrl, changed: avatarUrl !== previous };
       } catch {
+        scheduleAvatarRetry();
         return { ok: false, url: previous, changed: false };
       } finally {
         inFlight = null;
@@ -81,25 +88,42 @@ export const ensureFreshAvatar = async (): Promise<AvatarRefreshResult | null> =
   return refreshAvatar();
 };
 
-// Hoisted so the arrows above can reference it without a use-before-define
-// cycle — refresh re-arms the timer, the timer re-enters the refresh.
+// Hoisted: refresh re-arms the timer and the timer re-enters the refresh —
+// an arrow above this point would be a use-before-define cycle.
 function scheduleAvatarRenewal(expiresAtSec: number): void {
   cancelAvatarRenewal();
   if (expiresAtSec <= 0) {
     return;
   }
-  const delayMs = Math.min((expiresAtSec - AVATAR_RENEW_MARGIN_SEC - nowSec()) * 1000, 2 ** 31 - 2);
-  renewTimer = setTimeout(
-    () => {
-      renewTimer = null;
-      void refreshAvatar();
-    },
-    Math.max(0, delayMs),
+  // Without a floor, a signature already inside the margin would re-fire
+  // the renewal immediately and spin.
+  const targetDelaySec = expiresAtSec - AVATAR_RENEW_MARGIN_SEC - nowSec();
+  const delayMs = Math.min(
+    Math.max(targetDelaySec, AVATAR_RENEW_MIN_DELAY_SEC) * 1000,
+    2 ** 31 - 2,
   );
+  renewTimer = setTimeout(() => {
+    renewTimer = null;
+    void refreshAvatar();
+  }, delayMs);
+}
+
+/** Retry a failing renewal after the floor delay, capped — an offline
+ * machine must not poll forever. */
+function scheduleAvatarRetry(): void {
+  failedAttempts += 1;
+  if (failedAttempts >= AVATAR_REFRESH_RETRY_LIMIT) return;
+  if (!ports || !ports.read().url) return;
+  cancelAvatarRenewal();
+  renewTimer = setTimeout(() => {
+    renewTimer = null;
+    void refreshAvatar();
+  }, AVATAR_RENEW_MIN_DELAY_SEC * 1000);
 }
 
 export const configureAvatarRefresh = (next: AvatarRefreshPorts | null): void => {
   cancelAvatarRenewal();
   inFlight = null;
+  failedAttempts = 0;
   ports = next;
 };

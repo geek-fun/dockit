@@ -25,6 +25,7 @@ import {
   configureAvatarRefresh,
   ensureFreshAvatar,
   parseJwtStringClaim,
+  resolveAvatarExpiresSec,
 } from '../common';
 import { useAppUpdater, useMessageService } from '@/composables';
 import { currentUiLocaleTag, lang } from '../lang';
@@ -49,8 +50,6 @@ let checkForUpdatesListener: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
-// The avatar is a signed, expiring credential — renew it through the same
-// single-flight path the `<img>` error handler and the renewal timer use.
 configureAvatarRefresh({
   read: () => ({ url: userStore.avatar, expiresAtSec: userStore.avatarExpiresAt }),
   apply: (url, expiresAtSec) => userStore.setAvatar(url, expiresAtSec),
@@ -80,13 +79,14 @@ const sessionLifecycle = createSessionLifecycle({
     entitlementStore.view = null;
     entitlementStore.sessionRejections = 0;
     deviceStore.$reset();
+    const avatar = resolveAvatarUrl(payload.avatar ?? '');
     userStore.setAuth(
       payload.token,
       payload.username ?? '',
       payload.email ?? '',
       payload.userId ?? '',
-      resolveAvatarUrl(payload.avatar ?? ''),
-      payload.avatarExpiresAt ?? 0,
+      avatar,
+      resolveAvatarExpiresSec(avatar, payload.avatarExpiresAt ?? 0) ?? 0,
     );
   },
   applyRotation: payload =>
