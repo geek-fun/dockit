@@ -20,6 +20,12 @@ import {
   useUserStore,
 } from '../store';
 import { createSessionLifecycle } from '../common';
+import {
+  cancelAvatarRenewal,
+  configureAvatarRefresh,
+  ensureFreshAvatar,
+  parseJwtStringClaim,
+} from '../common';
 import { useAppUpdater, useMessageService } from '@/composables';
 import { currentUiLocaleTag, lang } from '../lang';
 import { resolveAvatarUrl } from '../datasources';
@@ -43,6 +49,26 @@ let checkForUpdatesListener: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
+// The avatar is a signed, expiring credential — renew it through the same
+// single-flight path the `<img>` error handler and the renewal timer use.
+configureAvatarRefresh({
+  read: () => ({ url: userStore.avatar, expiresAtSec: userStore.avatarExpiresAt }),
+  apply: (url, expiresAtSec) => userStore.setAvatar(url, expiresAtSec),
+  fetch: async () => {
+    // Handoffs from older console builds can omit userId — the JWT carries
+    // the stable account id.
+    const userId = userStore.userId || parseJwtStringClaim(userStore.accessToken, 'id') || '';
+    if (!userStore.accessToken || !userId) {
+      throw new Error('avatar refresh requires an authenticated session');
+    }
+    const result = await invoke<{ avatarUrl?: string; expiresAt?: number | null }>(
+      'refresh_avatar',
+      { token: userStore.accessToken, userId },
+    );
+    return { avatarUrl: result.avatarUrl ?? '', expiresAtSec: result.expiresAt ?? null };
+  },
+});
+
 const sessionLifecycle = createSessionLifecycle({
   syncUiLocale: () => invoke<void>('set_ui_locale', { locale: currentUiLocaleTag() }),
   read: () => ({
@@ -60,6 +86,7 @@ const sessionLifecycle = createSessionLifecycle({
       payload.email ?? '',
       payload.userId ?? '',
       resolveAvatarUrl(payload.avatar ?? ''),
+      payload.avatarExpiresAt ?? 0,
     );
   },
   applyRotation: payload =>
@@ -71,6 +98,7 @@ const sessionLifecycle = createSessionLifecycle({
   seed: payload => entitlementStore.seedFromHandoff(payload),
   hydrate: () => entitlementStore.hydrate(),
   refresh: () => entitlementStore.refreshEntitlement(true),
+  ensureFreshAvatar: () => ensureFreshAvatar(),
   activate: force => deviceStore.ensureActivated(force),
   clearCache: () => entitlementStore.clearCachedEntitlement(),
   rotate: refreshToken => invoke('rotate_session_now', { refreshToken }),
@@ -109,6 +137,7 @@ onUnmounted(() => {
   showAboutListener?.();
   checkForUpdatesListener?.();
   sessionLifecycle.dispose();
+  cancelAvatarRenewal();
 });
 
 // Definite session loss (lease rejected, or bearer dead without a lease) is

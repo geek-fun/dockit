@@ -21,6 +21,7 @@ const fixture = (token = 'opaque-access', refreshToken = 'lease') => {
     seed: jest.fn(async () => {}),
     hydrate: jest.fn(async () => {}),
     refresh: jest.fn(async () => {}),
+    ensureFreshAvatar: jest.fn(async () => {}),
     activate: jest.fn(async () => {}),
     clearCache: jest.fn(async () => {}),
     rotate: jest.fn(async () => ({ access_token: 'next-access', refresh_token: 'next-lease' })),
@@ -263,5 +264,33 @@ describe('session startup and handoff', () => {
     await f.lifecycle.start();
     expect(f.unlisten).toHaveBeenCalledTimes(1);
     expect(f.ports.consumeAuth).not.toHaveBeenCalled();
+  });
+
+  it('calibrates the avatar credential for a restored session', async () => {
+    const f = fixture();
+    await f.lifecycle.start();
+    expect(f.ports.ensureFreshAvatar).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips avatar calibration for an anonymous start', async () => {
+    const f = fixture('', '');
+    await f.lifecycle.start();
+    expect(f.ports.ensureFreshAvatar).not.toHaveBeenCalled();
+  });
+
+  it('calibrates the avatar after a handoff login completes', async () => {
+    const f = fixture();
+    await f.lifecycle.start();
+    jest.mocked(f.ports.ensureFreshAvatar).mockClear();
+    f.auth({ token: 'handoff' });
+    await flush();
+    expect(f.ports.ensureFreshAvatar).toHaveBeenCalledTimes(1);
+  });
+
+  it('survives an avatar calibration failure without breaking startup', async () => {
+    const f = fixture();
+    jest.mocked(f.ports.ensureFreshAvatar).mockRejectedValue('console unreachable');
+    await expect(f.lifecycle.start()).resolves.toBeUndefined();
+    expect(f.ports.refresh).toHaveBeenCalledTimes(1);
   });
 });

@@ -7,6 +7,8 @@ type AuthPayload = {
   email?: string | null;
   userId?: string | null;
   avatar?: string | null;
+  /** Signature expiry of the handoff avatar (unix seconds, absent on older consoles). */
+  avatarExpiresAt?: number | null;
   ultimateExpiresAt?: string | null;
   versionLockHorizon?: string | null;
   cancelScheduledAt?: string | null;
@@ -22,6 +24,8 @@ type SessionLifecycle = {
   seed: (payload: AuthPayload) => Promise<void>;
   hydrate: () => Promise<void>;
   refresh: () => Promise<unknown>;
+  /** Avatar credential calibration — check-then-renew, own error handling. */
+  ensureFreshAvatar: () => Promise<unknown>;
   activate: (force: boolean) => Promise<void>;
   clearCache: () => Promise<void>;
   rotate: (refreshToken: string) => Promise<{ access_token: string; refresh_token: string }>;
@@ -55,6 +59,9 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
     if (!current(revision)) return;
     await ports.activate(true);
     if (current(revision)) await ports.refresh();
+    // The handoff avatar may be a stale localStorage signature (the console
+    // only re-signs on its settings page) — treat it as a hint and calibrate.
+    if (current(revision)) await ports.ensureFreshAvatar();
   };
 
   const register = async (subscription: Promise<Unlisten>) => {
@@ -93,6 +100,9 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
     }
     await ports.hydrate();
     if (!current(initialRevision)) return;
+    // Parallel with the token work below — avatar staleness is a display
+    // concern and must never delay session restoration.
+    void ports.ensureFreshAvatar().catch(() => {});
     const session = ports.read();
     if (shouldRotateToken(session.token, session.refreshToken)) {
       try {

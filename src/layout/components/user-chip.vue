@@ -9,7 +9,13 @@
         :title="userStore.isLoggedIn ? userStore.displayName : $t('aside.user')"
       >
         <template v-if="userStore.isLoggedIn">
-          <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
+          <img
+            v-if="avatarRenderable"
+            :src="userStore.avatar"
+            class="user-avatar"
+            alt=""
+            @error="onAvatarError"
+          />
           <DefaultAvatar v-else class="user-avatar shrink-0" :seed="userStore.displayName" />
           <span class="plan-dot" :class="planDotClass" />
         </template>
@@ -20,10 +26,11 @@
       <div class="user-panel">
         <div class="user-panel-header">
           <img
-            v-if="userStore.isLoggedIn && isSafeAvatar"
+            v-if="userStore.isLoggedIn && avatarRenderable"
             :src="userStore.avatar"
             class="user-panel-avatar"
             alt=""
+            @error="onAvatarError"
           />
           <DefaultAvatar
             v-else-if="userStore.isLoggedIn"
@@ -135,6 +142,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import DefaultAvatar from '@/components/DefaultAvatar.vue';
 import { openUpgradeDialog } from '@/components/upgrade';
 import { authService, isSafeAvatarUrl } from '../../datasources/authService';
+import { refreshAvatar } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
 
 const { t } = useI18n();
@@ -146,6 +154,28 @@ const open = ref(false);
 const recovering = ref(false);
 
 const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar));
+
+// A dead signature renders as a blank box — fall back to the default avatar
+// and ask for a re-signed URL once per failed URL, never in a loop.
+const avatarBroken = ref(false);
+const lastFailedAvatar = ref('');
+
+const avatarRenderable = computed(() => isSafeAvatar.value && !avatarBroken.value);
+
+const onAvatarError = () => {
+  avatarBroken.value = true;
+  if (userStore.avatar && userStore.avatar !== lastFailedAvatar.value) {
+    lastFailedAvatar.value = userStore.avatar;
+    void refreshAvatar();
+  }
+};
+
+watch(
+  () => userStore.avatar,
+  url => {
+    if (url !== lastFailedAvatar.value) avatarBroken.value = false;
+  },
+);
 
 const badgeVariant = computed(() => {
   // A dead session degrades the badge — the cached entitlement is no longer
