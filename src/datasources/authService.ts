@@ -13,7 +13,7 @@ const GEEKFUN_BASE_URL = 'https://console.geekfun.club';
 // hosts a console account avatar may be served from — uploads land on the
 // media OSS bucket, Google-registered accounts keep the Google CDN URL
 const AVATAR_MEDIA_HOSTS = [
-  'wentsen-media-store-prod.ap-southeast-1.aliyuncs.com',
+  'wentsen-media-store-prod.oss-ap-southeast-1.aliyuncs.com',
   'lh3.googleusercontent.com',
   'lh4.googleusercontent.com',
   'lh5.googleusercontent.com',
