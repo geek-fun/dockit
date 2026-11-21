@@ -101,9 +101,6 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
     }
     await ports.hydrate();
     if (!current(initialRevision)) return;
-    // Parallel with the token work below — avatar staleness is a display
-    // concern and must never delay session restoration.
-    void ports.ensureFreshAvatar().catch(() => {});
     const session = ports.read();
     if (shouldRotateToken(session.token, session.refreshToken)) {
       try {
@@ -121,6 +118,7 @@ export const createSessionLifecycle = (ports: SessionLifecycle) => {
     if (!current(initialRevision)) return;
     await ports.activate(false);
     if (current(initialRevision)) await ports.refresh();
+    if (current(initialRevision)) void ports.ensureFreshAvatar().catch(() => {});
   };
 
   const dispose = () => {

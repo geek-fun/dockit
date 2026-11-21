@@ -198,6 +198,10 @@ describe('session startup and handoff', () => {
   it('renews an expired bearer before authenticated startup work', async () => {
     const jwt = `a.${btoa(JSON.stringify({ exp: 1 }))}.s`;
     const { ports, lifecycle } = fixture(jwt);
+    const avatarTokens: string[] = [];
+    jest.mocked(ports.ensureFreshAvatar).mockImplementation(async () => {
+      avatarTokens.push(ports.read().token);
+    });
     await lifecycle.start();
     expect(ports.rotate).toHaveBeenCalledWith('lease');
     expect(ports.applyRotation).toHaveBeenCalledWith({
@@ -205,13 +209,26 @@ describe('session startup and handoff', () => {
       refreshToken: 'next-lease',
       previousRefreshToken: 'lease',
     });
+    expect(avatarTokens).toEqual(['next-access']);
   });
 
   it('keeps reactive recovery available after a transient proactive failure', async () => {
     const f = fixture(`a.${btoa(JSON.stringify({ exp: 1 }))}.s`);
     jest.mocked(f.ports.rotate).mockRejectedValue('network timeout');
+    jest.mocked(f.ports.refresh).mockImplementation(async () => {
+      f.rotation({
+        accessToken: 'recovered-access',
+        refreshToken: 'new-lease',
+        previousRefreshToken: 'lease',
+      });
+    });
+    const avatarTokens: string[] = [];
+    jest.mocked(f.ports.ensureFreshAvatar).mockImplementation(async () => {
+      avatarTokens.push(f.ports.read().token);
+    });
     await f.lifecycle.start();
     expect(f.ports.refresh).toHaveBeenCalledTimes(1);
+    expect(avatarTokens).toEqual(['recovered-access']);
   });
 
   it('clears leftover cache for an anonymous start and tolerates a missing pending command', async () => {
@@ -266,8 +283,9 @@ describe('session startup and handoff', () => {
     expect(f.ports.consumeAuth).not.toHaveBeenCalled();
   });
 
-  it('calibrates the avatar credential for a restored session', async () => {
+  it('starts avatar calibration without waiting for it to finish during restoration', async () => {
     const f = fixture();
+    jest.mocked(f.ports.ensureFreshAvatar).mockReturnValue(new Promise(() => {}));
     await f.lifecycle.start();
     expect(f.ports.ensureFreshAvatar).toHaveBeenCalledTimes(1);
   });
