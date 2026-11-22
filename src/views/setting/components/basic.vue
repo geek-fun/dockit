@@ -36,9 +36,6 @@
       </div>
     </div>
 
-    <!-- Plan Section -->
-    <PlanSection />
-
     <!-- Language Section -->
     <div class="space-y-4">
       <div>
@@ -68,6 +65,9 @@
         </div>
       </RadioGroup>
     </div>
+
+    <!-- Plan Section -->
+    <PlanSection />
 
     <!-- History Section -->
     <div class="space-y-4">
