@@ -151,6 +151,65 @@ pub async fn rotate_session_now(
     Ok(refreshed)
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AvatarRefresh {
+    pub avatar_url: String,
+    /// Signature expiry in unix seconds; absent when the console predates it.
+    pub expires_at: Option<i64>,
+}
+
+/// The console wraps payloads as `{code, data}` with 2000 meaning success.
+fn parse_avatar_envelope(raw: serde_json::Value) -> Result<AvatarRefresh, String> {
+    let code = raw.get("code").and_then(|v| v.as_u64()).unwrap_or(0);
+    if code != 2000 {
+        return Err(format!("avatar endpoint rejected (code {code})"));
+    }
+    let data = raw.get("data").cloned().unwrap_or(json!({}));
+    let avatar_url = data
+        .get("avatarUrl")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if avatar_url.is_empty() {
+        return Err("avatar endpoint returned no URL".to_string());
+    }
+    Ok(AvatarRefresh {
+        avatar_url,
+        expires_at: data.get("expiresAt").and_then(|v| v.as_i64()),
+    })
+}
+
+/// Fresh signed URL for the account avatar — the frontend renews it on the
+/// session schedule, so this stays cheap and stateless (no caching here).
+#[tauri::command]
+pub async fn refresh_avatar(token: String, user_id: String) -> Result<AvatarRefresh, String> {
+    let token = token.trim();
+    let user_id = user_id.trim();
+    if token.is_empty() || user_id.is_empty() {
+        return Err("avatar refresh requires an authenticated session".to_string());
+    }
+    let response = console::client()
+        .get(format!(
+            "{}/api/accounts/{}/avatar",
+            console::api_base_url(),
+            user_id
+        ))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| format!("network error: {e}"))?;
+    let status = response.status();
+    let raw: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("invalid avatar payload: {e}"))?;
+    if !status.is_success() {
+        return Err(format!("avatar endpoint returned HTTP {status}"));
+    }
+    parse_avatar_envelope(raw)
+}
+
 /// Logout: best-effort revocation of the presented lease; idempotent and
 /// non-fatal by contract — the client clears its local copy regardless.
 #[tauri::command]
@@ -208,5 +267,42 @@ mod tests {
         assert!(!is_server_rejected(StatusCode::INTERNAL_SERVER_ERROR, 2000));
         assert!(!is_server_rejected(StatusCode::BAD_GATEWAY, 5000));
         assert!(!is_server_rejected(StatusCode::OK, 2000));
+    }
+
+    #[test]
+    fn avatar_envelope_parses_url_and_optional_expiry() {
+        let raw = json!({
+            "code": 2000,
+            "data": { "avatarUrl": "https://oss/…/a.webp?Expires=1792916106", "expiresAt": 1792916106 },
+        });
+        let parsed = parse_avatar_envelope(raw).expect("avatar");
+        assert_eq!(parsed.avatar_url, "https://oss/…/a.webp?Expires=1792916106");
+        assert_eq!(parsed.expires_at, Some(1_792_916_106));
+    }
+
+    #[test]
+    fn avatar_envelope_tolerates_a_console_without_expiry() {
+        let raw = json!({ "code": 2000, "data": { "avatarUrl": "https://oss/a.webp" } });
+        let parsed = parse_avatar_envelope(raw).expect("avatar");
+        assert_eq!(parsed.expires_at, None);
+    }
+
+    #[test]
+    fn avatar_envelope_rejects_non_success_codes_and_empty_urls() {
+        let rejected = json!({ "code": 4004, "messages": ["gone"] });
+        assert!(parse_avatar_envelope(rejected).is_err());
+        let empty = json!({ "code": 2000, "data": { "avatarUrl": null } });
+        assert!(parse_avatar_envelope(empty).is_err());
+    }
+
+    #[test]
+    fn avatar_refresh_serializes_camel_case_for_the_frontend() {
+        let refresh = AvatarRefresh {
+            avatar_url: "https://oss/a.webp".into(),
+            expires_at: None,
+        };
+        let value = serde_json::to_value(&refresh).expect("serialize");
+        assert!(value.get("avatarUrl").is_some());
+        assert!(value.get("avatar_url").is_none());
     }
 }

@@ -10,6 +10,8 @@ export const useUserStore = defineStore('user', {
     /** Console account identity, delivered by the web login deep link. */
     userId: '',
     avatar: '',
+    /** Signature expiry of `avatar` (unix seconds, 0 = unknown). */
+    avatarExpiresAt: 0,
     username: '',
     email: '',
   }),
@@ -43,20 +45,41 @@ export const useUserStore = defineStore('user', {
       this.email = '';
       this.userId = '';
       this.avatar = '';
+      this.avatarExpiresAt = 0;
     },
-    setAuth(token: string, username: string, email: string, userId = '', avatar = ''): void {
+    setAuth(
+      token: string,
+      username: string,
+      email: string,
+      userId = '',
+      avatar = '',
+      avatarExpiresAt = 0,
+    ): void {
       this.sessionRevision += 1;
       this.accessToken = token;
       this.username = username;
       this.email = email;
       this.userId = userId ?? '';
       this.avatar = avatar ?? '';
+      this.avatarExpiresAt = avatarExpiresAt ?? 0;
       // A web login has no device lease yet — never carry one over.
       this.refreshToken = '';
     },
+    setAvatar(avatar: string, avatarExpiresAt = 0): void {
+      this.avatar = avatar;
+      this.avatarExpiresAt = avatarExpiresAt;
+    },
   },
   persist: {
-    pick: ['accessToken', 'refreshToken', 'userId', 'avatar', 'username', 'email'],
+    pick: [
+      'accessToken',
+      'refreshToken',
+      'userId',
+      'avatar',
+      'avatarExpiresAt',
+      'username',
+      'email',
+    ],
     storage: localStorage,
   },
 });

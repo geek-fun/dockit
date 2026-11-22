@@ -28,8 +28,7 @@ const copy = async (code: string) => {
   <div class="relative min-w-0">
     <pre
       class="font-mono text-xs bg-muted rounded-md px-3 py-2 pr-10 overflow-x-auto leading-relaxed"
-      >{{ code }}</pre
-    >
+      >{{ code }}</pre>
     <Button
       type="button"
       variant="ghost"

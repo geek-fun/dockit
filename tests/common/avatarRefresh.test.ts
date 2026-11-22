@@ -1,0 +1,268 @@
+import {
+  AVATAR_REFRESH_RETRY_LIMIT,
+  AVATAR_RENEW_MIN_DELAY_SEC,
+  configureAvatarRefresh,
+  ensureFreshAvatar,
+  refreshAvatar,
+  type AvatarRefreshPorts,
+} from '../../src/common/avatarRefresh';
+
+const NOW_SEC = 1_800_000_000;
+const MARGIN_SEC = 30 * 60;
+const FRESH_EXPIRES_SEC = NOW_SEC + 3600;
+const FRESH_URL = `https://oss/fresh.webp?Expires=${FRESH_EXPIRES_SEC}`;
+
+const flushMicrotasks = async () => {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+};
+
+type Fixture = {
+  ports: AvatarRefreshPorts;
+  read: { url: string; expiresAtSec: number };
+};
+
+const fixture = (url = '', expiresAtSec = 0): Fixture => {
+  const snapshot = { url, expiresAtSec };
+  const ports: AvatarRefreshPorts = {
+    read: jest.fn(() => snapshot),
+    apply: jest.fn((nextUrl, nextExpires) => {
+      snapshot.url = nextUrl;
+      snapshot.expiresAtSec = nextExpires;
+    }),
+    fetch: jest.fn(async () => ({ avatarUrl: FRESH_URL, expiresAtSec: FRESH_EXPIRES_SEC })),
+  };
+  configureAvatarRefresh(ports);
+  return { ports, read: snapshot };
+};
+
+const pendingAvatarResponse = () => {
+  type Response = Awaited<ReturnType<AvatarRefreshPorts['fetch']>>;
+  let resolve!: (_value: Response) => void;
+  const promise = new Promise<Response>(done => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+
+describe('avatarRefresh', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW_SEC * 1000);
+  });
+
+  afterEach(() => {
+    configureAvatarRefresh(null);
+    jest.useRealTimers();
+  });
+
+  describe('ensureFreshAvatar', () => {
+    const freshUrl = `https://oss/current.webp?Expires=${NOW_SEC + MARGIN_SEC + 3600}`;
+
+    it('returns null without fetching while the credential is fresh', async () => {
+      const { ports } = fixture(freshUrl, NOW_SEC + MARGIN_SEC + 3600);
+      await expect(ensureFreshAvatar()).resolves.toBeNull();
+      expect(ports.fetch).not.toHaveBeenCalled();
+    });
+
+    it('re-arms the renewal timer when the credential is fresh', async () => {
+      const { ports } = fixture(freshUrl, NOW_SEC + MARGIN_SEC + 3600);
+      await ensureFreshAvatar();
+      // the timer targets expiry − margin: (NOW + 5400) − 1800 − NOW = 3600s
+      jest.advanceTimersByTime(3600 * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes an expired or missing credential and applies the result', async () => {
+      const { ports, read } = fixture('https://oss/stale.webp?Expires=1', NOW_SEC - 100);
+      const result = await ensureFreshAvatar();
+      expect(result).toEqual({ ok: true, url: FRESH_URL, changed: true });
+      expect(ports.apply).toHaveBeenCalledWith(FRESH_URL, FRESH_EXPIRES_SEC);
+      expect(read.url).toBe(FRESH_URL);
+    });
+
+    it('refreshes when the URL is empty even with an active session', async () => {
+      const { ports } = fixture();
+      await ensureFreshAvatar();
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('refreshAvatar', () => {
+    it('deduplicates concurrent triggers into one fetch', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      const [first, second] = await Promise.all([refreshAvatar(), refreshAvatar()]);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      expect(second).toBe(first);
+    });
+
+    it('discards a previous account response without disturbing the new refresh', async () => {
+      const { ports, read } = fixture();
+      const previousResponse = pendingAvatarResponse();
+      const currentResponse = pendingAvatarResponse();
+      jest
+        .mocked(ports.fetch)
+        .mockReturnValueOnce(previousResponse.promise)
+        .mockReturnValueOnce(currentResponse.promise);
+      const previous = refreshAvatar();
+      configureAvatarRefresh(ports);
+      const current = refreshAvatar();
+
+      previousResponse.resolve({
+        avatarUrl: 'https://oss/previous.webp',
+        expiresAtSec: FRESH_EXPIRES_SEC,
+      });
+      await expect(previous).resolves.toEqual({ ok: false, url: '', changed: false });
+      expect(ports.apply).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+      expect(refreshAvatar()).toBe(current);
+      expect(ports.fetch).toHaveBeenCalledTimes(2);
+
+      currentResponse.resolve({ avatarUrl: FRESH_URL, expiresAtSec: FRESH_EXPIRES_SEC });
+      await current;
+      expect(read.url).toBe(FRESH_URL);
+    });
+
+    it('discards a response arriving after logout and skips anonymous requests', async () => {
+      const { ports } = fixture();
+      const response = pendingAvatarResponse();
+      jest.mocked(ports.fetch).mockReturnValueOnce(response.promise);
+      const pending = refreshAvatar();
+      jest.mocked(ports.read).mockReturnValue(null);
+      configureAvatarRefresh(ports);
+      response.resolve({ avatarUrl: FRESH_URL, expiresAtSec: FRESH_EXPIRES_SEC });
+
+      await expect(pending).resolves.toEqual({ ok: false, url: '', changed: false });
+      await expect(ensureFreshAvatar()).resolves.toBeNull();
+      await expect(refreshAvatar()).resolves.toMatchObject({ ok: false });
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      expect(ports.apply).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('keeps the previous URL when the fetch fails', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      jest.mocked(ports.fetch).mockRejectedValueOnce(new Error('network down'));
+      const result = await refreshAvatar();
+      expect(result).toEqual({
+        ok: false,
+        url: 'https://oss/stale.webp?Expires=1',
+        changed: false,
+      });
+      expect(ports.apply).not.toHaveBeenCalled();
+    });
+
+    it('treats an empty URL from the console as a failure', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      jest.mocked(ports.fetch).mockResolvedValueOnce({ avatarUrl: '', expiresAtSec: null });
+      const result = await refreshAvatar();
+      expect(result.ok).toBe(false);
+      expect(ports.apply).not.toHaveBeenCalled();
+    });
+
+    it('reports an unchanged URL without treating it as a failure', async () => {
+      const { ports } = fixture('https://oss/same.webp?Expires=1', 0);
+      jest.mocked(ports.fetch).mockResolvedValueOnce({
+        avatarUrl: 'https://oss/same.webp?Expires=1',
+        expiresAtSec: NOW_SEC + 3600,
+      });
+      const result = await refreshAvatar();
+      expect(result).toEqual({ ok: true, url: 'https://oss/same.webp?Expires=1', changed: false });
+      expect(ports.apply).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing before the ports are configured', async () => {
+      configureAvatarRefresh(null);
+      await expect(refreshAvatar()).resolves.toEqual({ ok: false, url: '', changed: false });
+      await expect(ensureFreshAvatar()).resolves.toBeNull();
+    });
+  });
+
+  describe('renewal timer', () => {
+    it('renews on schedule after a successful refresh', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      await refreshAvatar();
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(3600 * 1000 - MARGIN_SEC * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('arms the timer from the signature when the console omits the expiry', async () => {
+      const { ports, read } = fixture('https://oss/stale.webp?Expires=1', 0);
+      const expiresAt = NOW_SEC + 3600;
+      jest.mocked(ports.fetch).mockResolvedValueOnce({
+        avatarUrl: `https://oss/fresh.webp?Expires=${expiresAt}`,
+        expiresAtSec: null,
+      });
+      await refreshAvatar();
+      expect(ports.apply).toHaveBeenCalledWith(
+        `https://oss/fresh.webp?Expires=${expiresAt}`,
+        expiresAt,
+      );
+      expect(read.expiresAtSec).toBe(expiresAt);
+      jest.advanceTimersByTime((3600 - MARGIN_SEC) * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('floors the next attempt when the signature is already inside the margin', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      jest.mocked(ports.fetch).mockResolvedValueOnce({
+        avatarUrl: `https://oss/short.webp?Expires=${NOW_SEC + 600}`,
+        expiresAtSec: NOW_SEC + 600,
+      });
+      await refreshAvatar();
+      jest.advanceTimersByTime(0);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(AVATAR_RENEW_MIN_DELAY_SEC * 1000 - 1);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(1);
+      expect(ports.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries a failed renewal a bounded number of times', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', NOW_SEC - 100);
+      jest.mocked(ports.fetch).mockRejectedValue(new Error('offline'));
+      await ensureFreshAvatar();
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+      for (let attempt = 2; attempt <= AVATAR_REFRESH_RETRY_LIMIT; attempt++) {
+        jest.advanceTimersByTime(AVATAR_RENEW_MIN_DELAY_SEC * 1000);
+        await flushMicrotasks();
+        expect(ports.fetch).toHaveBeenCalledTimes(attempt);
+      }
+      jest.advanceTimersByTime(AVATAR_RENEW_MIN_DELAY_SEC * 1000);
+      await flushMicrotasks();
+      expect(ports.fetch).toHaveBeenCalledTimes(AVATAR_REFRESH_RETRY_LIMIT);
+    });
+
+    it('never schedules for an unknown expiry', async () => {
+      const { ports } = fixture();
+      jest
+        .mocked(ports.fetch)
+        .mockResolvedValueOnce({ avatarUrl: 'https://oss/fresh.webp', expiresAtSec: null });
+      await refreshAvatar();
+      jest.advanceTimersByTime(30 * 24 * 3600 * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels pending renewals on dispose', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      await refreshAvatar();
+      configureAvatarRefresh(null);
+      jest.advanceTimersByTime(30 * 24 * 3600 * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancels a pending retry when a new session uses the same ports', async () => {
+      const { ports } = fixture('https://oss/stale.webp?Expires=1', 0);
+      jest.mocked(ports.fetch).mockRejectedValueOnce(new Error('offline'));
+      await refreshAvatar();
+      expect(jest.getTimerCount()).toBe(1);
+
+      configureAvatarRefresh(ports);
+      expect(jest.getTimerCount()).toBe(0);
+      jest.advanceTimersByTime(AVATAR_RENEW_MIN_DELAY_SEC * 1000);
+      expect(ports.fetch).toHaveBeenCalledTimes(1);
+    });
+  });
+});

@@ -9,7 +9,13 @@
         :title="userStore.isLoggedIn ? userStore.displayName : $t('aside.user')"
       >
         <template v-if="userStore.isLoggedIn">
-          <img v-if="isSafeAvatar" :src="userStore.avatar" class="user-avatar" alt="" />
+          <img
+            v-if="avatarRenderable"
+            :src="userStore.avatar"
+            class="user-avatar"
+            alt=""
+            @error="onAvatarError"
+          />
           <DefaultAvatar v-else class="user-avatar shrink-0" :seed="userStore.displayName" />
           <span class="plan-dot" :class="planDotClass" />
         </template>
@@ -20,10 +26,11 @@
       <div class="user-panel">
         <div class="user-panel-header">
           <img
-            v-if="userStore.isLoggedIn && isSafeAvatar"
+            v-if="userStore.isLoggedIn && avatarRenderable"
             :src="userStore.avatar"
             class="user-panel-avatar"
             alt=""
+            @error="onAvatarError"
           />
           <DefaultAvatar
             v-else-if="userStore.isLoggedIn"
@@ -125,7 +132,7 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { Loader2, Sparkles } from '@lucide/vue';
@@ -135,6 +142,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import DefaultAvatar from '@/components/DefaultAvatar.vue';
 import { openUpgradeDialog } from '@/components/upgrade';
 import { authService, isSafeAvatarUrl } from '../../datasources/authService';
+import { createAvatarFailureGuard, refreshAvatar } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
 
 const { t } = useI18n();
@@ -145,7 +153,29 @@ const { view } = storeToRefs(entitlementStore);
 const open = ref(false);
 const recovering = ref(false);
 
-const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar));
+const isSafeAvatar = computed(() => isSafeAvatarUrl(userStore.avatar, import.meta.env.DEV));
+
+const avatarBroken = ref(false);
+const avatarFailure = createAvatarFailureGuard(() => {
+  avatarBroken.value = false;
+});
+
+const avatarRenderable = computed(() => isSafeAvatar.value && !avatarBroken.value);
+
+const onAvatarError = () => {
+  avatarBroken.value = true;
+  if (avatarFailure.recordFailed(userStore.avatar)) void refreshAvatar();
+};
+
+watch(
+  [() => userStore.avatar, () => userStore.sessionRevision],
+  ([, revision], [, previousRevision]) => {
+    if (revision === previousRevision) avatarFailure.cancelRetry();
+    else avatarFailure.reset();
+    avatarBroken.value = false;
+  },
+);
+onBeforeUnmount(avatarFailure.cancelRetry);
 
 const badgeVariant = computed(() => {
   // A dead session degrades the badge — the cached entitlement is no longer

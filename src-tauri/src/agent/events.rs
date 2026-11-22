@@ -142,7 +142,10 @@ mod tests {
         }
     }
 
-    #[tokio::test]
+    // Multi-thread flavor: the default single-thread runtime lets the loop's
+    // synchronous stretches starve the in-process model server, which under
+    // llvm-cov on slow CI runners once blew the outer timeout (Elapsed flake).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn denied_preflight_persists_result_and_stops_before_another_model_turn() {
         use async_trait::async_trait;
         use data_studio_agent::{
@@ -207,7 +210,8 @@ mod tests {
             // data-studio-agent v0.2.2 takes longer to unwind after the denial stop
             // (internal backoff), and the full concurrent test suite pushes this past
             // the previous 30s bound; correctness is asserted via requests == 1 below.
-            std::time::Duration::from_secs(90),
+            // 120s also de-flakes slow CI runners.
+            std::time::Duration::from_secs(120),
             data_studio_agent::loop_runner::run_agent_loop(
                 "chat",
                 "Create example",
