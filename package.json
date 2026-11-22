@@ -123,5 +123,8 @@
     "vite-svg-loader": "^5.1.0",
     "vue-eslint-parser": "^10.4.2",
     "vue-tsc": "~3.2.4"
+  },
+  "overrides": {
+    "dompurify": "$dompurify"
   }
 }
