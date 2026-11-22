@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Inbox } from 'lucide-vue-next';
+import { Inbox } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 interface EmptyProps {

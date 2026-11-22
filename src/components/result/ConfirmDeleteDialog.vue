@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import { useLang } from '@/lang';
 import { useDialogResult } from '@/composables';
 import {

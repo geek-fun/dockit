@@ -221,6 +221,11 @@ pub fn run() {
         ])
         .setup(|app| {
             menu::create_menu(app)?;
+
+            // Tray-visible MCP state must exist before desktop::setup spawns
+            // the status refresh loop.
+            app.manage(crate::mcp_bridge::McpSessionRegistry::default());
+            app.manage(crate::mcp_bridge::BridgeStopStatus::default());
             desktop::setup(app);
 
             use tauri::Manager;

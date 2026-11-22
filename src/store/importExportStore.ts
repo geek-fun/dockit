@@ -826,7 +826,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           }> = [];
 
           await sourceFileApi.streamFileLines(input.restoreFile, fileBatchSize, async batch => {
-            let items: Array<Record<string, unknown>> = [];
+            let items: Array<Record<string, unknown>>;
 
             if (fileType === 'jsonl') {
               items = batch.lines

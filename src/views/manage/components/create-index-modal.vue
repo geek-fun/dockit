@@ -359,7 +359,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';

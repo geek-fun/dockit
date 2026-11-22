@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Lock } from 'lucide-vue-next';
+import { Lock } from '@lucide/vue';
 
 withDefaults(defineProps<{ size?: 'dot' | 'xs' | 'sm' }>(), { size: 'sm' });
 </script>

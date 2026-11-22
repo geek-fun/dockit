@@ -308,7 +308,7 @@
 import { ConnectionPermissionEditor } from '@/components/ai-permissions';
 
 import { computed, ref, watch } from 'vue';
-import { X, Loader2, ChevronRight, Eye, EyeOff, Plus, Pencil } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight, Eye, EyeOff, Plus, Pencil } from '@lucide/vue';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';

@@ -162,7 +162,7 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { X, Eye, EyeOff, Folder } from 'lucide-vue-next';
+import { X, Eye, EyeOff, Folder } from '@lucide/vue';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
   Dialog,

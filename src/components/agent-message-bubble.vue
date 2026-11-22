@@ -220,8 +220,7 @@
                   `result-body-${resultStatus(tc)}`,
                   tc.status !== 'done' ? 'muted-body' : '',
                 ]"
-                >{{ toolResultText(tc) }}</pre
-              >
+                >{{ toolResultText(tc) }}</pre>
             </div>
           </details>
           <div

@@ -194,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import { useLang } from '../../../../lang';
 import { useMessageService } from '@/composables';
 import StructuredValueDialog from './structured-value-dialog.vue';

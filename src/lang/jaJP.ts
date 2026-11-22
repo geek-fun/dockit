@@ -354,6 +354,40 @@ export const jaJP = {
       overrideReadOnlyDesc: 'この接続の操作を読み取り専用に強制します',
       saveFailed: 'MCP設定の保存に失敗しました',
       statusLoadFailed: 'MCPブリッジの状態の読み込みに失敗しました',
+      copyUrl: 'Bridge URL をコピー',
+      portFallback:
+        'ポート {configured} は使用中のため、MCPブリッジは {actual} で待ち受けています。',
+      sessions: '{count} セッション — {clients}',
+      sessionsEmpty: 'Data Studio MCP を AI ツールに追加してください。以下のガイドを参照。',
+      serverTitle: 'DocKit MCP Server',
+      serverDesc: 'DocKit が AI クライアントに公開する MCP ツールカタログ。',
+      serverStopped: '提供されていません——MCPブリッジ が停止しています。',
+      serverIdle: 'アクティブなセッションなし',
+      stoppedReason:
+        'サブスクリプションが無効なため、MCPブリッジ は停止しています。現在 AI クライアントから DocKit のデータベースにアクセスできません。',
+      stoppedReasonTransient:
+        'サブスクリプションの状態が更新されると MCPブリッジは自動的に再開します。再開しない場合はサブスクリプションを確認してください。',
+      unlockBelow: '下で解錠すると、MCPブリッジは自動的に再開します。',
+      unlockAction: 'MCPブリッジ を解錠',
+      configTitle: '設定',
+      install: {
+        title: 'AI クライアントを接続',
+        desc: 'MCP 対応の AI ツールに Data Studio MCP サーバーを登録すれば、自然言語でデータベースを操作できます。',
+        serverCommand: 'MCP サーバーコマンド',
+        tabClaude: 'Claude Code',
+        tabCodex: 'Codex',
+        tabCursor: 'Cursor',
+        tabGeneric: 'その他のクライアント',
+        cursorDesc:
+          '.cursor/mcp.json（プロジェクト）または ~/.cursor/mcp.json（グローバル）を作成：',
+        genericDesc:
+          'クライアントの MCP 設定に stdio サーバーを登録：コマンド npx、引数 ["-y", "@geek-fun/data-studio-mcp"]。',
+        copy: 'コピー',
+        copied: 'コピーしました',
+        docsLink: 'ドキュメントを見る',
+        portEnvNote:
+          'ポートは自動検出されます。固定する場合は、クライアントの環境変数に DOCKIT_MCP_PORT（SqlKit は SQLKIT_MCP_PORT）を設定してください。',
+      },
       connectionsLoadFailed: '接続の読み込みに失敗しました',
       connectionAccess: '接続アクセス',
       connectionAccessDesc:

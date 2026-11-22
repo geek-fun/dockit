@@ -7,7 +7,7 @@
       <span class="poster__pill">MCP</span>
       <span class="p-status">
         <span class="p-status-dot" />
-        {{ $t('setting.mcp.running', { port: 7878 }) }}
+        {{ $t('setting.mcp.running', { port: 9120 }) }}
       </span>
     </div>
 
@@ -17,7 +17,7 @@
           <div class="p-card">
             <span class="p-label">{{ $t('setting.mcp.port') }}</span>
             <div class="p-port">
-              <span class="p-port-value">7878</span>
+              <span class="p-port-value">9120</span>
               <span class="p-port-btn">{{ $t('setting.mcp.restart') }}</span>
             </div>
             <div class="p-autostart">
@@ -29,7 +29,7 @@
           <div class="p-card">
             <span class="p-label">{{ $t('plan.poster.mcp.clients') }}</span>
             <div class="p-clients">
-              <span class="p-client">Claude Desktop</span>
+              <span class="p-client">Claude Code</span>
               <span class="p-client">Cursor</span>
               <span class="p-client">Any MCP client</span>
             </div>
@@ -42,12 +42,12 @@
             <pre class="p-code">
 {
   "mcpServers": {
-    "dockit": {
-      "url": "http://localhost:7878/mcp"
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"]
     }
   }
-}</pre
-            >
+}</pre>
           </div>
           <div class="p-tools">
             <span v-for="tool in tools" :key="tool" class="p-tool">
@@ -72,18 +72,17 @@
 </template>
 
 <script lang="ts" setup>
-import { Lock, Wrench } from 'lucide-vue-next';
+import { Lock, Wrench } from '@lucide/vue';
 import { ProgressiveBlur } from '../effects';
 
 const tools = [
-  'search',
-  'count',
-  'indexDoc',
-  'getDoc',
-  'bulk',
-  'catIndices',
-  'catHealth',
-  'clusterHealth',
+  'es__search',
+  'es__cat_indices',
+  'mongo__aggregate',
+  'mongo__count_documents',
+  'dynamo__query_table',
+  'dynamo__scan_table',
+  'dockit__list_connections',
 ] as const;
 </script>
 

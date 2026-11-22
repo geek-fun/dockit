@@ -106,7 +106,7 @@
 
 <script lang="ts" setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Bot, Plug, RefreshCw, Server, Sparkles, WandSparkles } from 'lucide-vue-next';
+import { Bot, Plug, RefreshCw, Server, Sparkles, WandSparkles } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import { type PaidFeature } from '../../common';
 import { useEntitlementStore, useUserStore } from '../../store';
@@ -195,7 +195,7 @@ const providerGroups = computed(() => {
       {
         labelKey: 'plan.gate.groups.clients',
         items: [
-          { label: 'Claude Desktop', icon: 'i-simple-icons-claude' },
+          { label: 'Claude Code', icon: 'i-simple-icons-claude' },
           { label: 'Cursor', icon: 'i-simple-icons-cursor' },
           { label: 'Windsurf', icon: 'i-simple-icons-windsurf' },
           { label: 'Any MCP client', icon: 'i-lucide-plug' },

@@ -361,7 +361,7 @@
 <script setup lang="ts">
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
-import { Loader2 } from 'lucide-vue-next';
+import { Loader2 } from '@lucide/vue';
 import {
   useClusterManageStore,
   useConnectionStore,
@@ -494,8 +494,7 @@ const credsExpiryIcon = computed(() => {
   const auth = conn.auth;
   if (auth?.kind !== 'sso' && auth?.kind !== 'assumeRole') return '';
   const expTimestamp: number | undefined = (auth as Record<string, unknown>).expirationTimestamp as
-    | number
-    | undefined;
+    number | undefined;
   if (!expTimestamp) return ''; // no expiry info
   const nowSec = Math.floor(Date.now() / 1000);
   const remaining = expTimestamp - nowSec;

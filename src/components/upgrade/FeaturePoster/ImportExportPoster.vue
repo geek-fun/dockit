@@ -144,7 +144,7 @@ import {
   Lock,
   RefreshCw,
   Zap,
-} from 'lucide-vue-next';
+} from '@lucide/vue';
 import { ProgressiveBlur } from '../effects';
 </script>
 

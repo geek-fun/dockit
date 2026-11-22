@@ -143,7 +143,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { Plus, Pencil } from 'lucide-vue-next';
+import { Plus, Pencil } from '@lucide/vue';
 import { SearchableSelect } from '@/components/ui/combobox';
 import type { ComboboxOption } from '@/components/ui/combobox';
 import { Button } from '@/components/ui/button';

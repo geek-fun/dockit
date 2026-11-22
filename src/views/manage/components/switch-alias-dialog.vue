@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Loader2, X } from 'lucide-vue-next';
+import { Loader2, X } from '@lucide/vue';
 import { useFormValidation, useDialogResult, formatApiError } from '@/composables';
 
 import { useClusterManageStore } from '../../../store';

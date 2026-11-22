@@ -759,7 +759,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import { useMessageService } from '@/composables';
 import prettyBytes from 'pretty-bytes';

@@ -209,8 +209,7 @@ export const useTabStore = defineStore('panel', {
 
       const { connections, saveConnection } = useConnectionStore();
       const conn = connections.find(({ id }) => id === currentConn.id) as
-        | DynamoDBConnection
-        | undefined;
+        DynamoDBConnection | undefined;
       if (!conn) return;
 
       const favorites = conn.favoriteTables ?? [];

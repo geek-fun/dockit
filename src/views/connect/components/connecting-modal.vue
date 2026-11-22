@@ -53,7 +53,7 @@
 import { ref } from 'vue';
 import { open } from '@tauri-apps/plugin-shell';
 import { useDialogResult } from '@/composables';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { UPGRADE_URL } from '../../../common';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';

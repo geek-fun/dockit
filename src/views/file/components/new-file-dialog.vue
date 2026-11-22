@@ -31,7 +31,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { Loader2 } from 'lucide-vue-next';
+import { Loader2 } from '@lucide/vue';
 import { useMessageService } from '@/composables';
 import { cloneDeep } from 'lodash';
 import { useLang } from '../../../lang';
