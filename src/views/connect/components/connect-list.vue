@@ -337,7 +337,7 @@ import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
 import MongodbConnectDialog from './mongodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
 import SshProfileDialog from './ssh-profile-dialog.vue';
-import { Key, Pencil, Trash2 } from 'lucide-vue-next';
+import { Key, Pencil, Trash2 } from '@lucide/vue';
 
 type SortKey = 'name' | 'type' | 'dateCreated';
 
@@ -746,7 +746,7 @@ const establishConnect = async (connection: Connection) => {
     }
 
     // Show error in modal
-    let errorMessage = '';
+    let errorMessage: string;
     if (err instanceof CustomError) {
       errorMessage = `status: ${err.status}, details: ${err.details}`;
     } else if (err instanceof Error) {

@@ -18,9 +18,7 @@ export const TYPE_VALUE_TEMPLATES: Record<string, string> = {
 export const typeValueTemplate = (type: string): string => TYPE_VALUE_TEMPLATES[type] ?? '';
 
 export type StructuredValueIssue =
-  | { kind: 'syntax'; reason: string }
-  | { kind: 'shape' }
-  | { kind: 'emptySet' };
+  { kind: 'syntax'; reason: string } | { kind: 'shape' } | { kind: 'emptySet' };
 
 export type AttributeValueIssue = StructuredValueIssue | { kind: 'required' };
 

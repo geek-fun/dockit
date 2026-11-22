@@ -15,7 +15,7 @@
         </div>
         <div class="app-links">
           <a href="https://github.com/geek-fun/dockit" target="_blank" class="link">
-            <Github class="w-4 h-4" />
+            <i class="i-simple-icons-github w-4 h-4" />
             <span>GitHub</span>
           </a>
         </div>
@@ -28,7 +28,6 @@
 import { ref } from 'vue';
 import { getName, getVersion } from '@tauri-apps/api/app';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Github } from 'lucide-vue-next';
 
 const showModal = ref(false);
 const appName = ref('DocKit');

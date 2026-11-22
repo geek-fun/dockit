@@ -47,8 +47,7 @@
       "args": ["-y", "@geek-fun/data-studio-mcp"]
     }
   }
-}</pre
-            >
+}</pre>
           </div>
           <div class="p-tools">
             <span v-for="tool in tools" :key="tool" class="p-tool">
@@ -73,7 +72,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Lock, Wrench } from 'lucide-vue-next';
+import { Lock, Wrench } from '@lucide/vue';
 import { ProgressiveBlur } from '../effects';
 
 const tools = [

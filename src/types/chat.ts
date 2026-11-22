@@ -21,18 +21,10 @@ export type ChatMessage = {
 };
 
 export type ChatSessionStatus =
-  | 'idle'
-  | 'running'
-  | 'waiting_confirmation'
-  | 'blocked'
-  | 'error'
-  | 'stopped';
+  'idle' | 'running' | 'waiting_confirmation' | 'blocked' | 'error' | 'stopped';
 
 export type ChatSessionStopReason =
-  | 'iteration_cap'
-  | 'wall_clock_budget'
-  | 'token_budget'
-  | 'llm_error';
+  'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error';
 
 export type ChatSession = {
   id: string;

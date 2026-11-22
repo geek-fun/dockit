@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import { storeToRefs } from 'pinia';
 import {
   Dialog,

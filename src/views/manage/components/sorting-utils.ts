@@ -4,12 +4,7 @@ export type SortDirection = 'asc' | 'desc';
 
 export type IndexSortColumn = 'index' | 'health' | 'status' | 'docs' | 'storage';
 export type TemplateSortColumn =
-  | 'name'
-  | 'type'
-  | 'precedence'
-  | 'version'
-  | 'mappings'
-  | 'settings';
+  'name' | 'type' | 'precedence' | 'version' | 'mappings' | 'settings';
 
 export type IndexWithAliases = ClusterIndex & { aliases: ClusterAlias[] };
 export type TemplateItem = ClusterTemplate;

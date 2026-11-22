@@ -10,7 +10,7 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from 'radix-vue';
-import { X } from 'lucide-vue-next';
+import { X } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 interface Props extends DialogContentProps {

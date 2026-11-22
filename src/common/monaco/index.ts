@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
+import 'monaco-editor/languages/definitions/yaml/register.js';
 import {
   BackendType,
   configureCompletions,

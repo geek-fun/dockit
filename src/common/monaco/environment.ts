@@ -10,28 +10,28 @@ export const monacoEnvironment = {
     switch (label) {
       case 'json':
         // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/json/json.worker?worker');
+        worker = await import('monaco-editor/language/json/json.worker?worker');
         break;
       case 'css':
       case 'scss':
       case 'less':
         // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/css/css.worker?worker');
+        worker = await import('monaco-editor/language/css/css.worker?worker');
         break;
       case 'html':
       case 'handlebars':
       case 'razor':
         // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/html/html.worker?worker');
+        worker = await import('monaco-editor/language/html/html.worker?worker');
         break;
       case 'typescript':
       case 'javascript':
         // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker');
+        worker = await import('monaco-editor/language/typescript/ts.worker?worker');
         break;
       default:
         // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/editor/editor.worker?worker');
+        worker = await import('monaco-editor/editor/editor.worker?worker');
     }
 
     return new worker.default();

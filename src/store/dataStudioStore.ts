@@ -74,13 +74,7 @@ export type SessionSource = {
 export type RiskLevel = 'safe' | 'elevated' | 'destructive';
 
 export type AgentToolCallStatus =
-  | 'pending'
-  | 'confirmed'
-  | 'denied'
-  | 'executing'
-  | 'done'
-  | 'error'
-  | 'interrupted';
+  'pending' | 'confirmed' | 'denied' | 'executing' | 'done' | 'error' | 'interrupted';
 
 export type AgentToolCall = {
   id: string;
@@ -131,18 +125,10 @@ export type AgentMessage = {
 };
 
 export type AgentSessionStatus =
-  | 'idle'
-  | 'running'
-  | 'waiting_confirmation'
-  | 'blocked'
-  | 'error'
-  | 'stopped';
+  'idle' | 'running' | 'waiting_confirmation' | 'blocked' | 'error' | 'stopped';
 
 export type AgentSessionStopReason =
-  | 'iteration_cap'
-  | 'wall_clock_budget'
-  | 'token_budget'
-  | 'llm_error';
+  'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error';
 
 export type AgentSession = {
   id: string;
@@ -350,11 +336,7 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
 // ── Store ────────────────────────────────────────────────────────────────────
 
 export type SessionProgressPhase =
-  | 'idle'
-  | 'preparing'
-  | 'iterating'
-  | 'waiting_llm'
-  | 'compacting';
+  'idle' | 'preparing' | 'iterating' | 'waiting_llm' | 'compacting';
 export type SessionProgress = {
   phase: SessionProgressPhase;
   iter?: number;

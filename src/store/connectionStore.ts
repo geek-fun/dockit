@@ -260,9 +260,7 @@ export type EasySearchConnection = SearchConnectionBase & {
 };
 
 export type SearchConnection =
-  | ElasticsearchConnection
-  | OpenSearchConnection
-  | EasySearchConnection;
+  ElasticsearchConnection | OpenSearchConnection | EasySearchConnection;
 
 type ElasticsearchClusterInfo = {
   cluster_name: string;
@@ -714,8 +712,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async fetchTables(con: DynamoDBConnection) {
       const connection = this.connections.find(({ id }) => id === con.id) as
-        | DynamoDBConnection
-        | undefined;
+        DynamoDBConnection | undefined;
       if (!connection) throw new Error('no connection established');
 
       const allTables = await dynamoApi.listTables(connection);
@@ -735,8 +732,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async fetchCollections(con: MongoDBConnection) {
       const connection = this.connections.find(({ id }) => id === con.id) as
-        | MongoDBConnection
-        | undefined;
+        MongoDBConnection | undefined;
       if (!connection) throw new Error('no connection established');
 
       const { mongoApi } = await import('../datasources');
@@ -756,8 +752,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async fetchDatabases(con: MongoDBConnection) {
       const connection = this.connections.find(({ id }) => String(id) === String(con.id)) as
-        | MongoDBConnection
-        | undefined;
+        MongoDBConnection | undefined;
       if (!connection) {
         throw new CustomError(400, 'no connection established');
       }

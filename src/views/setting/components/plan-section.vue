@@ -115,7 +115,7 @@
 <script lang="ts" setup>
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { Check, Loader2, RefreshCw, X } from 'lucide-vue-next';
+import { Check, Loader2, RefreshCw, X } from '@lucide/vue';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

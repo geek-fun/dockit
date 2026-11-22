@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AccordionItem, AccordionHeader, AccordionTrigger, AccordionContent } from 'radix-vue';
-import { ChevronDown } from 'lucide-vue-next';
+import { ChevronDown } from '@lucide/vue';
 import { cn } from '@/lib/utils';
 
 interface CollapseItemProps {

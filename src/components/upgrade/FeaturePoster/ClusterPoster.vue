@@ -172,7 +172,7 @@
 </template>
 
 <script lang="ts" setup>
-import { Database, FileStack, HardDrive, Lock, Star, Table2 } from 'lucide-vue-next';
+import { Database, FileStack, HardDrive, Lock, Star, Table2 } from '@lucide/vue';
 import { ProgressiveBlur } from '../effects';
 
 const nodes = [

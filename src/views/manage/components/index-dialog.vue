@@ -140,7 +140,7 @@ import { ref, computed, watch } from 'vue';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import { Loader2, X } from 'lucide-vue-next';
+import { Loader2, X } from '@lucide/vue';
 import { jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
