@@ -37,6 +37,11 @@
         >
           <div class="min-w-0 space-y-2">
             <div class="flex flex-wrap items-center gap-2">
+              <span
+                aria-hidden="true"
+                class="text-muted-foreground shrink-0 h-4 w-4"
+                :class="providerIcon(provider.kind)"
+              />
               <p class="truncate text-base font-semibold">{{ provider.label }}</p>
               <Badge :variant="provider.connected ? 'default' : 'secondary'">
                 {{
@@ -804,6 +809,36 @@ const providerPresets: Record<
 const configuredProviders = computed(() =>
   llmSettings.value.providers.filter(provider => provider.enabled),
 );
+
+// Monochrome brand marks per provider kind; generic glyphs for the long tail.
+const PROVIDER_ICONS: Record<string, string> = {
+  openai: 'i-simple-icons-openai',
+  deepseek: 'i-simple-icons-deepseek',
+  openrouter: 'i-simple-icons-openrouter',
+  requesty: 'i-lucide-box',
+  opper: 'i-lucide-box',
+  atlascloud: 'i-lucide-box',
+  'api-route': 'i-lucide-box',
+  cheaperinference: 'i-lucide-box',
+  runcrate: 'i-lucide-box',
+  cloudgpu: 'i-lucide-box',
+  cheapaimodel: 'i-lucide-box',
+  standardcompute: 'i-lucide-box',
+  uberllm: 'i-lucide-box',
+  anthropic: 'i-simple-icons-anthropic',
+  gemini: 'i-simple-icons-googlegemini',
+  grok: 'i-simple-icons-x',
+  mistral: 'i-simple-icons-mistralai',
+  'azure-openai': 'i-simple-icons-microsoftazure',
+  ollama: 'i-simple-icons-ollama',
+  'lm-studio': 'i-lucide-cpu',
+  'custom-openai': 'i-lucide-plug',
+  'custom-anthropic': 'i-lucide-plug',
+  'opencode-zen': 'i-lucide-box',
+  'opencode-go': 'i-lucide-box',
+};
+
+const providerIcon = (kind: ProviderKind): string => PROVIDER_ICONS[kind] ?? 'i-lucide-plug';
 
 const hasExistingApiKey = computed(() => draftProvider.value?.apiKey === API_KEY_SENTINEL);
 
