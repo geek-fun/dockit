@@ -93,7 +93,7 @@ DocKit は単一の公式ビルドと、ランタイムで切り替える Commun
 - **スキーマ検査** — エージェントがデータベースのスキーマを読み取り、説明します
 - **データ操作** — 会話を通じた CRUD、インデックス管理、一括操作
 - **安全性** — データソースごとの権限、破壊的な操作に対する確認ゲート、資格情報は LLM に決して渡されません
-- **対応プロバイダー** — OpenAI、Anthropic、DeepSeek、Requesty、Opper、Atlas Cloud、[API Route](https://api-route.com)、Cheaper Inference、Runcrate、CloudGPU、cheapaimodel、[Standard Compute](https://standardcompute.com)、[UberLLM](https://uberllm.dev)、Ollama、LM Studio
+- **対応プロバイダー** — OpenAI、Anthropic、DeepSeek、Requesty、Opper、Atlas Cloud、[API Route](https://api-route.com)、Cheaper Inference、Runcrate、CloudGPU、cheapaimodel、[Standard Compute](https://standardcompute.com)、[MartLLM](https://martllm.com)、Ollama、LM Studio
 
 ### DynamoDB
 
