@@ -49,8 +49,7 @@ GET /payment_orders/_search
     { "range": { "paid_at": { "gte": "now-7d" } } },
     { "term":   { "status": "failed" } }
   ] } }
-}</pre
-        >
+}</pre>
         <div class="p-table">
           <div class="p-tr p-tr--head">
             <span>_id</span>
@@ -89,7 +88,7 @@ GET /payment_orders/_search
 </template>
 
 <script lang="ts" setup>
-import { Check, Lightbulb, Lock, RefreshCw, Repeat, Terminal } from 'lucide-vue-next';
+import { Check, Lightbulb, Lock, RefreshCw, Repeat, Terminal } from '@lucide/vue';
 import { ProgressiveBlur } from '../effects';
 </script>
 

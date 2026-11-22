@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 import { ref, h, onUnmounted } from 'vue';
-import { Key } from 'lucide-vue-next';
+import { Key } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DatabaseType } from '@/store';

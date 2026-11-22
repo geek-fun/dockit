@@ -20,6 +20,7 @@ export default [
       '*.d.ts',
       '.vite',
       '.claude',
+      '.github',
     ],
   },
 

@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2 } from '@lucide/vue';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
 import { useLang } from '../../../../lang';
 import { useDialogResult, formatApiError } from '@/composables';

@@ -204,7 +204,10 @@ mod tests {
         };
         let settings = json!({"baseUrl":format!("http://{address}"),"model":"gpt-4o-mini","apiKey":"synthetic","proxyMode":"none","tools":[{"type":"function","function":{"name":"es__create_index","parameters":{"type":"object"}}}],"maxIterations":3});
         let result = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
+            // data-studio-agent v0.2.2 takes longer to unwind after the denial stop
+            // (internal backoff), and the full concurrent test suite pushes this past
+            // the previous 30s bound; correctness is asserted via requests == 1 below.
+            std::time::Duration::from_secs(90),
             data_studio_agent::loop_runner::run_agent_loop(
                 "chat",
                 "Create example",

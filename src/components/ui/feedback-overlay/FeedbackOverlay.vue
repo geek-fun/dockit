@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CircleCheck, Loader2 } from 'lucide-vue-next';
+import { CircleCheck, Loader2 } from '@lucide/vue';
 
 withDefaults(
   defineProps<{

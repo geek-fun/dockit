@@ -49,7 +49,7 @@ const DEFAULT_FOLDER = '.dockit';
 
 const getSysEmoji = async (): Promise<string> => {
   const os = platform();
-  let emoji = '';
+  let emoji: string;
 
   switch (os) {
     case 'linux':
