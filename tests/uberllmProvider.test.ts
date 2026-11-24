@@ -22,7 +22,7 @@ jest.mock('../src/datasources', () => ({
 
 import { useAppStore } from '../src/store/appStore';
 
-describe('UberLLM provider preset', () => {
+describe('MartLLM provider preset', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
   });
@@ -33,10 +33,10 @@ describe('UberLLM provider preset', () => {
     const uberllm = store.providerConfigs.find(provider => provider.kind === 'uberllm');
 
     expect(uberllm).toMatchObject({
-      label: 'UberLLM',
+      label: 'MartLLM',
       apiCompatibility: 'openai-compatible',
       authMode: 'api-key',
-      baseUrl: 'https://api.uberllm.dev/v1',
+      baseUrl: 'https://api.martllm.com/v1',
       enabled: false,
       apiKey: '',
     });

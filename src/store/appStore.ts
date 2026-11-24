@@ -261,9 +261,9 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     kind: 'uberllm',
     apiCompatibility: 'openai-compatible',
-    label: 'UberLLM',
+    label: 'MartLLM',
     authMode: 'api-key',
-    defaultBaseUrl: 'https://api.uberllm.dev/v1',
+    defaultBaseUrl: 'https://api.martllm.com/v1',
     enabled: false,
     defaultModels: [
       'deepseek/deepseek-v4-flash',

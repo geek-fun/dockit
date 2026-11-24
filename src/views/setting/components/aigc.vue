@@ -733,9 +733,9 @@ const providerPresets: Record<
     apiCompatibility: 'openai-compatible',
   },
   uberllm: {
-    label: 'UberLLM',
+    label: 'MartLLM',
     authMode: 'api-key',
-    baseUrl: 'https://api.uberllm.dev/v1',
+    baseUrl: 'https://api.martllm.com/v1',
     apiCompatibility: 'openai-compatible',
   },
   anthropic: {

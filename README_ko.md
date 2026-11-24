@@ -93,7 +93,7 @@ DocKit은 단일 공식 빌드와 런타임에서 전환되는 Community/Ultimat
 - **스키마 검사** — 에이전트가 데이터베이스 스키마를 읽고 설명합니다
 - **데이터 작업** — 대화를 통한 CRUD, 인덱스 관리, 일괄 작업
 - **안전성** — 소스별 권한, 파괴적 작업에 대한 확인 게이트, 자격 증명은 LLM에 노출되지 않음
-- **지원 프로바이더** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Atlas Cloud, [API Route](https://api-route.com), Cheaper Inference, Runcrate, CloudGPU, cheapaimodel, [Standard Compute](https://standardcompute.com), [UberLLM](https://uberllm.dev), Ollama, LM Studio
+- **지원 프로바이더** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Atlas Cloud, [API Route](https://api-route.com), Cheaper Inference, Runcrate, CloudGPU, cheapaimodel, [Standard Compute](https://standardcompute.com), [MartLLM](https://martllm.com), Ollama, LM Studio
 
 ### DynamoDB
 

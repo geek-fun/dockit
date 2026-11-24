@@ -93,7 +93,7 @@ Describe lo que necesitas en lenguaje natural — el agente escribe consultas, i
 - **Inspección de esquemas** — el agente lee y explica el esquema de tu base de datos
 - **Operaciones de datos** — CRUD, gestión de índices y acciones masivas mediante conversación
 - **Seguridad** — permisos por fuente, confirmación para operaciones destructivas, credenciales nunca expuestas al LLM
-- **Proveedores compatibles** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Atlas Cloud, [API Route](https://api-route.com), Cheaper Inference, Runcrate, CloudGPU, cheapaimodel, [Standard Compute](https://standardcompute.com), [UberLLM](https://uberllm.dev), Ollama, LM Studio
+- **Proveedores compatibles** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Atlas Cloud, [API Route](https://api-route.com), Cheaper Inference, Runcrate, CloudGPU, cheapaimodel, [Standard Compute](https://standardcompute.com), [MartLLM](https://martllm.com), Ollama, LM Studio
 
 ### DynamoDB
 
