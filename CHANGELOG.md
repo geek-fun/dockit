@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-11-24
+
+### Added
+
+- **MCP Bridge status at a glance** — the system tray shows whether the bridge is running and on which port, and offers Unlock right from the tray when a subscription is required (#554)
+- **Revamped MCP settings** — the MCP tab becomes a connection center with bridge status, restart, port and auto-start controls, live server sessions, and copy-ready setup guides for Claude Code, Codex, Cursor, and generic AI clients (#554)
+- **Avatars stay fresh** — the account avatar renews automatically on the session schedule instead of fading to a blank box weeks after sign-in (#555)
+
+### Changed
+
+- Settings rows align their labels left and controls right, auto-compact renders as a switch, and provider rows show monochrome brand icons (#554)
+- Basic settings now order sections Theme → Language → Plan → History, keeping account-level context after personal preferences (#556)
+
+## [2.0.3] - 2026-11-19
+
+### Added
+
+- **Runs in the system tray** — closing the DocKit window keeps background tasks and the MCP server running; use Show Window from the tray icon to return to your session, Quit to stop the app
+- **Four more interface languages** — Portuguese (Brazil), Japanese, Korean, and Spanish are available, with a language picker that no longer maps non-Chinese selections back to English
+
+### Fixed
+
+- Chinese system locale detection follows a unified standard — bare `zh` and `zh-SG` resolve to Simplified Chinese
+- Sign-in no longer stalls when locale syncing is slow to respond
+
 ## [2.0.2] - 2026-11-13
 
 ### Added
