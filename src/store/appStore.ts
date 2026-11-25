@@ -43,6 +43,7 @@ export type ProviderKind =
   | 'cheapaimodel'
   | 'standardcompute'
   | 'uberllm'
+  | 'onomeo'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -272,6 +273,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     ],
   },
   {
+    kind: 'onomeo',
+    apiCompatibility: 'openai-compatible',
+    label: 'onomeo',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://onomeo.com/v1',
+    enabled: false,
+    defaultModels: ['deepseek-v4.1-flash', 'claude-sonnet-5.5', 'gpt-6.2-sol'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -401,6 +411,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   cheapaimodel: ['deepseek-v4-1-flash', 'glm-5.3-flash', 'kimi-k3'],
   standardcompute: ['StandardCompute'],
   uberllm: ['deepseek/deepseek-v4-flash', 'openai/gpt-5.4-mini', 'anthropic/claude-sonnet-5'],
+  onomeo: ['deepseek-v4.1-flash', 'claude-sonnet-5.5', 'gpt-6.2-sol'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -523,6 +534,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'standardcompute';
     case ProviderEnum.UBERLLM:
       return 'uberllm';
+    case ProviderEnum.ONOMEO:
+      return 'onomeo';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:

@@ -738,6 +738,12 @@ const providerPresets: Record<
     baseUrl: 'https://api.martllm.com/v1',
     apiCompatibility: 'openai-compatible',
   },
+  onomeo: {
+    label: 'onomeo',
+    authMode: 'api-key',
+    baseUrl: 'https://onomeo.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
@@ -825,6 +831,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   cheapaimodel: 'i-lucide-box',
   standardcompute: 'i-lucide-box',
   uberllm: 'i-lucide-box',
+  onomeo: 'i-lucide-box',
   anthropic: 'i-simple-icons-anthropic',
   gemini: 'i-simple-icons-googlegemini',
   grok: 'i-simple-icons-x',
