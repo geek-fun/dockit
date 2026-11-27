@@ -47,24 +47,16 @@ DocKit은 Kibana, AWS Console 같은 브라우저 콘솔을 하나의 네이티�
 
 ## 설치
 
-<a href="https://www.geekfun.club/download">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange&logo=download&logoColor=white">
-    <img src="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange&logo=download&logoColor=white" alt="Download">
-  </picture>
-</a>
-&nbsp;
-<a href="https://github.com/geek-fun/dockit/releases">
-  <img src="https://img.shields.io/badge/Releases-GitHub-lightgrey&logo=github" alt="Releases">
-</a>
-&nbsp;
-<a href="https://www.geekfun.club/products/dockit/">
-  <img src="https://img.shields.io/badge/Website-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
-</a>
+**macOS**(Apple Silicon 및 Intel `.dmg`), **Windows**(`.exe` / `.msi`), **Linux**(`.deb`, `.rpm`, `.AppImage`)용 최신 설치 프로그램을 다운로드하세요:
+
+- **[다운로드 페이지 (geekfun.club)](https://www.geekfun.club/ko/download#dockit)** — macOS, Windows, Linux 설치 파일 바로 받기
+- **[GitHub Releases](https://github.com/geek-fun/dockit/releases/latest)** — 전체 설치 파일 및 릴리스 노트
+
+> DocKit 창을 닫아도 백그라운드 작업과 MCP 서버는 계속 실행됩니다. 메뉴 막대 또는 시스템 트레이 아이콘에서 **창 표시**로 돌아가거나 **종료**로 앱을 중지할 수 있습니다.
 
 ### AI 에이전트 연동 (MCP)
 
-DocKit은 로컬 HTTP **MCP 브리지**(`127.0.0.1`)를 내장하고 있으며, 오픈소스 [Data Studio MCP 서버(`@geek-fun/data-studio-mcp`)](https://github.com/geek-fun/data-studio-agent)와 함께 동작하여 AI 코딩 에이전트가 DocKit에 이미 설정된 연결을 통해 Elasticsearch, OpenSearch, MongoDB, DynamoDB 데이터베이스를 조회하고 관리할 수 있게 합니다. 데이터베이스 자격 증명은 로컬 기기에만 보관되며 MCP 경계를 넘지 않습니다 — 에이전트에는 불투명한 연결 ID만 노출됩니다.
+[`@geek-fun/data-studio-mcp`](https://github.com/geek-fun/data-studio-agent)를 통해 Claude Code, OpenAI Codex, Cursor, Windsurf, OpenCode 및 모든 MCP 클라이언트를 DocKit 데이터베이스에 연결할 수 있습니다.
 
 ```bash
 # Claude Code
@@ -73,14 +65,14 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 # OpenAI Codex
 codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
 
-# 또는 직접 실행
+# 직접 실행
 npx -y @geek-fun/data-studio-mcp
 ```
 
 <details>
 <summary><strong>JSON 설정 (Cursor, Windsurf, .mcp.json 또는 사용자 지정 포트)</strong></summary>
 
-`.mcp.json`(또는 `.cursor/mcp.json` / `~/.cursor/mcp.json`)에 추가하세요. 포트는 DocKit의 로컬 포트 파일에서 자동으로 감지됩니다(기본값 `9120`). 특정 포트를 고정할 필요가 없다면 `env`를 생략하세요:
+`.mcp.json`, `.cursor/mcp.json` 또는 `~/.cursor/mcp.json`에 추가하세요(포트 자동 감지를 사용하려면 `env` 생략 가능, 기본값 `9120`):
 
 ```json
 {
@@ -98,11 +90,13 @@ npx -y @geek-fun/data-studio-mcp
 
 </details>
 
-**설정 → MCP 브리지 → 기본 AI 권한**에서 접근 수준(**접근 없음**, **읽기**, **데이터 읽기 및 수정**, **전체 접근**, 또는 작업별 **사용자 지정** 규칙)을 관리하고, 각 연결의 **AI 권한** 섹션에서 개별 연결별로 재정의할 수 있습니다. **접근 없음**으로 설정된 연결은 MCP 검색에서 숨겨지며, 모든 요청은 실행 전 정책에 따라 다시 검증됩니다. **설정 → MCP 브리지**의 **자동 시작**을 켠 상태로 DocKit을 실행해 두세요(기본값 켜짐; 창을 닫아도 메뉴 막대 또는 시스템 트레이에서 브리지가 계속 실행됩니다).
+- **로컬 및 프라이빗** — `127.0.0.1` 로컬 HTTP 브리지로 동작하며, 자격 증명은 DocKit 내부에만 보관되고 에이전트에는 불투명한 연결 ID만 노출됩니다
+- **세분화된 권한** — **설정 → MCP 브리지 → 기본 AI 권한**(**접근 없음**, **읽기**, **데이터 읽기 및 수정**, **전체 접근**, **사용자 지정**) 및 연결별 개별 설정을 지원합니다
+- **NoSQL 도구** — 연결 목록 조회, 인덱스·매핑·컬렉션·DynamoDB 테이블 구조 확인, 쿼리 실행 및 허용된 작업을 수행합니다
 
-Claude Code, OpenAI Codex, Cursor, Windsurf, OpenCode 및 모든 MCP 호환 클라이언트에서 동작합니다. 연결 목록 조회, 인덱스·매핑·컬렉션·DynamoDB 테이블 구조 확인, 쿼리 실행, 허용된 문서·인덱스·테이블 작업을 지원합니다. DocKit을 [SqlKit](https://github.com/geek-fun/sqlkit)과 함께 실행하면 동일한 MCP 서버를 통해 NoSQL과 SQL 데이터베이스를 모두 사용할 수 있습니다.
-
-자세한 내용은 [DocKit MCP 브리지 가이드](https://www.geekfun.club/docs/dockit/mcp-bridge), [Data Studio Agent 빠른 시작](https://www.geekfun.club/docs/data-studio-agent/quick-start), [MCP 서버 README](https://github.com/geek-fun/data-studio-agent/blob/master/packages/data-studio-mcp/README.md)를 참고하세요.
+> **참고:** **설정 → MCP 브리지**의 **자동 시작**(기본값 켜짐)을 켠 상태로 DocKit을 실행해 두세요(창을 닫아도 메뉴 막대 또는 시스템 트레이에서 계속 실행됩니다). [SqlKit](https://github.com/geek-fun/sqlkit)과 함께 실행하면 동일한 MCP 서버로 NoSQL과 SQL 데이터베이스를 모두 사용할 수 있습니다.
+>
+> **문서:** [MCP 브리지 가이드](https://www.geekfun.club/docs/dockit/mcp-bridge) · [빠른 시작](https://www.geekfun.club/docs/data-studio-agent/quick-start) · [MCP 서버 README](https://github.com/geek-fun/data-studio-agent/blob/master/packages/data-studio-mcp/README.md)
 
 ## 주요 기능
 
