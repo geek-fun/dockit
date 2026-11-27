@@ -1,4 +1,5 @@
 import { ulid } from 'ulidx';
+import { parseToolArguments } from '@/common';
 import {
   confirmToolCall as invokeConfirmToolCall,
   onAgentLoopDelta,
@@ -179,7 +180,7 @@ const initAgentRuntime = async (): Promise<void> => {
         const toolCall: AgentToolCall = {
           id: tool_call_id,
           toolName: tool_name,
-          args: (args ?? {}) as Record<string, unknown>,
+          args: parseToolArguments(args),
           status: denied ? 'denied' : needsConfirmation ? 'pending' : 'executing',
           riskLevel,
           requiresConfirmation: needsConfirmation,
@@ -255,7 +256,7 @@ const initAgentRuntime = async (): Promise<void> => {
             const rejected: AgentToolCall = {
               id: tool_call_id,
               toolName: tool_name,
-              args: (args ?? {}) as Record<string, unknown>,
+              args: parseToolArguments(args),
               status: denied ? 'denied' : 'error',
               riskLevel: 'safe',
               requiresConfirmation: false,

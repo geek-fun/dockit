@@ -1,4 +1,4 @@
-import type { AccessDenial } from '@/common';
+import { parseToolArguments, type AccessDenial, type ToolCallArgs } from '@/common';
 /* eslint-disable no-console */
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
@@ -79,7 +79,7 @@ export type AgentToolCallStatus =
 export type AgentToolCall = {
   id: string;
   toolName: string;
-  args: Record<string, unknown>;
+  args: ToolCallArgs;
   status: AgentToolCallStatus;
   result?: string;
   resultTruncated?: boolean;
@@ -213,17 +213,6 @@ const dedupAdjacentCompactions = (messages: AgentMessage[]): AgentMessage[] => {
 };
 
 const TOOL_RESULT_PREVIEW_CHARS = 200;
-
-const parseToolArguments = (input: string): Record<string, unknown> => {
-  try {
-    const parsed: unknown = JSON.parse(input);
-    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : {};
-  } catch {
-    return {};
-  }
-};
 
 const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
   const base = {

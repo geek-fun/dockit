@@ -2090,11 +2090,28 @@ export const esES = {
       toolConfirmation: {
         title: 'Se requiere confirmación de herramienta',
         targetSource: 'Fuente de destino',
+        operation: 'Operación',
+        copy: 'Copiar',
+        copied: 'Copiado',
+        showAll: 'Mostrar todo',
+        showLess: 'Mostrar menos',
         allowOnce: 'Permitir una vez',
         allowAlways: 'Permitir siempre',
         deny: 'Denegar',
         denyAlways: 'Denegar siempre',
         cancel: 'Cancelar',
+        riskDescription: {
+          safe: 'Solo lectura — no modifica los datos',
+          elevated: 'Modifica los datos — revísalo antes de permitir',
+          destructive: 'Elimina datos o altera el esquema — puede ser irreversible',
+        },
+        hints: {
+          noWhereClause: 'No se detectó cláusula WHERE — puede afectar a todas las filas',
+          dropsObject:
+            'Elimina un objeto de base de datos — los datos o la estructura pueden borrarse permanentemente',
+          truncates: 'Trunca el destino — elimina todas las filas',
+          multipleStatements: 'Contiene múltiples sentencias en una sola llamada',
+        },
         status: {
           executing: 'Ejecutando…',
           denied: 'Denegado',

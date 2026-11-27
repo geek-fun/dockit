@@ -6,15 +6,13 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 import taskLists from 'markdown-it-task-lists';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js'; // https://highlightjs.org
 
-import { useAppStore } from '../store';
 import { useTabStore } from '@/store/tabStore';
-import { useMessageService } from '@/composables';
+import { useHighlightTheme, useMessageService } from '@/composables';
 
 const props = defineProps({
   markdown: {
@@ -23,20 +21,7 @@ const props = defineProps({
   },
 });
 
-const appStore = useAppStore();
-const { uiThemeType } = storeToRefs(appStore);
-
-watch(
-  () => uiThemeType.value,
-  async () => {
-    if (uiThemeType.value === 'dark') {
-      await import('highlight.js/styles/atom-one-dark.css');
-    } else {
-      await import('highlight.js/styles/atom-one-light.css');
-    }
-  },
-  { immediate: true },
-);
+useHighlightTheme();
 
 const tabStore = useTabStore();
 const message = useMessageService();
