@@ -62,26 +62,47 @@ DocKit は、Kibana や AWS Console などのブラウザコンソールを 1 �
   <img src="https://img.shields.io/badge/Website-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
 </a>
 
-## Community と Ultimate
+### AI エージェント連携（MCP）
 
-DocKit は単一の公式ビルドと、ランタイムで切り替える Community/Ultimate モードを採用しています（ソースコードは Apache-2.0 のままです）。
+DocKit はローカル HTTP **MCPブリッジ**（`127.0.0.1`）を内蔵しており、オープンソースの [Data Studio MCP サーバー（`@geek-fun/data-studio-mcp`）](https://github.com/geek-fun/data-studio-agent) と連携することで、AI コーディングエージェントが DocKit に設定済みの接続を通じて Elasticsearch、OpenSearch、MongoDB、DynamoDB をクエリ・管理できます。データベースの認証情報はローカル端末内に留まり、MCP の境界を越えることはありません。エージェントが参照するのは不透明な接続 ID のみです。
 
-**Community（永久に無料）：** すべてのデータソース（Elasticsearch / OpenSearch / DynamoDB / MongoDB / EasySearch）、基本の直接認証（ユーザー/パスワード、静的アクセスキー）による無制限の接続、TLS、OS キーチェーンによる資格情報の暗号化、Monaco 搭載のフルエディタとビジュアルクエリビルダー、データ閲覧とインライン編集、結果セットのエクスポート（CSV / JSON / Markdown / コピー）、クエリ履歴と保存済みクエリ、メタデータ閲覧、DynamoDB Local。
+```bash
+# Claude Code
+claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 
-**Ultimate（$9.9/月 · $99/年、7 日間の無料トライアル）：**
+# OpenAI Codex
+codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
 
-| 機能 | 含まれる |
-|---|---|
-| AI — エージェント、NL2SQL、説明、最適化、ワンクリック修復（LLM キーはご自身のものをご利用ください） | ✅ |
-| クラスタ管理とモニタリング — ノード、シャード、インデックス、テンプレート、allocation | ✅ |
-| 内蔵 MCP Server | ✅ |
-| バッチ / ファイル単位のインポート＆エクスポート | ✅ |
-| リモート接続の拡張 — SSH トンネル、HTTP/SOCKS プロキシ | ✅ |
-| クラウド資格情報 — AWS Profile / SSO / IAM | ✅ |
+# または直接実行
+npx -y @geek-fun/data-studio-mcp
+```
 
-**バージョンロック：** 有効なサブスクリプション期間中にリリースされたすべてのバージョンは、永久にアンロックされたままです — オフラインでも、サブスクリプション終了後も同様です。7 日間のトライアルでは期間中すべての機能がアンロックされますが、バージョンロックの権利は付与されません。クラウドサービス（同期など）には有効なサブスクリプションが必要です。
+<details>
+<summary><strong>JSON 設定（Cursor、Windsurf、.mcp.json、またはポート指定）</strong></summary>
 
-詳細は[料金ページ](https://www.geekfun.club/pricing)をご覧ください。
+`.mcp.json`（または `.cursor/mcp.json` / `~/.cursor/mcp.json`）に追加します。ポートは DocKit のローカルポートファイルから自動検出されます（デフォルト `9120`）。特定のポートに固定しない場合は `env` を省略してください：
+
+```json
+{
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"],
+      "env": {
+        "DOCKIT_MCP_PORT": "9120"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+アクセス制御は **設定 → MCPブリッジ → デフォルトのAI権限**（**アクセスなし**、**読み取り**、**データの読み取りと変更**、**フルアクセス**、またはアクション単位の**カスタム**設定）で管理でき、各接続の **AI権限** セクションで個別に上書きできます。**アクセスなし**に設定された接続は MCP の接続検出に表示されず、すべてのリクエストは実行前にポリシーで再検証されます。**設定 → MCPブリッジ** で **自動起動** を有効にした状態で DocKit を起動しておいてください（デフォルトで有効。ウィンドウを閉じてもメニューバーやシステムトレイで稼働を継続します）。
+
+Claude Code、OpenAI Codex、Cursor、Windsurf、OpenCode およびすべての MCP 対応クライアントで動作します。接続一覧の取得、インデックス・マッピング・コレクション・DynamoDB テーブルの確認、クエリ実行、許可されたドキュメント・インデックス・テーブル操作に対応しています。DocKit と [SqlKit](https://github.com/geek-fun/sqlkit) を併用すると、同じ MCP サーバーから NoSQL と SQL の両方のデータベースを利用できます。
+
+詳しくは [DocKit MCP ブリッジガイド](https://www.geekfun.club/docs/dockit/mcp-bridge)、[Data Studio Agent クイックスタート](https://www.geekfun.club/docs/data-studio-agent/quick-start)、[MCP サーバー README](https://github.com/geek-fun/data-studio-agent/blob/master/packages/data-studio-mcp/README.md) をご覧ください。
 
 ## 主な機能
 

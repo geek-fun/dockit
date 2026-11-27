@@ -58,26 +58,47 @@ DocKit 用一个原生桌面应用替代 Kibana 和 AWS Console 等浏览器控�
   <img src="https://img.shields.io/badge/官网-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
 </a>
 
-## 社区版与旗舰版
+### AI 编程助手集成（MCP）
 
-DocKit 采用「单一官方构建 + 运行时社区版/旗舰版模式」，源码始终保持 Apache-2.0。
+DocKit 内置本地 HTTP **MCP 桥接**（仅监听 `127.0.0.1`），配合开源的 [Data Studio MCP 服务器（`@geek-fun/data-studio-mcp`）](https://github.com/geek-fun/data-studio-agent)，让 AI 编程助手可以直接通过 DocKit 中已配置的连接查询和管理 Elasticsearch、OpenSearch、MongoDB 和 DynamoDB 数据库。数据库凭据始终留在本地，绝不跨过 MCP 边界 —— Agent 只能看到不透明的连接 ID。
 
-**社区版（永久免费）：** 全部数据源（Elasticsearch / OpenSearch / DynamoDB / MongoDB / EasySearch）、无限连接与基础直连认证（账号密码、静态 AK/SK）、TLS、操作系统钥匙串凭据加密、完整的 Monaco 编辑器与可视化查询构建器、数据浏览与内联编辑、结果集导出（CSV / JSON / Markdown / 复制）、查询历史与已存查询、元数据浏览、DynamoDB Local。
+```bash
+# Claude Code
+claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 
-**旗舰版（$9.9/月 · $99/年，7 天免费试用）：**
+# OpenAI Codex
+codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
 
-| 功能 | 包含 |
-|---|---|
-| AI — Agent / NL2SQL / 解释 / 优化 / 一键修复（自带 LLM Key） | ✅ |
-| 集群管理与监控 — 节点 / 分片 / 索引 / 模板 / allocation | ✅ |
-| 内置 MCP Server | ✅ |
-| 批量 / 文件级导入导出 | ✅ |
-| 远程连接增强 — SSH 隧道、HTTP/SOCKS 代理 | ✅ |
-| 云凭证 — AWS Profile / SSO / IAM | ✅ |
+# 或直接运行
+npx -y @geek-fun/data-studio-mcp
+```
 
-**版本锁：** 订阅有效期内发布的所有版本永久解锁，离线可用，取消订阅后依然可用。7 天试用期内可使用完整功能，但试用不授予版本锁权益。云服务（如云同步）需保持订阅有效。
+<details>
+<summary><strong>JSON 配置（Cursor、Windsurf、.mcp.json 或自定义端口）</strong></summary>
 
-详见[定价页](https://www.geekfun.club/pricing)。
+添加到 `.mcp.json`（或 `.cursor/mcp.json` / `~/.cursor/mcp.json`）。端口默认通过 DocKit 本地端口文件自动发现（默认 `9120`）；如无需固定端口，可省略 `env`：
+
+```json
+{
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"],
+      "env": {
+        "DOCKIT_MCP_PORT": "9120"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+在 **设置 → MCP 桥接 → 默认 AI 权限** 中管理权限（**禁止访问**、**读取**、**读取和修改数据**、**完全访问**，或**自定义**单项操作规则），并可在单个连接的 **AI 权限** 中单独覆盖。设为**禁止访问**的连接不会出现在 MCP 发现列表中，每次调用在执行前都会重新校验权限策略。请保持 DocKit 运行并在 **设置 → MCP 桥接** 中开启 **自动启动**（默认开启；关闭窗口后桥接服务会在菜单栏或系统托盘继续运行）。
+
+兼容 Claude Code、OpenAI Codex、Cursor、Windsurf、OpenCode 及所有支持 MCP 的客户端。支持列出连接、查看索引/映射/集合/DynamoDB 表结构、执行查询以及在权限范围内进行文档、索引和表管理操作。同时运行 DocKit 与 [SqlKit](https://github.com/geek-fun/sqlkit) 时，同一个 MCP 服务器即可同时暴露 NoSQL 和 SQL 数据库能力。
+
+详见 [DocKit MCP 桥接指南](https://www.geekfun.club/zh/docs/dockit/mcp-bridge)、[Data Studio Agent 快速开始](https://www.geekfun.club/zh/docs/data-studio-agent/quick-start) 及 [MCP 服务器 README](https://github.com/geek-fun/data-studio-agent/blob/master/packages/data-studio-mcp/README_zh.md)。
 
 ## 主要功能
 

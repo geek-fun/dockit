@@ -64,26 +64,47 @@ DocKit replaces browser consoles like Kibana and AWS Console with a single nativ
 
 Closing the DocKit window keeps background tasks and the MCP server running. Use **Show Window** from the DocKit menu-bar or system-tray icon to return to your session. Choose **Quit** from that menu to stop the app.
 
-## Community vs Ultimate
+### AI Agent Integration (MCP)
 
-DocKit follows a single official build with a runtime Community/Ultimate mode (source remains Apache-2.0).
+DocKit embeds a local HTTP **MCP Bridge** (`127.0.0.1`) and works with the open-source [Data Studio MCP server (`@geek-fun/data-studio-mcp`)](https://github.com/geek-fun/data-studio-agent) so AI coding agents can query and manage your Elasticsearch, OpenSearch, MongoDB, and DynamoDB databases using connections already configured in DocKit. Database credentials stay on your machine and never cross the MCP boundary — agents only see opaque connection IDs.
 
-**Community (free forever):** all data sources (Elasticsearch / OpenSearch / DynamoDB / MongoDB / EasySearch), unlimited connections with basic direct authentication (user/password, static access keys), TLS, OS-keychain credential encryption, the full Monaco-powered editors and visual query builders, browsing & inline editing, result-set export (CSV / JSON / Markdown / copy), query history and saved queries, metadata browsing, DynamoDB Local.
+```bash
+# Claude Code
+claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 
-**Ultimate ($9.9/mo · $99/yr, 7-day free trial):**
+# OpenAI Codex
+codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
 
-| Feature | Included |
-|---|---|
-| AI — agent, NL2SQL, explain, optimize, one-click fix (bring your own LLM key) | ✅ |
-| Cluster management & monitoring — nodes, shards, indices, templates, allocation | ✅ |
-| Built-in MCP Server | ✅ |
-| Batch / file-level import & export | ✅ |
-| Remote connection enhancements — SSH tunnel, HTTP/SOCKS proxy | ✅ |
-| Cloud credentials — AWS Profile / SSO / IAM | ✅ |
+# Or run directly
+npx -y @geek-fun/data-studio-mcp
+```
 
-**Version lock:** every release published during an active subscription stays unlocked forever — offline, even after the subscription ends. The 7-day trial unlocks everything during the trial but does not grant version-lock rights. Cloud services (e.g. sync) require an active subscription.
+<details>
+<summary><strong>JSON configuration (Cursor, Windsurf, .mcp.json, or custom port)</strong></summary>
 
-See [pricing](https://www.geekfun.club/pricing) for details.
+Add to `.mcp.json` (or `.cursor/mcp.json` / `~/.cursor/mcp.json`). Ports are discovered automatically from DocKit's local port file (default `9120`); omit `env` unless you need to pin a specific port:
+
+```json
+{
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"],
+      "env": {
+        "DOCKIT_MCP_PORT": "9120"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+Manage access in **Settings → MCP Bridge → Default AI permissions** (**No access**, **Read**, **Read & modify data**, **Full access**, or **Custom** per-action rules) and override individual connections in each connection's **AI permissions** section. Connections set to **No access** are hidden from MCP discovery, and every request is rechecked against the policy before execution. Keep DocKit running with **Auto-start** enabled in **Settings → MCP Bridge** (on by default; closing the window keeps the bridge active in the menu bar or system tray).
+
+Works with Claude Code, OpenAI Codex, Cursor, Windsurf, OpenCode, and any MCP-compatible client. Supports listing connections, inspecting indices, mappings, collections, and DynamoDB tables, executing queries, and running permitted document, index, and table operations. Run DocKit alongside [SqlKit](https://github.com/geek-fun/sqlkit) to expose both NoSQL and SQL databases through the same MCP server.
+
+See the [DocKit MCP Bridge guide](https://www.geekfun.club/docs/dockit/mcp-bridge), [Data Studio Agent quick start](https://www.geekfun.club/docs/data-studio-agent/quick-start), and [MCP server README](https://github.com/geek-fun/data-studio-agent/blob/master/packages/data-studio-mcp/README.md) for details.
 
 ## Key Features
 

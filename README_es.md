@@ -62,26 +62,47 @@ DocKit reemplaza consolas de navegador como Kibana y AWS Console con una única 
   <img src="https://img.shields.io/badge/Website-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
 </a>
 
-## Community vs Ultimate
+### Integración con agentes de IA (MCP)
 
-DocKit sigue una única compilación oficial con un modo Community/Ultimate en tiempo de ejecución (el código fuente permanece bajo Apache-2.0).
+DocKit integra un **Puente MCP** HTTP local (`127.0.0.1`) y funciona con el servidor de código abierto [Data Studio MCP (`@geek-fun/data-studio-mcp`)](https://github.com/geek-fun/data-studio-agent) para que los agentes de programación con IA consulten y administren tus bases de datos Elasticsearch, OpenSearch, MongoDB y DynamoDB usando conexiones ya configuradas en DocKit. Las credenciales permanecen en tu equipo y nunca cruzan el límite de MCP: los agentes solo ven IDs de conexión opacos.
 
-**Community (gratis para siempre):** todas las fuentes de datos (Elasticsearch / OpenSearch / DynamoDB / MongoDB / EasySearch), conexiones ilimitadas con autenticación directa básica (usuario/contraseña, claves de acceso estáticas), TLS, cifrado de credenciales en el llavero del sistema operativo, los editores completos basados en Monaco y los constructores visuales de consultas, exploración y edición en línea, exportación de conjuntos de resultados (CSV / JSON / Markdown / copiar), historial de consultas y consultas guardadas, exploración de metadatos, DynamoDB Local.
+```bash
+# Claude Code
+claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 
-**Ultimate ($9.9/mes · $99/año, prueba gratis de 7 días):**
+# OpenAI Codex
+codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
 
-| Función | Incluido |
-|---|---|
-| IA — agente, NL2SQL, explicación, optimización, corrección con un clic (usa tu propia clave de LLM) | ✅ |
-| Gestión y monitoreo de clúster — nodos, shards, índices, plantillas, allocation | ✅ |
-| Servidor MCP integrado | ✅ |
-| Importación y exportación por lotes / a nivel de archivo | ✅ |
-| Mejoras de conexión remota — túnel SSH, proxy HTTP/SOCKS | ✅ |
-| Credenciales en la nube — AWS Profile / SSO / IAM | ✅ |
+# O ejecutar directamente
+npx -y @geek-fun/data-studio-mcp
+```
 
-**Bloqueo de versión:** todas las versiones publicadas durante una suscripción activa quedan desbloqueadas para siempre — sin conexión, incluso después de que la suscripción finalice. La prueba de 7 días desbloquea todo durante el periodo de prueba, pero no otorga derechos de bloqueo de versión. Los servicios en la nube (p. ej. sincronización) requieren una suscripción activa.
+<details>
+<summary><strong>Configuración JSON (Cursor, Windsurf, .mcp.json o puerto personalizado)</strong></summary>
 
-Consulta la [página de precios](https://www.geekfun.club/pricing) para más detalles.
+Agrégala a `.mcp.json` (o `.cursor/mcp.json` / `~/.cursor/mcp.json`). Los puertos se descubren automáticamente mediante el archivo de puerto local de DocKit (por defecto `9120`); omite `env` salvo que necesites fijar un puerto específico:
+
+```json
+{
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"],
+      "env": {
+        "DOCKIT_MCP_PORT": "9120"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+Administra el acceso en **Configuración → Puente MCP → Permisos de IA predeterminados** (**Sin acceso**, **Lectura**, **Leer y modificar datos**, **Acceso total** o reglas por acción en **Personalizado**) y sobrescribe conexiones individuales en la sección **Permisos de IA** de cada conexión. Las conexiones configuradas como **Sin acceso** quedan ocultas en el descubrimiento MCP y cada solicitud se vuelve a verificar contra la política antes de ejecutarse. Mantén DocKit en ejecución con **Inicio automático** activado en **Configuración → Puente MCP** (activado por defecto; cerrar la ventana mantiene el puente activo en la barra de menús o bandeja del sistema).
+
+Compatible con Claude Code, OpenAI Codex, Cursor, Windsurf, OpenCode y cualquier cliente compatible con MCP. Permite listar conexiones, inspeccionar índices, mapeos, colecciones y tablas de DynamoDB, ejecutar consultas y realizar operaciones permitidas sobre documentos, índices y tablas. Ejecuta DocKit junto con [SqlKit](https://github.com/geek-fun/sqlkit) para exponer bases de datos NoSQL y SQL a través del mismo servidor MCP.
+
+Consulta la [guía del Puente MCP de DocKit](https://www.geekfun.club/docs/dockit/mcp-bridge), la [guía de inicio rápido de Data Studio Agent](https://www.geekfun.club/docs/data-studio-agent/quick-start) y el [README del servidor MCP](https://github.com/geek-fun/data-studio-agent/blob/master/packages/data-studio-mcp/README.md) para más detalles.
 
 ## Características principales
 
