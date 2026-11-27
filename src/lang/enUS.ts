@@ -2056,11 +2056,27 @@ export const enUS = {
       toolConfirmation: {
         title: 'Tool Confirmation Required',
         targetSource: 'Target source',
+        operation: 'Operation',
+        copy: 'Copy',
+        copied: 'Copied',
+        showAll: 'Show all',
+        showLess: 'Show less',
         allowOnce: 'Allow Once',
         allowAlways: 'Allow Always',
         deny: 'Deny',
         denyAlways: 'Deny Always',
         cancel: 'Cancel',
+        riskDescription: {
+          safe: 'Read-only — does not modify data',
+          elevated: 'Modifies data — review before allowing',
+          destructive: 'Deletes data or alters schema — may be irreversible',
+        },
+        hints: {
+          noWhereClause: 'No WHERE clause detected — may affect all rows',
+          dropsObject: 'Drops a database object — data or structure may be permanently removed',
+          truncates: 'Truncates target — removes all rows',
+          multipleStatements: 'Contains multiple statements in a single call',
+        },
         status: {
           executing: 'Executing…',
           denied: 'Denied',

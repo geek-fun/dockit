@@ -25,3 +25,5 @@ export * from './aiPermissions';
 export * from './agentPrompt';
 
 export * from './sessionLifecycle';
+export * from './toolCallPresentation';
+export * from './codeHighlight';

@@ -2005,11 +2005,27 @@ export const zhTW = {
       toolConfirmation: {
         title: '需要確認工具操作',
         targetSource: '目標來源',
+        operation: '操作',
+        copy: '複製',
+        copied: '已複製',
+        showAll: '展開全部',
+        showLess: '收合',
         allowOnce: '允許一次',
         allowAlways: '一律允許',
         deny: '拒絕',
         denyAlways: '一律拒絕',
         cancel: '取消',
+        riskDescription: {
+          safe: '唯讀操作 — 不會修改資料',
+          elevated: '會修改資料 — 允許前請仔細確認',
+          destructive: '會刪除資料或變更結構 — 可能無法復原',
+        },
+        hints: {
+          noWhereClause: '未偵測到 WHERE 條件 — 可能影響資料表中的所有列',
+          dropsObject: '將刪除資料庫物件 — 資料或結構可能被永久移除',
+          truncates: '將清空目標 — 會刪除所有列',
+          multipleStatements: '單次呼叫包含多條語句',
+        },
         status: {
           executing: '執行中…',
           denied: '已拒絕',

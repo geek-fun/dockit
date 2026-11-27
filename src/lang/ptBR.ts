@@ -2082,11 +2082,28 @@ export const ptBR = {
       toolConfirmation: {
         title: 'Confirmação de Ferramenta Necessária',
         targetSource: 'Fonte de destino',
+        operation: 'Operação',
+        copy: 'Copiar',
+        copied: 'Copiado',
+        showAll: 'Mostrar tudo',
+        showLess: 'Mostrar menos',
         allowOnce: 'Permitir Uma Vez',
         allowAlways: 'Permitir Sempre',
         deny: 'Negar',
         denyAlways: 'Negar Sempre',
         cancel: 'Cancelar',
+        riskDescription: {
+          safe: 'Somente leitura — não modifica os dados',
+          elevated: 'Modifica os dados — revise antes de permitir',
+          destructive: 'Exclui dados ou altera o esquema — pode ser irreversível',
+        },
+        hints: {
+          noWhereClause: 'Nenhuma cláusula WHERE detectada — pode afetar todas as linhas',
+          dropsObject:
+            'Remove um objeto do banco de dados — dados ou estrutura podem ser excluídos permanentemente',
+          truncates: 'Trunca o destino — remove todas as linhas',
+          multipleStatements: 'Contém múltiplas instruções em uma única chamada',
+        },
         status: {
           executing: 'Executando…',
           denied: 'Negado',

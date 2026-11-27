@@ -1997,11 +1997,27 @@ export const zhCN = {
       toolConfirmation: {
         title: '需要确认工具执行',
         targetSource: '目标数据源',
+        operation: '操作',
+        copy: '复制',
+        copied: '已复制',
+        showAll: '展开全部',
+        showLess: '收起',
         allowOnce: '允许一次',
         allowAlways: '始终允许',
         deny: '拒绝',
         denyAlways: '始终拒绝',
         cancel: '取消',
+        riskDescription: {
+          safe: '只读操作 — 不会修改数据',
+          elevated: '会修改数据 — 允许前请仔细确认',
+          destructive: '会删除数据或变更结构 — 可能无法撤销',
+        },
+        hints: {
+          noWhereClause: '未检测到 WHERE 条件 — 可能影响整张表的所有行',
+          dropsObject: '将删除数据库对象 — 数据或结构可能被永久移除',
+          truncates: '将清空目标 — 会删除所有行',
+          multipleStatements: '单次调用包含多条语句',
+        },
         status: {
           executing: '执行中…',
           denied: '已拒绝',

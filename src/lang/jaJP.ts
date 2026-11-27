@@ -2072,11 +2072,28 @@ export const jaJP = {
       toolConfirmation: {
         title: 'ツールの確認が必要です',
         targetSource: '対象ソース',
+        operation: '操作',
+        copy: 'コピー',
+        copied: 'コピーしました',
+        showAll: 'すべて表示',
+        showLess: '折りたたむ',
         allowOnce: '今回のみ許可',
         allowAlways: '常に許可',
         deny: '拒否',
         denyAlways: '常に拒否',
         cancel: 'キャンセル',
+        riskDescription: {
+          safe: '読み取り専用 — データは変更されません',
+          elevated: 'データを変更します — 許可前に内容を確認してください',
+          destructive: 'データを削除またはスキーマを変更します — 元に戻せない可能性があります',
+        },
+        hints: {
+          noWhereClause: 'WHERE 句が検出されませんでした — すべての行に影響する可能性があります',
+          dropsObject:
+            'データベースオブジェクトを削除します — データや構造が完全に削除される可能性があります',
+          truncates: '対象を切り詰めます — すべての行が削除されます',
+          multipleStatements: '1 回の呼び出しに複数のステートメントが含まれています',
+        },
         status: {
           executing: '実行中…',
           denied: '拒否されました',

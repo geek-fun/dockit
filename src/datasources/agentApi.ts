@@ -326,7 +326,7 @@ const onAgentLoopToolCall = (
     tool_name: string;
     risk_level?: 'safe' | 'elevated' | 'destructive';
     confirmation_required?: boolean;
-    arguments: unknown;
+    arguments: Record<string, unknown>;
   }) => void,
 ) => listen('agent-loop-tool-call', e => handler(e.payload as any));
 
@@ -339,7 +339,7 @@ const onAgentLoopToolResult = (
     denied?: boolean;
     denial?: AccessDenial;
     tool_name?: string;
-    arguments?: unknown;
+    arguments?: Record<string, unknown>;
   }) => void,
 ) => listen('agent-loop-tool-result', e => handler(e.payload as any));
 

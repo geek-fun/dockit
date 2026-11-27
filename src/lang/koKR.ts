@@ -2050,11 +2050,28 @@ export const koKR = {
       toolConfirmation: {
         title: '도구 확인 필요',
         targetSource: '대상 소스',
+        operation: '작업',
+        copy: '복사',
+        copied: '복사됨',
+        showAll: '모두 보기',
+        showLess: '접기',
         allowOnce: '한 번 허용',
         allowAlways: '항상 허용',
         deny: '거부',
         denyAlways: '항상 거부',
         cancel: '취소',
+        riskDescription: {
+          safe: '읽기 전용 — 데이터를 변경하지 않습니다',
+          elevated: '데이터를 변경합니다 — 허용하기 전에 검토하세요',
+          destructive: '데이터를 삭제하거나 스키마를 변경합니다 — 되돌릴 수 없을 수 있습니다',
+        },
+        hints: {
+          noWhereClause: 'WHERE 절이 감지되지 않았습니다 — 모든 행에 영향을 줄 수 있습니다',
+          dropsObject:
+            '데이터베이스 개체를 삭제합니다 — 데이터나 구조가 영구적으로 제거될 수 있습니다',
+          truncates: '대상을 비웁니다 — 모든 행이 삭제됩니다',
+          multipleStatements: '한 번의 호출에 여러 문이 포함되어 있습니다',
+        },
         status: {
           executing: '실행 중…',
           denied: '거부됨',
