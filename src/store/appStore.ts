@@ -44,6 +44,7 @@ export type ProviderKind =
   | 'standardcompute'
   | 'uberllm'
   | 'onomeo'
+  | 'llmtr'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -282,6 +283,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['deepseek-v4.1-flash', 'claude-sonnet-5.5', 'gpt-6.2-sol'],
   },
   {
+    kind: 'llmtr',
+    apiCompatibility: 'openai-compatible',
+    label: 'LLMTR',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://llmtr.com/v1',
+    enabled: false,
+    defaultModels: ['qwen/qwen3.8-flash', 'openai/gpt-5.4-mini', 'anthropic/claude-sonnet-5'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -412,6 +422,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   standardcompute: ['StandardCompute'],
   uberllm: ['deepseek/deepseek-v4-flash', 'openai/gpt-5.4-mini', 'anthropic/claude-sonnet-5'],
   onomeo: ['deepseek-v4.1-flash', 'claude-sonnet-5.5', 'gpt-6.2-sol'],
+  llmtr: ['qwen/qwen3.8-flash', 'openai/gpt-5.4-mini', 'anthropic/claude-sonnet-5'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -536,6 +547,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'uberllm';
     case ProviderEnum.ONOMEO:
       return 'onomeo';
+    case ProviderEnum.LLMTR:
+      return 'llmtr';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:

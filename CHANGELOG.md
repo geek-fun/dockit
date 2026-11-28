@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **LLMTR provider preset** — LLMTR (OpenAI compatible, base URL `https://llmtr.com/v1`) is available as an opt-in AI provider in settings
+
 ## [2.0.4] - 2026-11-24
 
 ### Added

@@ -18,6 +18,7 @@ export enum ProviderEnum {
   STANDARD_COMPUTE = 'STANDARD_COMPUTE',
   UBERLLM = 'UBERLLM',
   ONOMEO = 'ONOMEO',
+  LLMTR = 'LLMTR',
   OLLAMA = 'OLLAMA',
   LM_STUDIO = 'LM_STUDIO',
 }
