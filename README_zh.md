@@ -104,7 +104,7 @@ npx -y @geek-fun/data-studio-mcp
 - **表结构检查** — Agent 读取并解释数据库表结构
 - **数据操作** — 通过对话完成增删改查、索引管理等操作
 - **安全机制** — 按源权限控制，破坏性操作需显式确认，凭据不暴露给 LLM
-- **支持的 AI 提供商** — OpenAI、Anthropic、DeepSeek、Requesty、Opper、Atlas Cloud、[API Route](https://api-route.com)、Cheaper Inference、Runcrate、CloudGPU、cheapaimodel、[Standard Compute](https://standardcompute.com)、[MartLLM](https://martllm.com)、[onomeo](https://onomeo.com)、Ollama、LM Studio
+- **支持的 AI 提供商** — OpenAI、Anthropic、DeepSeek、Requesty、Opper、Atlas Cloud、[API Route](https://api-route.com)、Cheaper Inference、Runcrate、CloudGPU、cheapaimodel、[Standard Compute](https://standardcompute.com)、[MartLLM](https://martllm.com)、[onomeo](https://onomeo.com)、[LLMTR](https://llmtr.com)、Ollama、LM Studio
 
 ### DynamoDB
 

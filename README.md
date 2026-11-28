@@ -108,7 +108,7 @@ Describe what you need in natural language — the agent writes queries, inspect
 - **Schema inspection** — agent reads and explains your database schema
 - **Data operations** — CRUD, index management, bulk actions through conversation
 - **Safety** — per-source permissions, confirmation gate for destructive ops, credentials never exposed to the LLM
-- **Supported providers** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Atlas Cloud, [API Route](https://api-route.com), Cheaper Inference, Runcrate, CloudGPU, cheapaimodel, [Standard Compute](https://standardcompute.com), [MartLLM](https://martllm.com), [onomeo](https://onomeo.com), Ollama, LM Studio
+- **Supported providers** — OpenAI, Anthropic, DeepSeek, Requesty, Opper, Atlas Cloud, [API Route](https://api-route.com), Cheaper Inference, Runcrate, CloudGPU, cheapaimodel, [Standard Compute](https://standardcompute.com), [MartLLM](https://martllm.com), [onomeo](https://onomeo.com), [LLMTR](https://llmtr.com), Ollama, LM Studio
 
 ### DynamoDB
 

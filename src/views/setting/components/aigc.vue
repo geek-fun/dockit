@@ -744,6 +744,12 @@ const providerPresets: Record<
     baseUrl: 'https://onomeo.com/v1',
     apiCompatibility: 'openai-compatible',
   },
+  llmtr: {
+    label: 'LLMTR',
+    authMode: 'api-key',
+    baseUrl: 'https://llmtr.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
@@ -832,6 +838,7 @@ const PROVIDER_ICONS: Record<string, string> = {
   standardcompute: 'i-lucide-box',
   uberllm: 'i-lucide-box',
   onomeo: 'i-lucide-box',
+  llmtr: 'i-lucide-box',
   anthropic: 'i-simple-icons-anthropic',
   gemini: 'i-simple-icons-googlegemini',
   grok: 'i-simple-icons-x',
